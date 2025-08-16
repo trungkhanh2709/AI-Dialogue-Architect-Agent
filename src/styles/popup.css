@@ -1,0 +1,91 @@
+* {
+  margin: 0;
+  padding: 0;
+  font-family: Arial, sans-serif;
+}
+ body {
+  width: 400px; 
+  height: auto; 
+}
+.extension-container{
+  padding: 15px;
+
+}
+.agent_name {
+  font-size: 20px;
+  font-weight: bold;
+  text-align: center;
+  margin-bottom: 16px;
+}
+.label_text{
+  font-size: 16px;
+  font-weight: bold;
+  margin-bottom: 8px;
+
+}
+.meeting-form {
+  display: flex;
+  gap: 16px;
+ flex-wrap: wrap; 
+  margin-bottom: 16px;
+}
+
+.meeting-form__company {
+  flex: 1 1 45%;
+  display: flex;
+  flex-direction: column;
+}
+
+.meeting-form__label {
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.meeting-form__input {
+  padding: 8px;
+ width: 100%;
+  box-sizing: border-box;
+    font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+    box-sizing: border-box;
+
+
+}
+
+.meeting-goal-container {
+  display: flex;
+  flex-direction: column;
+  margin-bottom: 16px;
+}
+
+button {
+  padding: 8px 16px;
+  font-size: 14px;
+  border-radius: 4px;
+  border: none;
+  background-color: #007bff;
+  color: white;
+  cursor: pointer;
+}
+
+button:hover {
+  background-color: #0056b3;
+}
+
+/* Optional: style for future log/summary sections */
+#log,
+#live,
+#summary {
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  padding: 8px;
+  margin-top: 8px;
+  font-size: 14px;
+  min-height: 50px;
+}
+
+#btnStartMeeting{
+  float: right;
+  margin-bottom: 20px;
+}
