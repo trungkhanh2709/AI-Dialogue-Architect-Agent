@@ -1,6 +1,8 @@
 import React from "react";
 import "../styles/popup.css";
 export default function PopupPage({ onStartMeeting }) {
+
+  
   return (
     <div>
       <h1>Popup UI</h1>

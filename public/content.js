@@ -1,9 +1,9 @@
 console.log("🔍 Google Meet Caption Logger — Started v3.6.12");
 
-let currentSpeech = {};    // speaker → phần live đang nói
-let speakerTimers = {};    // speaker → timeout id
-let meeting_log = [];      // câu đã finalize
-let lastFinalized = {};    // speaker → toàn bộ câu cuối cùng đã lưu
+let currentSpeech = {}; // speaker → phần live đang nói
+let speakerTimers = {}; // speaker → timeout id
+let meeting_log = []; // câu đã finalize
+let lastFinalized = {}; // speaker → toàn bộ câu cuối cùng đã lưu
 const SPEAKER_TIMEOUT = 1000; // 1.0s im lặng => finalize
 let lastFinalizedWords = {}; // speaker -> array các từ đã finalize
 
@@ -12,10 +12,10 @@ function cleanMessage(msg) {
 }
 
 function sendUpdateLive() {
- try {
+  try {
     chrome.runtime.sendMessage({
       type: "LIVE_TRANSCRIPT",
-      payload: { action: "update_live", currentSpeech }
+      payload: { action: "update_live", currentSpeech },
     });
   } catch (err) {
     console.warn("⚠️ sendUpdateLive failed:", err);
@@ -40,80 +40,79 @@ function finalizeSpeech(speaker) {
   const message = currentSpeech[speaker];
   if (!message) return;
 
-  const finalized = `${speaker}: "${message}"`;
-  meeting_log.push(finalized);
-
-  // Cập nhật lastFinalizedWords
-  const words = message.split(/\s+/);
-  lastFinalizedWords[speaker] = lastFinalizedWords[speaker]
-    ? lastFinalizedWords[speaker].concat(words)
-    : words;
-
-  // Xoá live
+  meeting_log.push(`${speaker}: "${message}"`);
   delete currentSpeech[speaker];
   sendUpdateLive();
+}
 
+function finalizeSentence(speaker, sentence) {
+  if (!sentence) return;
+
+  // Lấy delta: chỉ những từ chưa finalize
+  const words = sentence.split(/\s+/);
+  const finalizedWords = lastFinalizedWords[speaker] || [];
+  const deltaWords = words.filter((w) => !finalizedWords.includes(w));
+  if (!deltaWords.length) return; // nếu không có từ mới thì thôi
+
+  // Lưu delta mới
+  lastFinalizedWords[speaker] = [...finalizedWords, ...deltaWords];
+
+  const deltaText = deltaWords.join(" ");
   chrome.runtime.sendMessage({
     type: "LIVE_TRANSCRIPT",
-    payload: { action: "finalize", speaker, meeting_log }
+    payload: { action: "finalize", speaker, finalized: deltaText },
   });
 
-  console.log("📜 Finalized:", finalized);
+  // Xóa live đã finalize
+  delete currentSpeech[speaker];
 }
 
 function handleCaptions() {
-  try {
-    const captionBlocks = document.querySelectorAll("div.nMcdL.bj4p3b");
+  const captionBlocks = document.querySelectorAll("div.nMcdL.bj4p3b");
+  captionBlocks.forEach((block) => {
+    const nameEl = block.querySelector("span.NWpY1d");
+    const textEl = block.querySelector("div.ygicle.VbkSUe");
+    if (!nameEl || !textEl) return;
 
-    captionBlocks.forEach((block) => {
-      const nameEl = block.querySelector("span.NWpY1d");
-      const textEl = block.querySelector("div.ygicle.VbkSUe");
+    const speaker = nameEl.textContent.trim();
+    const fullMessage = cleanMessage(textEl.textContent);
+    currentSpeech[speaker] = fullMessage;
 
-      if (nameEl && textEl) {
-        const speaker = nameEl.textContent.trim();
-        let message = cleanMessage(textEl.textContent);
-
-        // Chỉ lấy phần mới chưa finalize
-        message = getDeltaText(speaker, message);
-
-        if (message) {
-          currentSpeech[speaker] = message;
-          sendUpdateLive();
-
-          if (speakerTimers[speaker]) clearTimeout(speakerTimers[speaker]);
-          speakerTimers[speaker] = setTimeout(() => {
-            finalizeSpeech(speaker);
-          }, SPEAKER_TIMEOUT);
-        }
-      }
-    });
-  } catch (err) {
-    console.error("❌ handleCaptions error:", err);
-  }
+    if (speakerTimers[speaker]) clearTimeout(speakerTimers[speaker]);
+    speakerTimers[speaker] = setTimeout(() => {
+      finalizeSentence(speaker, currentSpeech[speaker]);
+    }, SPEAKER_TIMEOUT);
+  });
 }
+
+const observer = new MutationObserver(handleCaptions);
+const container = document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.parentElement;
+if (container) observer.observe(container, { childList: true, subtree: true, characterData: true });
+
 function getDeltaText(speaker, newText) {
   const newWords = cleanMessage(newText).split(/\s+/);
   const finalizedWords = lastFinalizedWords[speaker] || [];
 
   // Lọc ra các từ chưa xuất hiện
-  const deltaWords = newWords.filter(word => !finalizedWords.includes(word));
+  const deltaWords = newWords.filter((word) => !finalizedWords.includes(word));
 
-  return deltaWords.join(' ');
+  return deltaWords.join(" ");
 }
 
-function initObserver(captionContainer) {
+function initObserver(container) {
   if (window._captionObserver) window._captionObserver.disconnect();
   window._captionObserver = new MutationObserver(handleCaptions);
-  window._captionObserver.observe(captionContainer, {
+  window._captionObserver.observe(container, {
     childList: true,
     subtree: true,
-    characterData: true
+    characterData: true,
   });
   console.log("✅ Real-time caption streaming activated!");
 }
 
 function waitForCaptionContainer() {
-  const container = document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.parentElement;
+  const container = document.querySelector("div.nMcdL.bj4p3b")?.parentElement
+    ?.parentElement;
   if (container) {
     initObserver(container);
     return true;
