@@ -1,91 +1,315 @@
 * {
   margin: 0;
   padding: 0;
-  font-family: Arial, sans-serif;
+  box-sizing: border-box;
+  font-family: "Inter", "Arial", sans-serif;
 }
- body {
-  width: 400px; 
-  height: auto; 
-}
-.extension-container{
-  padding: 15px;
 
+body {
+  width: 400px;
+  background: linear-gradient(135deg, #f0f4ff, #f9fbfd);
 }
+
+.extension-container {
+  padding: 24px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+  animation: fadeIn 0.4s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
 .agent_name {
-  font-size: 20px;
-  font-weight: bold;
+  font-size: 28px;
+  font-weight: 700;
   text-align: center;
-  margin-bottom: 16px;
+  color: #2563eb; /* xanh primary kiểu Tailwind */
+  margin-bottom: 24px;
+  letter-spacing: -0.5px;
 }
-.label_text{
-  font-size: 16px;
-  font-weight: bold;
-  margin-bottom: 8px;
 
+.section-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+  margin-bottom: 12px;
+  border-left: 4px solid #2563eb;
+  padding-left: 8px;
 }
+
+.form-section {
+  margin-bottom: 20px;
+  background: #f9fafb;
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid #e5e7eb;
+}
+
 .meeting-form {
   display: flex;
-  gap: 16px;
- flex-wrap: wrap; 
-  margin-bottom: 16px;
+  gap: 14px;
+  flex-wrap: wrap;
 }
 
 .meeting-form__company {
   flex: 1 1 45%;
   display: flex;
   flex-direction: column;
+  margin-bottom: 10px;
 }
 
-.meeting-form__label {
+.meeting-form__company label {
+  font-size: 13px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  color: #374151;
+}
+
+.meeting-form__company input {
+  padding: 10px 12px;
   font-size: 14px;
-  margin-bottom: 4px;
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  transition: all 0.2s ease;
+  background: #fff;
 }
 
-.meeting-form__input {
-  padding: 8px;
- width: 100%;
-  box-sizing: border-box;
-    font-size: 14px;
-  border: 1px solid #ccc;
-  border-radius: 4px;
-    box-sizing: border-box;
-
-
+.meeting-form__company input:focus {
+  border-color: #2563eb;
+  box-shadow: 0 0 6px rgba(37,99,235,0.3);
+  outline: none;
 }
 
-.meeting-goal-container {
+button#btnStartMeeting {
+  width: 100%;
+  padding: 14px;
+  font-size: 16px;
+  font-weight: 600;
+  border: none;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+ 
+}
+
+button#btnStartMeeting:hover {
+  background: linear-gradient(135deg, #1d4ed8, #1e3a8a);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(37,99,235,0.3);
+}
+
+.meeting-form-vertical {
   display: flex;
   flex-direction: column;
-  margin-bottom: 16px;
+  gap: 15px;
 }
 
-button {
-  padding: 8px 16px;
+.meeting-form__group {
+  display: flex;
+  flex-direction: column;
+}
+
+.meeting-form__group label {
   font-size: 14px;
-  border-radius: 4px;
+  font-weight: 500;
+  margin-bottom: 6px;
+  color: #444;
+}
+
+.meeting-form__group input {
+  padding: 10px 12px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.meeting-form__group input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 6px rgba(0,123,255,0.3);
+  outline: none;
+}
+/* Full width input */
+.input-full {
+  width: 100%;
+  padding: 12px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  margin-top: 6px;
+}
+
+.input-full:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0,123,255,0.3);
+  outline: none;
+}
+
+/* Optional Info box */
+.optional-section {
+  margin-top: 20px;
+}
+
+.optional-box {
+  padding: 15px;
+  background: #f9fbfd;
+  border: 1px solid #e0e6ed;
+  border-radius: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.optional-box input {
+  padding: 10px;
+  font-size: 14px;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.optional-box input:focus {
+  border-color: #007bff;
+  box-shadow: 0 0 5px rgba(0,123,255,0.3);
+  outline: none;
+}
+.step-buttons {
+  display: flex;
+    gap: 12px;
+  margin-top: 20px;
+}
+
+#btnNext,
+#btnStartMeeting {
+  padding: 10px 18px;
   border: none;
+  border-radius: 8px;
   background-color: #007bff;
   color: white;
   cursor: pointer;
+  font-size: 14px;
+  transition: background 0.2s;
+ 
 }
-
-button:hover {
+.btn-next-container {
+  display: flex;
+  justify-content: flex-end; /* đẩy nút sang phải */
+  margin-top: 16px;
+}
+#btnNext:hover,
+#btnStartMeeting:hover {
   background-color: #0056b3;
 }
-
-/* Optional: style for future log/summary sections */
-#log,
-#live,
-#summary {
-  border: 1px solid #ccc;
-  border-radius: 4px;
-  padding: 8px;
-  margin-top: 8px;
-  font-size: 14px;
-  min-height: 50px;
+.step-indicator {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 26px 0;
 }
 
-#btnStartMeeting{
-  float: right;
-  margin-bottom: 20px;
+.step-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background-color: #ccc;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+}
+
+.step-circle.active {
+  background-color: #284b8e; /* màu xanh khi active */
+}
+
+.step-line {
+  flex: 0 0 100px; /* cố định độ dài line, ví dụ 40px */
+  height: 3px;
+  background-color: #ccc;
+  margin: 0 4px; /* giảm margin để 2 vòng gần nhau hơn */
+}
+
+button#btnBack {
+
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  background-color: #f9fafb;
+  color: #374151;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s ease;
+}
+
+#btnBack {
+  border: 1px solid #d1d5db;
+  background-color: #f9fafb;
+  color: #374151;
+  padding: 2px 10px;
+}
+
+#btnBack:hover {
+  background-color: #e5e7eb;
+  transform: translateY(-1px);
+}
+
+/* Nút Start Meeting (primary) */
+#btnStartMeeting {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+}
+
+#btnStartMeeting:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+}
+.step-buttons button {
+  flex: 1; /* mỗi nút chiếm đều */
+  height: 48px; /* chiều cao bằng nhau */
+  font-size: 15px;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+/* Back button */
+#btnBack {
+  border: 1px solid #d1d5db;
+  background-color: #f9fafb;
+  color: #374151;
+}
+
+#btnBack:hover {
+  background-color: #e5e7eb;
+  transform: translateY(-1px);
+}
+
+/* Start Meeting button */
+#btnStartMeeting {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+}
+
+#btnStartMeeting:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
+}
+#btnNext {
+  background-color: #2563eb;
+  color: white;
+  border: none;
+}
+#btnNext:hover {
+  background-color: #1d4ed8;
+  transform: translateY(-1px);
 }

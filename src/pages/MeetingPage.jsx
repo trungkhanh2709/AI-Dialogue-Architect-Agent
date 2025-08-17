@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from "react";
 import "../styles/meeting.css";
 
-export default function Meeting() {
+export default function Meeting({ meetingData, onBack }) {
   const [currentSpeech, setCurrentSpeech] = useState({});
   const [meetingLog, setMeetingLog] = useState([]);
   const [lastFinalizedWords, setLastFinalizedWords] = useState({});
@@ -88,8 +88,36 @@ if (action === "finalize" && finalized) {
   }, [currentSpeech, meetingLog]);
   
   
+
+
+
+
+
   return (
     <div>
+
+ <div>
+      <h2>Meeting Page</h2>
+      <button onClick={onBack}>Back</button>
+
+      <div>
+        <h3>Your Company</h3>
+        <p>Name: {meetingData.userCompanyName}</p>
+        <p>Services: {meetingData.userCompanyServices}</p>
+
+        <h3>Customer Company</h3>
+        <p>Name: {meetingData.customerCompanyName}</p>
+        <p>Services: {meetingData.customerCompanyServices}</p>
+
+        <h3>Meeting Info</h3>
+        <p>Goal: {meetingData.meetingGoal}</p>
+        <p>Email: {meetingData.meetingEmail}</p>
+        <p>Message: {meetingData.meetingMessage}</p>
+        <p>Note: {meetingData.meetingNote}</p>
+      </div>
+    </div>
+
+
       <h3>Sale Agent</h3>
 
       {/* Delete duplicate rendering */}
@@ -126,31 +154,8 @@ if (action === "finalize" && finalized) {
       </div>
 
      
-      <div style={{ marginTop: 8 }}>
-        <button
-          style={{
-            backgroundColor: "#3a3a3a",
-            color: "white",
-            border: "none",
-            padding: "8px 16px",
-            cursor: "pointer",
-          }}
-          onClick={() => setSummary(meetingLog.join("\n"))}
-        >
-          Summary
-        </button>
-      </div>
-      <div
-        style={{
-          marginTop: 8,
-          border: "1px solid #ccc",
-          padding: 5,
-          background: "#e0f7fa",
-          minHeight: 40,
-        }}
-      >
-        {summary}
-      </div>
+      
+     
 
       <div className="chat-container" style={{ marginTop: 16 }}>
         <div className="chat-message agent">
