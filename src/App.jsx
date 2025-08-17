@@ -6,9 +6,10 @@ export default function App() {
   const [page, setPage] = useState("popup"); // mặc định ở popup
   const [meetingData, setMeetingData] = useState({}); // state lưu dữ liệu từ popup
 const sampleMeetingData = {
+  userName:"Trung Khánh",
   userCompanyName: "GYMZ Việt Nam",
   userCompanyServices: "Cung cấp gói tập gym, thực phẩm bổ sung, và thiết bị thể hình",
-  
+  prospectName:"Danh",
   customerCompanyName: "Công ty ABC Tech",
   customerCompanyServices: "Giải pháp phần mềm cho doanh nghiệp",
 

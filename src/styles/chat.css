@@ -1,0 +1,44 @@
+/* src/styles/chatui.css */
+.chat-container {
+  max-height: 200px;
+  overflow-y: auto;
+  border: 1px solid #ccc;
+  padding: 8px;
+  border-radius: 10px;
+  background: #f9fafb;
+  margin-top: 16px;
+}
+
+.chat-message {
+  padding: 6px 10px;
+  margin-bottom: 6px;
+  border-radius: 8px;
+}
+
+.chat-message.agent {
+  background-color: #e0e6ed;
+  text-align: left;
+}
+
+.chat-message.user {
+  background-color: #2563eb;
+  color: white;
+  text-align: right;
+}
+.chat-message {
+  padding: 8px;
+  margin: 4px;
+  border-radius: 6px;
+  max-width: 70%;
+}
+
+.chat-message.left {
+  background-color: #f0f0f0;
+  text-align: left;
+}
+
+.chat-message.right {
+  background-color: #d1e7dd;
+  text-align: right;
+  margin-left: auto;
+}

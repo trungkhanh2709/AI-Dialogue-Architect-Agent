@@ -4,7 +4,7 @@ let currentSpeech = {}; // speaker → phần live đang nói
 let speakerTimers = {}; // speaker → timeout id
 let meeting_log = []; // câu đã finalize
 let lastFinalized = {}; // speaker → toàn bộ câu cuối cùng đã lưu
-const SPEAKER_TIMEOUT = 1000; // 1.0s im lặng => finalize
+const SPEAKER_TIMEOUT = 2000; // 1.0s im lặng => finalize
 let lastFinalizedWords = {}; // speaker -> array các từ đã finalize
 
 function cleanMessage(msg) {
@@ -64,13 +64,15 @@ function finalizeSentence(speaker, sentence) {
 }
 
 
+
+
 function handleCaptions() {
   const captionBlocks = document.querySelectorAll("div.nMcdL.bj4p3b");
   captionBlocks.forEach((block) => {
     const nameEl = block.querySelector("span.NWpY1d");
     const textEl = block.querySelector("div.ygicle.VbkSUe");
     if (!nameEl || !textEl) return;
-
+    
     const speaker = nameEl.textContent.trim();
     const fullMessage = cleanMessage(textEl.textContent);
     currentSpeech[speaker] = fullMessage;
