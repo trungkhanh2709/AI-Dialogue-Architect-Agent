@@ -11,12 +11,19 @@ export default function Meeting({ meetingData, onBack }) {
   const speakerTimers = useRef({});
   const liveRef = useRef(null);
   const [chatMessages, setChatMessages] = useState([]);
-  const [myName, setMyName] = useState("You");
+  const [agentTyping, setAgentTyping] = useState(false);
+
+const sampleMessages = [
+  { speaker: "You", text: "Hi Agent!", isAgent: false },
+  { speaker: "Agent", text: "Hello! I'm here to help with your questions.", isAgent: true },
+  { speaker: "You", text: "Can you help me with my project?", isAgent: false },
+  { speaker: "Agent", text: "Sure! Let's start.", isAgent: true },
+];
+
 
 
 
   function isMySpeech(speaker) {
-
     return speaker === "You" || speaker === "Bạn";
   }
 
@@ -28,17 +35,19 @@ export default function Meeting({ meetingData, onBack }) {
 
   // Listener chrome message
 
-
-
-
   useEffect(() => {
     const handleMessage = (message) => {
       if (message.type !== "LIVE_TRANSCRIPT") return;
-      const { action, speaker, finalized, currentSpeech: liveSpeech } = message.payload;
+      const {
+        action,
+        speaker,
+        finalized,
+        currentSpeech: liveSpeech,
+      } = message.payload;
 
+      // Cập nhật live speech
       if (action === "update_live" && liveSpeech) {
-        setCurrentSpeech(prev => {
-          // loại bỏ phần duplicate với lastFinalizedWords
+        setCurrentSpeech((prev) => {
           const updated = { ...prev };
           Object.entries(liveSpeech).forEach(([spk, text]) => {
             const deltaText = getDeltaText(spk, text);
@@ -48,46 +57,51 @@ export default function Meeting({ meetingData, onBack }) {
         });
       }
 
+      // Xử lý finalize
       if (action === "finalize" && finalized) {
-        setMeetingLog(prev => {
-          // tránh duplicate
-              if (prev.some(l => l === `${speaker}: "${finalized}"`)) return prev;
-    const newLog = [...prev, `${speaker}: "${finalized}"`];
+        setMeetingLog((prev) => {
+          const newLogEntry = `${speaker}: "${finalized}"`;
 
-          
+          if (prev.some((l) => l === newLogEntry)) return prev;
+
+          const updatedLog = [...prev, newLogEntry];
+
+          // Nếu không phải là bạn, thêm vào chat và gửi request AI
+          if (!isMySpeech(speaker)) {
+            const newMsg = { speaker, text: finalized, isMe: false };
+            setChatMessages((prevMsgs) => {
+              const exists = prevMsgs.some(
+                (msg) => msg.speaker === speaker && msg.text === finalized
+              );
+              if (exists) return prevMsgs;
+              return [...prevMsgs, newMsg];
+            });
+
+            // Gọi sendMessageToAgent ngay trong callback, truyền log mới nhất
+            sendMessageToAgent({ speaker, text: finalized }, updatedLog);
+          }
+
+          return updatedLog;
         });
 
-        if (!isMySpeech(speaker)) {
-          const newMsg = { speaker, text: finalized, isMe: false };
-          setChatMessages(prev => {
-            const exists = prev.some(msg => msg.speaker === speaker && msg.text === finalized);
-            if (exists) return prev;
-            return [...prev, newMsg];
-          });
-
-          // gửi request cho server AI
-          sendMessageToAgent({ speaker, text: finalized });
-        }
-
-        // Xóa live của speaker đã finalize
-        setCurrentSpeech(prev => {
+        // Xóa live speech của speaker đã finalize
+        setCurrentSpeech((prev) => {
           const updated = { ...prev };
           delete updated[speaker];
           return updated;
         });
 
-        // Cập nhật lastFinalizedWords React state luôn
-        setLastFinalizedWords(prev => ({
+        // Cập nhật lastFinalizedWords
+        setLastFinalizedWords((prev) => ({
           ...prev,
-          [speaker]: [...(prev[speaker] || []), ...finalized.split(/\s+/)]
+          [speaker]: [...(prev[speaker] || []), ...finalized.split(/\s+/)],
         }));
       }
     };
+
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
   }, []);
-
-
 
   useEffect(() => {
     const finder = setInterval(() => {
@@ -109,14 +123,15 @@ export default function Meeting({ meetingData, onBack }) {
     }
   }, [currentSpeech, meetingLog]);
 
-
-
-  const sendMessageToAgent = async (newMessage) => {
+  const sendMessageToAgent = async (newMessage, log) => {
     try {
-        console.log("===== Current meetingLog =====");
-    console.log(meetingLog);
-    console.log("===== End of meetingLog =====");
-      // Tạo payload
+      setAgentTyping(true);
+
+       setChatMessages((prev) => [
+      ...prev,
+      { speaker: "Agent", text: "Agent đang trả lời...", isAgent: true, isTemp: true },
+    ]);
+
       const payload = {
         userName: meetingData.userName,
         userCompanyName: meetingData.userCompanyName,
@@ -128,11 +143,11 @@ export default function Meeting({ meetingData, onBack }) {
         meetingEmail: meetingData.meetingEmail,
         meetingMessage: meetingData.meetingMessage,
         meetingNote: meetingData.meetingNote,
-        meetingLog: meetingLog.join("\n")
+        meetingLog: log.join("\n"),
       };
-      console.log("meetingLog", meetingLog)
+      console.log("meetingLog", meetingLog);
       const res = await axios.post(
-        "http://127.0.0.1:8000/api/content-generators/ai_sales_agent1",
+        "http://127.0.0.1:8000/api/content-generators/ai_sales_agent",
         payload
       );
 
@@ -140,47 +155,40 @@ export default function Meeting({ meetingData, onBack }) {
         // Lấy response agent
         const agentText = res.data.content;
 
-        // Thêm vào chat UI bên phải
-        setChatMessages(prev => [
-          ...prev,
-          { speaker: "Agent", text: agentText, isMe: false, isAgent: true }
-        ]);
-      }
+      setChatMessages((prev) => {
+        return prev.map((msg) =>
+          msg.isTemp ? { ...msg, text: agentText, isTemp: false } : msg
+        );
+      });
+    }
     } catch (err) {
       console.error("Send to agent failed:", err);
-    }
+       setChatMessages((prev) => {
+      return prev.map((msg) =>
+        msg.isTemp ? { ...msg, text: "Agent không trả lời được 😢", isTemp: false } : msg
+      );
+    });
+    }finally {
+    setAgentTyping(false);
+  }
   };
-
-
 
   return (
     <div>
-
-
       <h3>Sale Agent</h3>
 
       {/* Delete duplicate rendering */}
-      <div style={{ fontWeight: "bold", marginTop: 8, marginBottom: 4 }}>
-        Meeting Log:
-      </div>
+      
       <div
-        style={{
-          maxHeight: 150,
-          overflowY: "auto",
-          border: "1px solid #ccc",
-          padding: 5,
-          background: "#fafafa",
-        }}
+      className="meeting-log-container"
+        
       >
         {meetingLog.map((log, i) => (
           <div key={i}>{log}</div>
         ))}
       </div>
 
-
-      <div style={{ fontWeight: "bold", marginTop: 8, marginBottom: 4 }}>
-        Live Caption:
-      </div>
+     
       <div ref={liveRef}>
         {Object.entries(currentSpeech).map(([speaker, text]) => {
           const deltaText = getDeltaText(speaker, text);
@@ -192,12 +200,8 @@ export default function Meeting({ meetingData, onBack }) {
         })}
       </div>
 
-
-
-      <h3>Chat (Live)</h3>
+      {/* <ChatUI messages={sampleMessages} /> */}
       <ChatUI messages={chatMessages} />
-
-
     </div>
   );
 }

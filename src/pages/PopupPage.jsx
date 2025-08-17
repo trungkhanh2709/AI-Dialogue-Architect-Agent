@@ -15,6 +15,25 @@ export default function PopupPage({ onStartMeeting }) {
     meetingMessage: "",
     meetingNote: ""
   });
+  const [errors, setErrors] = useState({});
+
+
+  const validateStep1 = () => {
+    const newErrors = {};
+
+    if (!formData.userName.trim()) newErrors.userName = "Required field";
+    if (!formData.prospectName.trim()) newErrors.prospectName = "Required field";
+    if (!formData.userCompanyName.trim()) newErrors.userCompanyName = "Required field";
+    if (!formData.userCompanyServices.trim()) newErrors.userCompanyServices = "Required field";
+    if (!formData.customerCompanyName.trim()) newErrors.customerCompanyName = "Required field";
+    if (!formData.customerCompanyServices.trim()) newErrors.customerCompanyServices = "Required field";
+    if (!formData.meetingGoal.trim()) newErrors.meetingGoal = "Required field";
+
+    setErrors(newErrors);
+
+    return Object.keys(newErrors).length === 0; // true nếu valid
+  };
+
 
   const handleChange = (e) => {
     const { id, value } = e.target;
@@ -26,31 +45,7 @@ export default function PopupPage({ onStartMeeting }) {
   };
 
 
-  const sampleMeetingData = {
-  userCompanyName: "GYMZ Việt Nam",
-  userCompanyServices: "Cung cấp gói tập gym, thực phẩm bổ sung, và thiết bị thể hình",
-  
-  customerCompanyName: "Công ty ABC Tech",
-  customerCompanyServices: "Giải pháp phần mềm cho doanh nghiệp",
 
-  meetingGoal: "Giới thiệu gói tập doanh nghiệp & chương trình ưu đãi hợp tác",
-  
-  meetingEmail: `
-Kính gửi anh/chị,
-
-Em là Khánh từ GYMZ Việt Nam. Bên em hiện đang triển khai gói tập gym dành riêng cho nhân viên doanh nghiệp, 
-giúp tăng cường sức khỏe và tinh thần làm việc. Khi đăng ký cho đội ngũ từ 10 người trở lên, anh/chị sẽ nhận được 
-ưu đãi giảm 20% phí thành viên, kèm theo gói tập thử miễn phí trong 7 ngày. 
-
-Rất mong được hẹn lịch để chia sẻ chi tiết hơn và lắng nghe nhu cầu của công ty mình.
-
-Trân trọng,  
-Khánh - GYMZ Việt Nam
-  `,
-
-  meetingMessage: "Xin chào anh/chị, hôm nay em muốn chia sẻ về chương trình hợp tác doanh nghiệp của GYMZ.",
-  meetingNote: "Khách hàng quan tâm đến phúc lợi cho nhân viên, cần nhấn mạnh lợi ích về sức khỏe & tinh thần."
-};
 
   return (
     <div className="extension-container">
@@ -76,22 +71,25 @@ Khánh - GYMZ Việt Nam
             <div className="meeting-form">
               <div className="meeting-form__company">
                 <label htmlFor="userName">Your Name (User A)</label>
+                {errors.userName && <div className="error-text">{errors.userName}</div>}
                 <input
                   type="text"
                   id="userName"
                   placeholder="Enter your name"
                   value={formData.userName}
                   onChange={handleChange}
+                  className={errors.userName ? "input-error" : ""}
                 />
               </div>
               <div className="meeting-form__company">
                 <label htmlFor="prospectName">Prospect’s Name (User B)</label>
+                {errors.userName && <div className="error-text">{errors.prospectName}</div>}
                 <input
                   type="text"
                   id="prospectName"
                   placeholder="Enter prospect's name"
                   value={formData.prospectName}
-                  onChange={handleChange}
+                  onChange={handleChange} className={errors.prospectName ? "input-error" : ""}
                 />
               </div>
             </div>
@@ -103,22 +101,27 @@ Khánh - GYMZ Việt Nam
             <div className="meeting-form">
               <div className="meeting-form__company">
                 <label htmlFor="userCompanyName">Company Name</label>
+                {errors.userName && <div className="error-text">{errors.userCompanyName}</div>}
                 <input
                   type="text"
                   id="userCompanyName"
                   placeholder="Your company name"
                   value={formData.userCompanyName}
                   onChange={handleChange}
+                  className={errors.userCompanyName ? "input-error" : ""}
                 />
               </div>
               <div className="meeting-form__company">
                 <label htmlFor="userCompanyServices">Services</label>
+                {errors.userCompanyServices && <div className="error-text">{errors.userCompanyServices}</div>}
+
                 <input
                   type="text"
                   id="userCompanyServices"
                   placeholder="Services"
                   value={formData.userCompanyServices}
                   onChange={handleChange}
+                  className={errors.userCompanyServices ? "input-error" : ""}
                 />
               </div>
             </div>
@@ -130,22 +133,30 @@ Khánh - GYMZ Việt Nam
             <div className="meeting-form">
               <div className="meeting-form__company">
                 <label htmlFor="customerCompanyName">Company Name</label>
+                {errors.customerCompanyName && <div className="error-text">{errors.customerCompanyName}</div>}
+
                 <input
                   type="text"
                   id="customerCompanyName"
                   placeholder="Customer company name"
                   value={formData.customerCompanyName}
                   onChange={handleChange}
+                  className={errors.customerCompanyName ? "input-error" : ""}
+
                 />
               </div>
               <div className="meeting-form__company">
                 <label htmlFor="customerCompanyServices">Services</label>
+                {errors.customerCompanyServices && <div className="error-text">{errors.customerCompanyServices}</div>}
+
                 <input
                   type="text"
                   id="customerCompanyServices"
                   placeholder="Services"
                   value={formData.customerCompanyServices}
                   onChange={handleChange}
+                  className={errors.customerCompanyServices ? "input-error" : ""}
+
                 />
               </div>
             </div>
@@ -153,22 +164,31 @@ Khánh - GYMZ Việt Nam
 
           {/* Meeting Goal */}
           <section className="form-section">
-            <h2 className="section-title">Meeting Goal</h2>
+            <h2 className="section-title">Meeting Goal</h2>          
+                  {errors.meetingGoal && <div className="error-text">{errors.meetingGoal}</div>}
+
             <input
               type="text"
               id="meetingGoal"
               placeholder="What's the goal of this meeting?"
               value={formData.meetingGoal}
               onChange={handleChange}
-              className="input-full"
+className={`input-full ${errors.meetingGoal ? "input-error" : ""}`}
+              
             />
           </section>
 
           {/* Next Button */}
           <div className="btn-next-container">
-            <button id="btnNext" onClick={() => setStep(2)}>
+            <button
+              id="btnNext"
+              onClick={() => {
+                if (validateStep1()) setStep(2);
+              }}
+            >
               Next →
             </button>
+
           </div>
         </>
       )}

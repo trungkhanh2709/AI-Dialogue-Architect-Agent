@@ -4,7 +4,7 @@ let currentSpeech = {}; // speaker → phần live đang nói
 let speakerTimers = {}; // speaker → timeout id
 let meeting_log = []; // câu đã finalize
 let lastFinalized = {}; // speaker → toàn bộ câu cuối cùng đã lưu
-const SPEAKER_TIMEOUT = 2000; // 1.0s im lặng => finalize
+const SPEAKER_TIMEOUT = 1500; // 1.0s im lặng => finalize
 let lastFinalizedWords = {}; // speaker -> array các từ đã finalize
 
 function cleanMessage(msg) {
