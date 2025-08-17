@@ -48,24 +48,21 @@ function finalizeSpeech(speaker) {
 function finalizeSentence(speaker, sentence) {
   if (!sentence) return;
 
-  // Lấy delta: chỉ những từ chưa finalize
-  const words = sentence.split(/\s+/);
-  const finalizedWords = lastFinalizedWords[speaker] || [];
-  const deltaWords = words.filter((w) => !finalizedWords.includes(w));
-  if (!deltaWords.length) return; // nếu không có từ mới thì thôi
+  const deltaText = getDeltaText(speaker, sentence);
+  if (!deltaText) return;
 
-  // Lưu delta mới
-  lastFinalizedWords[speaker] = [...finalizedWords, ...deltaWords];
-
-  const deltaText = deltaWords.join(" ");
   chrome.runtime.sendMessage({
     type: "LIVE_TRANSCRIPT",
     payload: { action: "finalize", speaker, finalized: deltaText },
   });
 
-  // Xóa live đã finalize
+  // Xóa live
   delete currentSpeech[speaker];
+
+  // Cập nhật lastFinalizedWords local luôn
+  lastFinalizedWords[speaker] = [...(lastFinalizedWords[speaker] || []), ...deltaText.split(/\s+/)];
 }
+
 
 function handleCaptions() {
   const captionBlocks = document.querySelectorAll("div.nMcdL.bj4p3b");

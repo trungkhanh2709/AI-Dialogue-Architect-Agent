@@ -9,42 +9,9 @@ export default function Meeting() {
   const speakerTimers = useRef({});
   const liveRef = useRef(null);
 
-  const SPEAKER_TIMEOUT = 1000;
 
-  const cleanMessage = (msg) => msg.trim().replace(/\s+/g, " ");
 
-  const getDeltaText = (speaker, newText) => {
-    const newWords = cleanMessage(newText).split(/\s+/);
-    const finalizedWords = lastFinalizedWords[speaker] || [];
-    const deltaWords = newWords.filter(
-      (word) => !finalizedWords.includes(word)
-    );
-    return deltaWords.join(" ");
-  };
-
-  const finalizeSpeech = (speaker) => {
-    const message = currentSpeech[speaker];
-    if (!message) return;
-
-    const finalized = `${speaker}: "${message}"`;
-    setMeetingLog((prev) => [...prev, finalized]);
-
-    setLastFinalizedWords((prev) => ({
-      ...prev,
-      [speaker]: prev[speaker]
-        ? [...prev[speaker], ...message.split(/\s+/)]
-        : message.split(/\s+/),
-    }));
-
-    setCurrentSpeech((prev) => {
-      const updated = { ...prev };
-      delete updated[speaker];
-      return updated;
-    });
-
-    console.log("📜 Finalized:", finalized);
-  };
-
+  
   useEffect(() => {
     if (liveRef.current) {
       liveRef.current.scrollTop = liveRef.current.scrollHeight;
@@ -53,68 +20,51 @@ export default function Meeting() {
 
   // Listener chrome message
   
-  const handleCaptions = () => {
-    try {
-      const captionBlocks = document.querySelectorAll("div.nMcdL.bj4p3b");
-      captionBlocks.forEach((block) => {
-        const nameEl = block.querySelector("span.NWpY1d");
-        const textEl = block.querySelector("div.ygicle.VbkSUe");
-        
-        if (nameEl && textEl) {
-          const speaker = nameEl.textContent.trim();
-          let message = cleanMessage(textEl.textContent);
-          message = getDeltaText(speaker, message);
-          
-          if (message) {
-            setCurrentSpeech((prev) => ({ ...prev, [speaker]: message }));
-            
-            if (speakerTimers.current[speaker])
-              clearTimeout(speakerTimers.current[speaker]);
-            speakerTimers.current[speaker] = setTimeout(
-              () => finalizeSpeech(speaker),
-              SPEAKER_TIMEOUT
-            );
-          }
-        }
-      });
-    } catch (err) {
-      console.error("❌ handleCaptions error:", err);
-    }
-  };
   
-  const initObserver = (captionContainer) => {
-    const observer = new MutationObserver(handleCaptions);
-    observer.observe(captionContainer, {
-      childList: true,
-      subtree: true,
-      characterData: true,
-    });
-    console.log("✅ Real-time caption streaming activated!");
-  };
+
   
 useEffect(() => {
-  const handleMessage = (message) => {
-    if (message.type !== "LIVE_TRANSCRIPT") return;
-    const { action, speaker, finalized, currentSpeech: liveSpeech } = message.payload;
+const handleMessage = (message) => {
+  if (message.type !== "LIVE_TRANSCRIPT") return;
+  const { action, speaker, finalized, currentSpeech: liveSpeech } = message.payload;
 
-    if (action === "update_live" && liveSpeech) {
-      setCurrentSpeech(liveSpeech);
-    }
-
-    if (action === "finalize" && finalized) {
-      setMeetingLog((prev) => [...prev, `${speaker}: "${finalized}"`]);
-      // Xóa live của speaker khi finalize
-      setCurrentSpeech((prev) => {
-        const updated = { ...prev };
-        delete updated[speaker];
-        return updated;
+  if (action === "update_live" && liveSpeech) {
+    setCurrentSpeech(prev => {
+      // loại bỏ phần duplicate với lastFinalizedWords
+      const updated = { ...prev };
+      Object.entries(liveSpeech).forEach(([spk, text]) => {
+        const deltaText = getDeltaText(spk, text);
+        if (deltaText) updated[spk] = deltaText;
       });
-    }
-  };
+      return updated;
+    });
+  }
 
+if (action === "finalize" && finalized) {
+  setMeetingLog(prev => {
+    // tránh duplicate
+    if (prev.some(l => l === `${speaker}: "${finalized}"`)) return prev;
+    return [...prev, `${speaker}: "${finalized}"`];
+  });
+
+  // Xóa live của speaker đã finalize
+  setCurrentSpeech(prev => {
+    const updated = { ...prev };
+    delete updated[speaker];
+    return updated;
+  });
+
+  // Cập nhật lastFinalizedWords React state luôn
+  setLastFinalizedWords(prev => ({
+    ...prev,
+    [speaker]: [...(prev[speaker] || []), ...finalized.split(/\s+/)]
+  }));
+}
+};
   chrome.runtime.onMessage.addListener(handleMessage);
   return () => chrome.runtime.onMessage.removeListener(handleMessage);
 }, []);
+
 
 
   useEffect(() => {
@@ -165,11 +115,14 @@ useEffect(() => {
         Live Caption:
       </div>
       <div ref={liveRef}>
-        {Object.entries(currentSpeech).map(([speaker, text]) => (
-          <div key={speaker}>
-            <b>{speaker}:</b> {text}
-          </div>
-        ))}
+       {Object.entries(currentSpeech).map(([speaker, text]) => {
+  const deltaText = getDeltaText(speaker, text);
+  return deltaText ? (
+    <div key={speaker}>
+      <b>{speaker}:</b> {deltaText}
+    </div>
+  ) : null;
+})}
       </div>
 
      
