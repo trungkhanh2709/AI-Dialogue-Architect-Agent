@@ -16,13 +16,15 @@
   border-radius: 24px;
   border: 1px solid rgba(255,255,255,0.2);
   box-shadow: 0 15px 35px rgba(0,0,0,0.05);
-  height: 80vh;
+max-height: 600px; /* chiều cao tối đa */
+  height: 550px;
+  overflow-y: auto;
   transition: all 0.3s ease;
 }
 
 /* Tin nhắn chung */
 .chat-message {
-  max-width: 70%;
+  max-width:75%;
   padding: 16px 24px;
   border-radius: 28px;
   word-wrap: break-word;
