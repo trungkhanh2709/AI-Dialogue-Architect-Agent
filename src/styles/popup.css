@@ -28,8 +28,8 @@ body {
   font-size: 28px;
   font-weight: 700;
   text-align: center;
-  color: #2563eb; /* xanh primary kiểu Tailwind */
-  margin-bottom: 24px;
+  color: #2563eb; 
+  margin-bottom: 5px;
   letter-spacing: -0.5px;
 }
 
@@ -212,7 +212,7 @@ button#btnStartMeeting:hover {
   display: flex;
   align-items: center;
   justify-content: center;
-  margin: 15px 0;
+  margin: 10px 0;
 }
 
 .step-circle {

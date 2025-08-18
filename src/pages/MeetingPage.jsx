@@ -3,6 +3,7 @@ import "../styles/meeting.css";
 import ChatUI from "../component/ChatUI";
 import axios from "axios";
 
+
 export default function Meeting({ meetingData, onBack }) {
   const [currentSpeech, setCurrentSpeech] = useState({});
   const [meetingLog, setMeetingLog] = useState([]);
@@ -10,15 +11,26 @@ export default function Meeting({ meetingData, onBack }) {
   const [summary, setSummary] = useState("(The summary will appear here)");
   const speakerTimers = useRef({});
   const liveRef = useRef(null);
-  const [chatMessages, setChatMessages] = useState([]);
+  const [liveStreamText, setLiveStreamText] = useState({});
+  const prevSpeechRef = useRef({});
+  const [speakingUsers, setSpeakingUsers] = useState({}); // { speaker: true/false }
+
+  const [chatMessages, setChatMessages] = useState([
+    {
+      speaker: "Agent",
+      text: "Xin chào, tôi là trợ lý Sale AI của bạn, tôi có thể giúp bạn tương tác với khách hàng tốt hơn",
+      isAgent: true,
+      isTemp: false,
+    },
+  ]);
   const [agentTyping, setAgentTyping] = useState(false);
 
-const sampleMessages = [
-  { speaker: "You", text: "Hi Agent!", isAgent: false },
-  { speaker: "Agent", text: "Hello! I'm here to help with your questions.", isAgent: true },
-  { speaker: "You", text: "Can you help me with my project?", isAgent: false },
-  { speaker: "Agent", text: "Sure! Let's start.", isAgent: true },
-];
+  const sampleMessages = [
+    { speaker: "You", text: "Hi Agent!", isAgent: false },
+    { speaker: "Agent", text: "Hello! I'm here to help with your questions.", isAgent: true },
+    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
+    { speaker: "Agent", text: "Sure! Let's start.", isAgent: true },
+  ];
 
 
 
@@ -26,6 +38,8 @@ const sampleMessages = [
   function isMySpeech(speaker) {
     return speaker === "You" || speaker === "Bạn";
   }
+
+
 
   useEffect(() => {
     if (liveRef.current) {
@@ -35,49 +49,41 @@ const sampleMessages = [
 
   // Listener chrome message
 
-  useEffect(() => {
+ useEffect(() => {
     const handleMessage = (message) => {
       if (message.type !== "LIVE_TRANSCRIPT") return;
-      const {
-        action,
-        speaker,
-        finalized,
-        currentSpeech: liveSpeech,
-      } = message.payload;
+      const { action, speaker, finalized, currentSpeech: liveSpeech } = message.payload;
 
-      // Cập nhật live speech
+      // --- Update live speech ---
       if (action === "update_live" && liveSpeech) {
         setCurrentSpeech((prev) => {
           const updated = { ...prev };
           Object.entries(liveSpeech).forEach(([spk, text]) => {
             const deltaText = getDeltaText(spk, text);
             if (deltaText) updated[spk] = deltaText;
+
+            // Nếu user đang nói, bật speaking
+            if (!isMySpeech(spk)) {
+              setSpeakingUsers(prev => ({ ...prev, [spk]: true }));
+            }
           });
           return updated;
         });
       }
 
-      // Xử lý finalize
+      // --- Handle finalize ---
       if (action === "finalize" && finalized) {
         setMeetingLog((prev) => {
           const newLogEntry = `${speaker}: "${finalized}"`;
-
-          if (prev.some((l) => l === newLogEntry)) return prev;
-
+          if (prev.includes(newLogEntry)) return prev;
           const updatedLog = [...prev, newLogEntry];
 
-          // Nếu không phải là bạn, thêm vào chat và gửi request AI
           if (!isMySpeech(speaker)) {
-            const newMsg = { speaker, text: finalized, isMe: false };
-            setChatMessages((prevMsgs) => {
-              const exists = prevMsgs.some(
-                (msg) => msg.speaker === speaker && msg.text === finalized
-              );
-              if (exists) return prevMsgs;
-              return [...prevMsgs, newMsg];
-            });
+            // Thêm vào chat
+            setChatMessages((prevMsgs) => [...prevMsgs, { speaker, text: finalized }]);
+            // Tắt speaking
+            setSpeakingUsers(prev => ({ ...prev, [speaker]: false }));
 
-            // Gọi sendMessageToAgent ngay trong callback, truyền log mới nhất
             sendMessageToAgent({ speaker, text: finalized }, updatedLog);
           }
 
@@ -91,7 +97,7 @@ const sampleMessages = [
           return updated;
         });
 
-        // Cập nhật lastFinalizedWords
+        // Cập nhật last finalized words
         setLastFinalizedWords((prev) => ({
           ...prev,
           [speaker]: [...(prev[speaker] || []), ...finalized.split(/\s+/)],
@@ -102,6 +108,7 @@ const sampleMessages = [
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
   }, []);
+
 
   useEffect(() => {
     const finder = setInterval(() => {
@@ -127,10 +134,10 @@ const sampleMessages = [
     try {
       setAgentTyping(true);
 
-       setChatMessages((prev) => [
-      ...prev,
-      { speaker: "Agent", text: "Agent đang trả lời...", isAgent: true, isTemp: true },
-    ]);
+      setChatMessages((prev) => [
+        ...prev,
+        { speaker: "Agent", text: "Agent đang trả lời...", isAgent: true, isTemp: true },
+      ]);
 
       const payload = {
         userName: meetingData.userName,
@@ -145,32 +152,32 @@ const sampleMessages = [
         meetingNote: meetingData.meetingNote,
         meetingLog: log.join("\n"),
       };
-      console.log("meetingLog", meetingLog);
+       console.log("=== Sending payload to AI agent ===");
+    console.log(payload); 
       const res = await axios.post(
         "http://127.0.0.1:8000/api/content-generators/ai_sales_agent",
         payload
       );
 
       if (res.data.status === 200) {
-        // Lấy response agent
-        const agentText = res.data.content;
+      const agentText = res.data.content; // Chỉ lấy text của agent
 
-      setChatMessages((prev) => {
-        return prev.map((msg) =>
+      setChatMessages((prev) =>
+        prev.map((msg) =>
           msg.isTemp ? { ...msg, text: agentText, isTemp: false } : msg
-        );
-      });
+        )
+      );
     }
     } catch (err) {
       console.error("Send to agent failed:", err);
-       setChatMessages((prev) => {
-      return prev.map((msg) =>
-        msg.isTemp ? { ...msg, text: "Agent không trả lời được 😢", isTemp: false } : msg
-      );
-    });
-    }finally {
-    setAgentTyping(false);
-  }
+      setChatMessages((prev) => {
+        return prev.map((msg) =>
+          msg.isTemp ? { ...msg, text: "Agent không trả lời được 😢", isTemp: false } : msg
+        );
+      });
+    } finally {
+      setAgentTyping(false);
+    }
   };
 
   return (
@@ -178,17 +185,17 @@ const sampleMessages = [
       <h3>Sale Agent</h3>
 
       {/* Delete duplicate rendering */}
-      
+
       <div
-      className="meeting-log-container"
-        
+        className="meeting-log-container"
+
       >
         {meetingLog.map((log, i) => (
           <div key={i}>{log}</div>
         ))}
       </div>
 
-     
+
       <div ref={liveRef}>
         {Object.entries(currentSpeech).map(([speaker, text]) => {
           const deltaText = getDeltaText(speaker, text);
@@ -201,7 +208,7 @@ const sampleMessages = [
       </div>
 
       {/* <ChatUI messages={sampleMessages} /> */}
-      <ChatUI messages={chatMessages} />
+      <ChatUI messages={chatMessages} speakingUsers={speakingUsers} />
     </div>
   );
 }

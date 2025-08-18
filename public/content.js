@@ -4,7 +4,7 @@ let currentSpeech = {}; // speaker → phần live đang nói
 let speakerTimers = {}; // speaker → timeout id
 let meeting_log = []; // câu đã finalize
 let lastFinalized = {}; // speaker → toàn bộ câu cuối cùng đã lưu
-const SPEAKER_TIMEOUT = 1500; // 1.0s im lặng => finalize
+const SPEAKER_TIMEOUT = 2000; // 1.0s im lặng => finalize
 let lastFinalizedWords = {}; // speaker -> array các từ đã finalize
 let lastFinalizedText = {}; // speaker → toàn bộ text đã finalize
 
@@ -134,4 +134,4 @@ const finder = setInterval(() => {
   if (waitForCaptionContainer()) clearInterval(finder);
 }, 300);
 
-console.log("⏳ Waiting for caption container...");
+console.log("Waiting for caption container...");
