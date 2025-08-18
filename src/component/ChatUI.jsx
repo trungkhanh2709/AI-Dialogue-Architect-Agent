@@ -18,16 +18,16 @@ export default function ChatUI({ messages }) {
                     key={i}
                 >
                     {!msg.isAgent && <b>{msg.speaker}:</b>}{" "}
- {msg.isTemp ? (
-    <span className="typing-container">
-      <span className="typing-text">Agent đang trả lời </span>
-      <span className="typing-dots">
-        <span></span><span></span><span></span>
-      </span>
-    </span>
-  ) : (
-    msg.text
-  )}
+                    {msg.isTemp ? (
+                        <span className="typing-container">
+                            <span className="typing-text">Agent đang trả lời </span>
+                            <span className="typing-dots">
+                                <span></span><span></span><span></span>
+                            </span>
+                        </span>
+                    ) : (
+                        msg.text
+                    )}
                 </div>
 
 

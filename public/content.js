@@ -6,6 +6,7 @@ let meeting_log = []; // câu đã finalize
 let lastFinalized = {}; // speaker → toàn bộ câu cuối cùng đã lưu
 const SPEAKER_TIMEOUT = 1500; // 1.0s im lặng => finalize
 let lastFinalizedWords = {}; // speaker -> array các từ đã finalize
+let lastFinalizedText = {}; // speaker → toàn bộ text đã finalize
 
 function cleanMessage(msg) {
   return msg.trim().replace(/\s+/g, " ");
@@ -48,19 +49,29 @@ function finalizeSpeech(speaker) {
 function finalizeSentence(speaker, sentence) {
   if (!sentence) return;
 
-  const deltaText = getDeltaText(speaker, sentence);
+  const oldWords = lastFinalizedWords[speaker] || [];
+  const newWords = sentence.trim().split(/\s+/);
+
+  // Tìm delta mới: bỏ những từ đã finalize
+  let deltaStart = 0;
+  while (deltaStart < oldWords.length && deltaStart < newWords.length && oldWords[deltaStart] === newWords[deltaStart]) {
+    deltaStart++;
+  }
+
+  const deltaText = newWords.slice(deltaStart).join(" ");
   if (!deltaText) return;
 
+  // Gửi delta mới
   chrome.runtime.sendMessage({
     type: "LIVE_TRANSCRIPT",
     payload: { action: "finalize", speaker, finalized: deltaText },
   });
 
-  // Xóa live
-  delete currentSpeech[speaker];
+  // Cập nhật lastFinalizedWords
+  lastFinalizedWords[speaker] = newWords;
 
-  // Cập nhật lastFinalizedWords local luôn
-  lastFinalizedWords[speaker] = [...(lastFinalizedWords[speaker] || []), ...deltaText.split(/\s+/)];
+  // Xóa live speech
+  delete currentSpeech[speaker];
 }
 
 
@@ -89,13 +100,13 @@ const container = document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.par
 if (container) observer.observe(container, { childList: true, subtree: true, characterData: true });
 
 function getDeltaText(speaker, newText) {
-  const newWords = cleanMessage(newText).split(/\s+/);
-  const finalizedWords = lastFinalizedWords[speaker] || [];
+  const oldText = lastFinalizedText[speaker] || "";
+  if (!oldText) return newText;
 
-  // Lọc ra các từ chưa xuất hiện
-  const deltaWords = newWords.filter((word) => !finalizedWords.includes(word));
+  // Nếu newText chứa oldText ở đầu => chỉ lấy phần sau
+  if (newText.startsWith(oldText)) return newText.slice(oldText.length).trim();
 
-  return deltaWords.join(" ");
+  return newText; // nếu không trùng prefix
 }
 
 function initObserver(container) {
