@@ -18,7 +18,7 @@ export default function Meeting({ meetingData, onBack }) {
   const [chatMessages, setChatMessages] = useState([
     {
       speaker: "Agent",
-      text: "Xin chào, tôi là trợ lý Sale AI của bạn, tôi có thể giúp bạn tương tác với khách hàng tốt hơn",
+      text: "Hello, I’m your AI Sales Assistant. I can help you interact with your customers more effectively.",
       isAgent: true,
       isTemp: false,
     },
@@ -136,7 +136,7 @@ export default function Meeting({ meetingData, onBack }) {
 
       setChatMessages((prev) => [
         ...prev,
-        { speaker: "Agent", text: "Agent đang trả lời...", isAgent: true, isTemp: true },
+        { speaker: "Agent", text: "The agent is responding...", isAgent: true, isTemp: true },
       ]);
 
       const payload = {
