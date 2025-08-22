@@ -4,21 +4,16 @@
   "version": "1.0",
   "permissions": ["scripting", "activeTab"],
   "host_permissions": ["https://meet.google.com/*"],
-  "action": {
-    "default_popup": "index.html"
-    
-  },
-  "background": {
-    "service_worker": "background.js"
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self'; object-src 'self'"
-  },
+  "action": {},
+  "background": { "service_worker": "background.js" },
   "content_scripts": [
     {
       "matches": ["https://meet.google.com/*"],
       "js": ["content.js"],
       "run_at": "document_idle"
     }
+  ],
+  "web_accessible_resources": [
+    { "resources": ["main.js"], "matches": ["<all_urls>"] }
   ]
 }

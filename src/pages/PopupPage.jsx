@@ -17,35 +17,53 @@ export default function PopupPage({ onStartMeeting }) {
   });
   const [errors, setErrors] = useState({});
 
-
-  const validateStep1 = () => {
+  const validateStep = () => {
     const newErrors = {};
-
-    if (!formData.userName.trim()) newErrors.userName = "Required field";
-    if (!formData.prospectName.trim()) newErrors.prospectName = "Required field";
-    if (!formData.userCompanyName.trim()) newErrors.userCompanyName = "Required field";
-    if (!formData.userCompanyServices.trim()) newErrors.userCompanyServices = "Required field";
-    if (!formData.customerCompanyName.trim()) newErrors.customerCompanyName = "Required field";
-    if (!formData.customerCompanyServices.trim()) newErrors.customerCompanyServices = "Required field";
-    if (!formData.meetingGoal.trim()) newErrors.meetingGoal = "Required field";
-
+    if (step === 1) {
+      if (!formData.userName.trim()) newErrors.userName = "Required field";
+      if (!formData.userCompanyName.trim()) newErrors.userCompanyName = "Required field";
+      if (!formData.userCompanyServices.trim()) newErrors.userCompanyServices = "Required field";
+    }
+    if (step === 2) {
+      if (!formData.prospectName.trim()) newErrors.prospectName = "Required field";
+      if (!formData.customerCompanyName.trim()) newErrors.customerCompanyName = "Required field";
+      if (!formData.customerCompanyServices.trim()) newErrors.customerCompanyServices = "Required field";
+    }
+    if (step === 3) {
+      if (!formData.meetingGoal.trim()) newErrors.meetingGoal = "Required field";
+    }
     setErrors(newErrors);
-
-    return Object.keys(newErrors).length === 0; // true nếu valid
+    return Object.keys(newErrors).length === 0;
   };
-
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    setFormData((prev) => ({ ...prev, [id]: value }));
+    setFormData(prev => ({ ...prev, [id]: value }));
   };
+
+  const handleNext = () => {
+    if (validateStep()) setStep(prev => prev + 1);
+  };
+
+  const handleBack = () => setStep(prev => prev - 1);
 
   const handleStart = () => {
-    onStartMeeting(formData);
+    if (validateStep()) onStartMeeting(formData);
   };
 
-
-
+  const renderInput = (id, label, type = "text") => (
+    <div className="input-group">
+      <label htmlFor={id}>{label}</label>
+      {errors[id] && <div className="error-text">{errors[id]}</div>}
+      <input
+        type={type}
+        id={id}
+        value={formData[id]}
+        onChange={handleChange}
+        className={errors[id] ? "input-error" : ""}
+      />
+    </div>
+  );
 
   return (
     <div className="extension-container">
@@ -53,185 +71,49 @@ export default function PopupPage({ onStartMeeting }) {
 
       {/* Step Indicator */}
       <div className="step-indicator">
-        <div className={`step-circle ${step >= 1 ? "active" : ""}`}>
-          1
-        </div>
-        <div className="step-line"></div>
-        <div className={`step-circle ${step === 2 ? "active" : ""}`}>
-          2
-        </div>
+        {[1, 2, 3].map(num => (
+          <React.Fragment key={num}>
+            <div className={`step-circle ${step >= num ? "active" : ""}`}>{num}</div>
+            {num < 3 && <div className="step-line"></div>}
+          </React.Fragment>
+        ))}
       </div>
 
-      {/* STEP 1 */}
-      {step === 1 && (
-        <>
-          {/* Personal Info */}
-          <section className="form-section">
-            <h2 className="section-title">Personal Info</h2>
-            <div className="meeting-form">
-              <div className="meeting-form__company">
-                <label htmlFor="userName">Your Name (User A)</label>
-                {errors.userName && <div className="error-text">{errors.userName}</div>}
-                <input
-                  type="text"
-                  id="userName"
-                  placeholder="Enter your name"
-                  value={formData.userName}
-                  onChange={handleChange}
-                  className={errors.userName ? "input-error" : ""}
-                />
-              </div>
-              <div className="meeting-form__company">
-                <label htmlFor="prospectName">Prospect’s Name (User B)</label>
-                {errors.userName && <div className="error-text">{errors.prospectName}</div>}
-                <input
-                  type="text"
-                  id="prospectName"
-                  placeholder="Enter prospect's name"
-                  value={formData.prospectName}
-                  onChange={handleChange} className={errors.prospectName ? "input-error" : ""}
-                />
-              </div>
-            </div>
-          </section>
+      {/* SECTION */}
+      <div className="section-card">
+        {step === 1 && (
+          <>
+            <h2>User A – Your Info1</h2>
+            {renderInput("userName", "Your Name")}
+            {renderInput("userCompanyName", "Company Name")}
+            {renderInput("userCompanyServices", "Services")}
+          </>
+        )}
+        {step === 2 && (
+          <>
+            <h2>User B – Prospect Info</h2>
+            {renderInput("prospectName", "Prospect Name")}
+            {renderInput("customerCompanyName", "Customer Company Name")}
+            {renderInput("customerCompanyServices", "Customer Services")}
+          </>
+        )}
+        {step === 3 && (
+          <>
+            <h2>Contextual Information</h2>
+            {renderInput("meetingGoal", "Meeting Goal")}
+            {renderInput("meetingEmail", "Email (Optional)", "email")}
+            {renderInput("meetingMessage", "Message (Optional)")}
+            {renderInput("meetingNote", "Note (Optional)")}
+          </>
+        )}
+      </div>
 
-          {/* Your Company */}
-          <section className="form-section">
-            <h2 className="section-title">Your Company</h2>
-            <div className="meeting-form">
-              <div className="meeting-form__company">
-                <label htmlFor="userCompanyName">Company Name</label>
-                {errors.userName && <div className="error-text">{errors.userCompanyName}</div>}
-                <input
-                  type="text"
-                  id="userCompanyName"
-                  placeholder="Your company name"
-                  value={formData.userCompanyName}
-                  onChange={handleChange}
-                  className={errors.userCompanyName ? "input-error" : ""}
-                />
-              </div>
-              <div className="meeting-form__company">
-                <label htmlFor="userCompanyServices">Services</label>
-                {errors.userCompanyServices && <div className="error-text">{errors.userCompanyServices}</div>}
-
-                <input
-                  type="text"
-                  id="userCompanyServices"
-                  placeholder="Services"
-                  value={formData.userCompanyServices}
-                  onChange={handleChange}
-                  className={errors.userCompanyServices ? "input-error" : ""}
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Customer Company */}
-          <section className="form-section">
-            <h2 className="section-title">Customer's Company</h2>
-            <div className="meeting-form">
-              <div className="meeting-form__company">
-                <label htmlFor="customerCompanyName">Company Name</label>
-                {errors.customerCompanyName && <div className="error-text">{errors.customerCompanyName}</div>}
-
-                <input
-                  type="text"
-                  id="customerCompanyName"
-                  placeholder="Customer company name"
-                  value={formData.customerCompanyName}
-                  onChange={handleChange}
-                  className={errors.customerCompanyName ? "input-error" : ""}
-
-                />
-              </div>
-              <div className="meeting-form__company">
-                <label htmlFor="customerCompanyServices">Services</label>
-                {errors.customerCompanyServices && <div className="error-text">{errors.customerCompanyServices}</div>}
-
-                <input
-                  type="text"
-                  id="customerCompanyServices"
-                  placeholder="Services"
-                  value={formData.customerCompanyServices}
-                  onChange={handleChange}
-                  className={errors.customerCompanyServices ? "input-error" : ""}
-
-                />
-              </div>
-            </div>
-          </section>
-
-          {/* Meeting Goal */}
-          <section className="form-section">
-            <h2 className="section-title">Meeting Goal</h2>          
-                  {errors.meetingGoal && <div className="error-text">{errors.meetingGoal}</div>}
-
-            <input
-              type="text"
-              id="meetingGoal"
-              placeholder="What's the goal of this meeting?"
-              value={formData.meetingGoal}
-              onChange={handleChange}
-className={`input-full ${errors.meetingGoal ? "input-error" : ""}`}
-              
-            />
-          </section>
-
-          {/* Next Button */}
-          <div className="btn-next-container">
-            <button
-              id="btnNext"
-              onClick={() => {
-                if (validateStep1()) setStep(2);
-              }}
-            >
-              Next →
-            </button>
-
-          </div>
-        </>
-      )}
-
-      {/* STEP 2 */}
-      {step === 2 && (
-        <>
-          {/* Optional Info */}
-          <section className="form-section optional-section">
-            <h2 className="section-title">Optional Info</h2>
-            <div className="optional-box">
-              <input
-                type="email"
-                id="meetingEmail"
-                placeholder="Email (optional)"
-                value={formData.meetingEmail}
-                onChange={handleChange}
-              />
-              <input
-                type="text"
-                id="meetingMessage"
-                placeholder="Message (optional)"
-                value={formData.meetingMessage}
-                onChange={handleChange}
-              />
-              <input
-                type="text"
-                id="meetingNote"
-                placeholder="Note (optional)"
-                value={formData.meetingNote}
-                onChange={handleChange}
-              />
-            </div>
-          </section>
-
-          <div className="step-buttons">
-            <button id="btnBack" onClick={() => setStep(1)}>Back</button>
-            <button id="btnStartMeeting" onClick={handleStart}>
-              Start Meeting
-            </button>
-          </div>
-        </>
-      )}
+      {/* Buttons */}
+      <div className="btn-container">
+        {step > 1 && <button className="btn back" onClick={handleBack}>Back</button>}
+        {step < 3 && <button className="btn next" onClick={handleNext}>Next →</button>}
+        {step === 3 && <button className="btn start" onClick={handleStart}>Start Meeting</button>}
+      </div>
     </div>
   );
 }

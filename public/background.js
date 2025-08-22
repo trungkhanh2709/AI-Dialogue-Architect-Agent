@@ -1,3 +1,4 @@
+
 let latestCaptions = [];
 let sharedCaptions = [];
 
@@ -22,4 +23,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   } else if (message.action === 'getCaptions') {
     sendResponse({ captions: sharedCaptions });
   }
+});
+
+chrome.action.onClicked.addListener((tab) => {
+  chrome.scripting.executeScript({
+    target: { tabId: tab.id },
+    files: ['main.js'] // file build từ injectToolbar.js
+  });
 });

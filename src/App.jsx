@@ -3,7 +3,7 @@ import PopupPage from "./pages/PopupPage.jsx";
 import MeetingPage from "./pages/MeetingPage.jsx";
 
 export default function App() {
-  const [page, setPage] = useState("popup"); // mặc định ở popup
+  const [page, setPage] = useState("meeting"); // mặc định ở popup
   const [meetingData, setMeetingData] = useState(null); // lưu dữ liệu từ popup
 const testMeetingData = {
   userName: "Trung Khánh",
@@ -33,19 +33,19 @@ const testMeetingData = {
         />
       )}
 
-      {page === "meeting" && meetingData && (
+      {/* {page === "meeting" && meetingData && (
         <MeetingPage
           meetingData={meetingData} // dùng dữ liệu từ popup
           onBack={() => setPage("popup")}
         />
-      )}
+      )} */}
 
-       {/* {page === "meeting" && testMeetingData && (
+       {page === "meeting" && testMeetingData && (
         <MeetingPage
           meetingData={testMeetingData} // dùng dữ liệu từ popup
           onBack={() => setPage("popup")}
         />
-      )} */}
+      )}
     </>
   );
 }
