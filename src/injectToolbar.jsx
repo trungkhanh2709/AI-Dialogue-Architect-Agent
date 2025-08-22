@@ -1,8 +1,9 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import App from "./App.jsx";
+import App from "./App.jsx"; // App chứa PopupPage và MeetingPage
 
-function initToolbar() {
+export function initToolbar() {
+  // Kiểm tra toolbar đã có chưa
   let toolbar = document.getElementById("toolbar");
   if (!toolbar) {
     toolbar = document.createElement("div");
@@ -13,21 +14,26 @@ function initToolbar() {
       left: "0",
       width: "100%",
       height: "300px",
-      backgroundColor: "rgba(255,255,255,0.95)",
+      backgroundColor: "rgba(255,255,255,0.97)",
       zIndex: "9999",
       boxShadow: "0 2px 5px rgba(0,0,0,0.3)",
-      padding: "5px"
+      padding: "10px",
+      overflowY: "auto",
+       pointerEvents: "none"
     });
     document.body.appendChild(toolbar);
+  } else {
+    // toggle hiển thị
+    toolbar.style.display = toolbar.style.display === "none" ? "block" : "none";
+    if (toolbar.style.display === "none") return;
   }
 
-  // render React app
-  const root = ReactDOM.createRoot(toolbar);
-  root.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>
-  );
+  // render React App vào toolbar
+  if (!window.toolbarRoot) {
+    window.toolbarRoot = ReactDOM.createRoot(toolbar);
+    window.toolbarRoot.render(<App />);
+  }
 }
 
+// tự động init khi inject
 initToolbar();

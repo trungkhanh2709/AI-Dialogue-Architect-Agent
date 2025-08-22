@@ -70,23 +70,27 @@ export default function PopupPage({ onStartMeeting }) {
       <h1 className="agent_name">Sale Agent</h1>
 
       {/* Step Indicator */}
-      <div className="step-indicator">
-        {[1, 2, 3].map(num => (
-          <React.Fragment key={num}>
-            <div className={`step-circle ${step >= num ? "active" : ""}`}>{num}</div>
-            {num < 3 && <div className="step-line"></div>}
-          </React.Fragment>
-        ))}
-      </div>
+     <div className="step-indicator">
+  {[1,2,3].map((num, idx) => (
+    <React.Fragment key={num}>
+      <div className={`step-circle ${step >= num ? "active" : ""}`}>{num}</div>
+      {idx < 2 && (
+        <div className={`step-line ${step > num ? "active" : ""}`}></div>
+      )}
+    </React.Fragment>
+  ))}
+</div>
 
       {/* SECTION */}
       <div className="section-card">
         {step === 1 && (
           <>
-            <h2>User A – Your Info1</h2>
-            {renderInput("userName", "Your Name")}
-            {renderInput("userCompanyName", "Company Name")}
-            {renderInput("userCompanyServices", "Services")}
+            <div className="step-section">
+    <div className="section-title">User A – Your Info</div>
+    {renderInput("userName", "Your Name")}
+    {renderInput("userCompanyName", "Company Name")}
+    {renderInput("userCompanyServices", "Services")}
+  </div>
           </>
         )}
         {step === 2 && (

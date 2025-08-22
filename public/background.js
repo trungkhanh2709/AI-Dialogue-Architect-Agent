@@ -10,11 +10,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 });
 
+// background.js
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "LIVE_TRANSCRIPT") {
-    chrome.runtime.sendMessage(message); // gửi cho popup
+    // Forward message tới tab đang active
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs[0]?.id) return;
+      chrome.tabs.sendMessage(tabs[0].id, message);
+    });
   }
 });
+
 
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {

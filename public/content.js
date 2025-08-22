@@ -1,5 +1,3 @@
-
-
 console.log("🔍 Google Meet Caption Logger — Started v3.6.12");
 
 let currentSpeech = {}; // speaker → phần live đang nói
@@ -9,13 +7,6 @@ let lastFinalized = {}; // speaker → toàn bộ câu cuối cùng đã lưu
 const SPEAKER_TIMEOUT = 2000; // 1.0s im lặng => finalize
 let lastFinalizedWords = {}; // speaker -> array các từ đã finalize
 let lastFinalizedText = {}; // speaker → toàn bộ text đã finalize
-
-
-
-
-
-
-
 
 function cleanMessage(msg) {
   return msg.trim().replace(/\s+/g, " ");
@@ -142,9 +133,5 @@ function waitForCaptionContainer() {
 const finder = setInterval(() => {
   if (waitForCaptionContainer()) clearInterval(finder);
 }, 300);
-
-
-
-
 
 console.log("Waiting for caption container...");
