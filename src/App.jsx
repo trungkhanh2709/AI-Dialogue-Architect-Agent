@@ -1,10 +1,46 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import PopupPage from "./pages/PopupPage.jsx";
 import MeetingPage from "./pages/MeetingPage.jsx";
 
 export default function App() {
-  const [page, setPage] = useState("meeting"); // mặc định ở popup
-  const [meetingData, setMeetingData] = React.useState(null);
+  const [page, setPage] = useState("popup"); // popup hoặc meeting
+  const [meetingData, setMeetingData] = useState(null);
+
+  useEffect(() => {
+    const toolbar = document.getElementById("toolbar");
+    if (!toolbar) return;
+
+    if (page === "popup") {
+      // hiển thị bên phải full height
+      Object.assign(toolbar.style, {
+        top: "0",
+        right: "0",
+        left: "auto",
+        transform: "none",
+        width: "26%",
+        height: "100vh",
+        maxHeight: "100vh",
+        borderRadius: "0",
+        backgroundColor: "white",
+        boxShadow: "0 0 10px rgba(0,0,0,0.3)",
+      });
+    } else if (page === "meeting") {
+      // top-center auto height
+      Object.assign(toolbar.style, {
+        top: "0",
+        left: "50%",
+        right: "auto",
+        transform: "translateX(-50%)",
+        width: "35%",
+        height: "auto",
+        maxHeight: "400px",
+        borderRadius: "24px",
+        backgroundColor: "transparent",
+        boxShadow: "none",
+      });
+    }
+  }, [page]);
+
   const testMeetingData = {
     userName: "Trung Khánh",
     userCompanyName: "GYMZ Corp",
@@ -22,7 +58,7 @@ export default function App() {
     ].join("\n"),
   };
 
-return (
+  return (
     <>
       {page === "popup" && (
         <PopupPage

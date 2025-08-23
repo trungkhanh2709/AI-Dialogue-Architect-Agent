@@ -3,7 +3,6 @@ import ReactDOM from "react-dom/client";
 import App from "./App.jsx"; // App chứa PopupPage và MeetingPage
 
 export function initToolbar() {
-  // Kiểm tra toolbar đã có chưa
   let toolbar = document.getElementById("toolbar");
   if (!toolbar) {
     toolbar = document.createElement("div");
