@@ -11,15 +11,19 @@ export function initToolbar() {
     Object.assign(toolbar.style, {
       position: "fixed",
       top: "0",
-      left: "0",
-      width: "100%",
-      height: "300px",
-      backgroundColor: "rgba(255,255,255,0.97)",
+      left: "50%",
+       transform: "translateX(-50%)",
+      width: "35%",
+      height: "auto",
+      maxHeight: "400px",
+      backgroundColor: "transparent",
+      borderRadius: "24px",
+  border: "1px solid rgba(255, 255, 255, 0.2)",
+
       zIndex: "9999",
-      boxShadow: "0 2px 5px rgba(0,0,0,0.3)",
-      padding: "10px",
-      overflowY: "auto",
-       pointerEvents: "none"
+      // boxShadow: "0 2px 5px rgba(0,0,0,0.3)",
+      boxShadow: "none",
+      overflowY: "disable",
     });
     document.body.appendChild(toolbar);
   } else {

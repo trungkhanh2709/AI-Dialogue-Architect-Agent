@@ -51,6 +51,19 @@ export default function PopupPage({ onStartMeeting }) {
     if (validateStep()) onStartMeeting(formData);
   };
 
+  const renderTextarea = (id, label, rows = 3) => (
+  <div className="input-group">
+    <label htmlFor={id}>{label}</label>
+    {errors[id] && <div className="error-text">{errors[id]}</div>}
+    <textarea
+      id={id}
+      value={formData[id]}
+      onChange={handleChange}
+      rows={rows}
+      className={errors[id] ? "input-error" : ""}
+    />
+  </div>
+);
   const renderInput = (id, label, type = "text") => (
     <div className="input-group">
       <label htmlFor={id}>{label}</label>
@@ -70,27 +83,27 @@ export default function PopupPage({ onStartMeeting }) {
       <h1 className="agent_name">Sale Agent</h1>
 
       {/* Step Indicator */}
-     <div className="step-indicator">
-  {[1,2,3].map((num, idx) => (
-    <React.Fragment key={num}>
-      <div className={`step-circle ${step >= num ? "active" : ""}`}>{num}</div>
-      {idx < 2 && (
-        <div className={`step-line ${step > num ? "active" : ""}`}></div>
-      )}
-    </React.Fragment>
-  ))}
-</div>
+      <div className="step-indicator">
+        {[1, 2, 3].map((num, idx) => (
+          <React.Fragment key={num}>
+            <div className={`step-circle ${step >= num ? "active" : ""}`}>{num}</div>
+            {idx < 2 && (
+              <div className={`step-line ${step > num ? "active" : ""}`}></div>
+            )}
+          </React.Fragment>
+        ))}
+      </div>
 
       {/* SECTION */}
       <div className="section-card">
         {step === 1 && (
           <>
-            <div className="step-section">
-    <div className="section-title">User A – Your Info</div>
-    {renderInput("userName", "Your Name")}
-    {renderInput("userCompanyName", "Company Name")}
-    {renderInput("userCompanyServices", "Services")}
-  </div>
+           
+              <div className="section-title">User A – Your Info</div>
+              {renderInput("userName", "Your Name")}
+              {renderInput("userCompanyName", "Company Name")}
+              {renderTextarea("userCompanyServices", "Services")}
+           
           </>
         )}
         {step === 2 && (
@@ -98,7 +111,7 @@ export default function PopupPage({ onStartMeeting }) {
             <h2>User B – Prospect Info</h2>
             {renderInput("prospectName", "Prospect Name")}
             {renderInput("customerCompanyName", "Customer Company Name")}
-            {renderInput("customerCompanyServices", "Customer Services")}
+            {renderTextarea("customerCompanyServices", "Customer Services")}
           </>
         )}
         {step === 3 && (
@@ -107,7 +120,7 @@ export default function PopupPage({ onStartMeeting }) {
             {renderInput("meetingGoal", "Meeting Goal")}
             {renderInput("meetingEmail", "Email (Optional)", "email")}
             {renderInput("meetingMessage", "Message (Optional)")}
-            {renderInput("meetingNote", "Note (Optional)")}
+            {renderTextarea("meetingNote", "Note (Optional)")}
           </>
         )}
       </div>

@@ -12,6 +12,7 @@ export default function ChatUI({ messages }) {
 
   return (
     <div className="chat-container" ref={chatRef}>
+       <h3 className="sale-agent-text">Sale Agent</h3>
       {messages.map((msg, i) => (
         <div
           className={`chat-message ${msg.isAgent ? "agent" : "user"} ${msg.isTemp ? "typing" : ""}`}

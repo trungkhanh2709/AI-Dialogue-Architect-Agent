@@ -10,23 +10,28 @@
   flex-direction: column;
   gap: 14px;
   padding: 20px;
+  width: 100%;
   overflow-y: auto;
-  background: rgba(255, 255, 255, 0.1);
-  backdrop-filter: blur(15px) saturate(180%);
+  /* background: rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(15px) saturate(180%); */
   border-radius: 24px;
-  border: 1px solid rgba(255,255,255,0.2);
-  box-shadow: 0 15px 35px rgba(0,0,0,0.05);
-max-height: 600px; /* chiều cao tối đa */
-  height: 550px;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  /* box-shadow: 0 15px 35px rgba(0, 0, 0, 0.05); */
+  max-height: 390px;
+  background: "transparent";
+  height: max-content;
+  margin: 0 auto;
   overflow-y: auto;
   transition: all 0.3s ease;
 }
-
+.sale-agent-text{
+  color: #ffffff;
+}
 /* Tin nhắn chung */
 .chat-message {
-  max-width:75%;
-  padding: 16px 24px;
-  border-radius: 28px;
+  max-width: 80%;
+  padding: 7px 15px;
+  border-radius: 20px;
   word-wrap: break-word;
   font-size: 15px;
   line-height: 1.6;
@@ -35,35 +40,40 @@ max-height: 600px; /* chiều cao tối đa */
   animation: fadeInUp 0.35s forwards;
   display: inline-block;
   backdrop-filter: blur(8px) saturate(150%);
-  border: 1px solid rgba(255,255,255,0.15);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.05), 0 4px 10px rgba(255,255,255,0.1);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(255, 255, 255, 0.1);
   transition: all 0.25s ease;
 }
-
 /* Agent (bên phải) */
 .chat-message.agent {
   margin-left: auto;
   background: rgba(0, 200, 255, 0.15);
-  color: #004f7c;
-  box-shadow: 0 8px 25px rgba(0,200,255,0.25), 0 4px 15px rgba(0,0,0,0.05);
-  border: 1px solid rgba(0,200,255,0.3);
+  color: #ffffff; /* đổi thành trắng rõ nét */
+  font-weight: 500;
+  box-shadow: 0 8px 25px rgba(0, 200, 255, 0.25), 
+              0 4px 15px rgba(0, 0, 0, 0.05);
+  border: 1px solid rgba(0, 200, 255, 0.3);
 }
 
 /* User (bên trái) */
 .chat-message.user {
   margin-right: auto;
-  background: rgba(255, 255, 255, 0.25);
-  color: #006064;
-  box-shadow: 0 8px 25px rgba(255,255,255,0.2), 0 4px 15px rgba(0,0,0,0.05);
-  border: 1px solid rgba(255,255,255,0.3);
+  background: rgba(255, 255, 255, 0.05); /* mờ hơn (0.12 thay vì 0.25) */
+  color: #ffffff; /* chữ đen đậm rõ hơn */
+  font-weight: 500;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* giảm shadow cho tự nhiên */
+  border: 1px solid rgba(255, 255, 255, 0.25); /* border mảnh và trong hơn */
+  backdrop-filter: blur(6px) saturate(150%); /* thêm blur để nổi chữ */
 }
+
 
 /* Tên người nói */
 .chat-message b {
   margin-right: 8px;
   font-weight: 600;
-  color: rgba(0,0,0,0.6);
+  color: #ffffff; /* vàng nổi bật */
 }
+
 
 /* Animation keyframes */
 @keyframes fadeInUp {
@@ -71,6 +81,7 @@ max-height: 600px; /* chiều cao tối đa */
     opacity: 0;
     transform: translateY(10px);
   }
+
   100% {
     opacity: 1;
     transform: translateY(0);
@@ -79,7 +90,7 @@ max-height: 600px; /* chiều cao tối đa */
 
 /* Scrollbar đẹp hơn */
 .chat-container::-webkit-scrollbar {
-  width: 8px;
+  width: 5px;
 }
 
 .chat-container::-webkit-scrollbar-thumb {
@@ -96,7 +107,7 @@ max-height: 600px; /* chiều cao tối đa */
 .typing-container {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 3px;
   font-style: italic;
   color: #555;
 }
@@ -111,11 +122,29 @@ max-height: 600px; /* chiều cao tối đa */
   animation: blink 1.4s infinite both;
 }
 
-.typing-dots span:nth-child(1) { animation-delay: 0s; }
-.typing-dots span:nth-child(2) { animation-delay: 0.2s; }
-.typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+.typing-dots span:nth-child(1) {
+  animation-delay: 0s;
+}
+
+.typing-dots span:nth-child(2) {
+  animation-delay: 0.2s;
+}
+
+.typing-dots span:nth-child(3) {
+  animation-delay: 0.4s;
+}
 
 @keyframes blink {
-  0%, 80%, 100% { transform: scale(0); opacity: 0.3; }
-  40% { transform: scale(1); opacity: 1; }
+
+  0%,
+  80%,
+  100% {
+    transform: scale(0);
+    opacity: 0.3;
+  }
+
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
 }

@@ -30,6 +30,11 @@ export default function Meeting({ meetingData, onBack }) {
     { speaker: "Agent", text: "Hello! I'm here to help with your questions.", isAgent: true },
     { speaker: "You", text: "Can you help me with my project?", isAgent: false },
     { speaker: "Agent", text: "Sure! Let's start.", isAgent: true },
+    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
+    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
+    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
+    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
+    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
   ];
 
 
@@ -182,14 +187,13 @@ export default function Meeting({ meetingData, onBack }) {
 
   return (
     <div>
-      <h3>Sale Agent</h3>
 
       {/* Delete duplicate rendering */}
 
       <div
         className="meeting-log-container"
-
-      >
+        
+        >
         {meetingLog.map((log, i) => (
           <div key={i}>{log}</div>
         ))}
@@ -197,6 +201,7 @@ export default function Meeting({ meetingData, onBack }) {
 
 
       <div ref={liveRef}>
+       
         {Object.entries(currentSpeech).map(([speaker, text]) => {
           const deltaText = getDeltaText(speaker, text);
           return deltaText ? (

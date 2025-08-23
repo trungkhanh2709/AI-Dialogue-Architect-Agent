@@ -3,7 +3,7 @@ import PopupPage from "./pages/PopupPage.jsx";
 import MeetingPage from "./pages/MeetingPage.jsx";
 
 export default function App() {
-  const [page, setPage] = useState("meeting"); // mặc định ở popup
+  const [page, setPage] = useState("popup"); // mặc định ở popup
   const [meetingData, setMeetingData] = React.useState(null);
   const testMeetingData = {
     userName: "Trung Khánh",
@@ -32,9 +32,9 @@ return (
           }}
         />
       )}
-      {page === "meeting" && testMeetingData && (
+      {page === "meeting" && meetingData && (
         <MeetingPage
-          meetingData={testMeetingData}
+          meetingData={meetingData}
           onBack={() => setPage("popup")}
         />
       )}

@@ -16,7 +16,7 @@ export default defineConfig({
     },
     target: 'es2017',
     minify: false,
-      server: {
+    server: {
     port: 5173,
     strictPort: true,
   },
