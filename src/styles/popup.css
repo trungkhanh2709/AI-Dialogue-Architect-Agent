@@ -50,9 +50,7 @@ background: transparent;
   align-items: center;
   gap: 8px;
   width: 100%; 
-  overflow: auto;
   border: none;
-  height: auto;
 }
 .section-title{
   color: rgb(0, 0, 0);
@@ -70,7 +68,7 @@ background: transparent;
 }
 
 .input-group label {
-  font-size: 10px;
+  font-size: 12px;
   margin-bottom: 2px;
   color: #000000;
 }
@@ -97,7 +95,7 @@ background: transparent;
   border-radius: 6px;
   box-sizing: border-box;
   resize: vertical; /* cho phép kéo dài nếu muốn */
-  min-height: 70px;
+  min-height: 150px;
 }
 
 .input-group textarea:focus {
@@ -114,6 +112,7 @@ background: transparent;
 
 /* Khi input bị lỗi */
 .input-error {
+  font-size: small;
   border-color: #ef4444 !important;
   box-shadow: 0 0 4px rgba(239,68,68,0.3);
 }
@@ -165,8 +164,8 @@ width: 80%;
 
 /* Step circle */
 .step-circle {
-  width: 40px;
-  height: 40px;
+  width: 35px;
+  height: 35px;
   border-radius: 50%;
   background-color: #ccc;
   color: white;
@@ -186,7 +185,7 @@ width: 80%;
 
 /* Line giữa các step */
 .step-line {
-  width: 30%;
+  width: 25%;
   height: 3px;
   background-color: #ccc;
   border-radius: 2px;
@@ -195,4 +194,22 @@ width: 80%;
 
 .step-line.active {
   background-color: #2563eb;
+}
+.scrollable-step {
+  max-height: 300px; 
+    overflow-y: auto;
+width: 100%;
+  padding-right: 6px; 
+}
+
+/* tuỳ chỉnh scrollbar cho đẹp */
+.scrollable-step::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollable-step::-webkit-scrollbar-thumb {
+  background-color: rgba(37, 99, 235, 0.5);
+  border-radius: 3px;
+}
+.scrollable-step::-webkit-scrollbar-track {
+  background-color: transparent;
 }

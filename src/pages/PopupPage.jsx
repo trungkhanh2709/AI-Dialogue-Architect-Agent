@@ -114,15 +114,16 @@ export default function PopupPage({ onStartMeeting }) {
             {renderTextarea("customerCompanyServices", "Customer Services")}
           </>
         )}
-        {step === 3 && (
-          <>
-            <h2>Contextual Information</h2>
-            {renderInput("meetingGoal", "Meeting Goal")}
-            {renderInput("meetingEmail", "Email (Optional)", "email")}
-            {renderInput("meetingMessage", "Message (Optional)")}
-            {renderTextarea("meetingNote", "Note (Optional)")}
-          </>
-        )}
+       {step === 3 && (
+  <div className="scrollable-step">
+    <h2>Contextual Information</h2>
+    {renderInput("meetingGoal", "Meeting Goal")}
+    {renderInput("meetingEmail", "Email (Optional)", "email")}
+    {renderInput("meetingMessage", "Message (Optional)")}
+    {renderTextarea("meetingNote", "Note (Optional)")}
+  </div>
+)}
+
       </div>
 
       {/* Buttons */}

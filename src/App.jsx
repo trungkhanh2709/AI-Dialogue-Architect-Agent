@@ -13,14 +13,14 @@ export default function App() {
     if (page === "popup") {
       // hiển thị bên phải full height
       Object.assign(toolbar.style, {
-        top: "0",
-        right: "0",
+        top: "5vh",
+        right: "5vh",
         left: "auto",
         transform: "none",
         width: "26%",
-        height: "100vh",
+        height: "80vh",
         maxHeight: "100vh",
-        borderRadius: "0",
+        borderRadius: "24px",
         backgroundColor: "white",
         boxShadow: "0 0 10px rgba(0,0,0,0.3)",
       });
@@ -45,10 +45,10 @@ export default function App() {
     userName: "Trung Khánh",
     userCompanyName: "GYMZ Corp",
     userCompanyServices: "Gym management software",
-    prospectName: "Nguyễn Văn A",
-    customerCompanyName: "Fitness VN",
-    customerCompanyServices: "Gym & fitness services",
-    meetingGoal: "Demo AI sales agent",
+    prospectName: "Thảo Vân",
+    customerCompanyName: "Beauty Spa",
+    customerCompanyServices: "cung cấp dịch vụ làm đẹp",
+    meetingGoal: "chốt gói dịch vụ gym cho khách hàng",
     meetingEmail: "khankhanh@example.com",
     meetingMessage: "Xin chào, mình muốn demo hệ thống AI bán hàng.",
     meetingNote: "Cuộc họp test nội bộ",
@@ -68,9 +68,9 @@ export default function App() {
           }}
         />
       )}
-      {page === "meeting" && testMeetingData && (
+      {page === "meeting" && meetingData && (
         <MeetingPage
-          meetingData={testMeetingData}
+          meetingData={meetingData}
           onBack={() => setPage("popup")}
         />
       )}
