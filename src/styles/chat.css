@@ -133,7 +133,9 @@
 .typing-dots span:nth-child(3) {
   animation-delay: 0.4s;
 }
-
+.typing-text{
+  color: #ffffff;
+}
 @keyframes blink {
 
   0%,

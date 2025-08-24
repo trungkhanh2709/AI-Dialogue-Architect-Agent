@@ -14,6 +14,7 @@ export default function Meeting({ meetingData, onBack }) {
   const [liveStreamText, setLiveStreamText] = useState({});
   const prevSpeechRef = useRef({});
   const [speakingUsers, setSpeakingUsers] = useState({}); // { speaker: true/false }
+const [chatHistory, setChatHistory] = useState([]);
 
   const [chatMessages, setChatMessages] = useState([
     {
@@ -156,9 +157,9 @@ export default function Meeting({ meetingData, onBack }) {
         meetingMessage: meetingData.meetingMessage,
         meetingNote: meetingData.meetingNote,
         meetingLog: log.join("\n"),
+        msg: chatHistory,
       };
-       console.log("=== Sending payload to AI agent ===");
-    console.log(payload); 
+      
       const res = await axios.post(
         "http://127.0.0.1:8000/api/content-generators/ai_sales_agent",
         payload
@@ -171,7 +172,9 @@ export default function Meeting({ meetingData, onBack }) {
         prev.map((msg) =>
           msg.isTemp ? { ...msg, text: agentText, isTemp: false } : msg
         )
+        
       );
+        setChatHistory(res.data.msg);
     }
     } catch (err) {
       console.error("Send to agent failed:", err);
