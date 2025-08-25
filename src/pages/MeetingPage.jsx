@@ -13,9 +13,8 @@ export default function Meeting({ meetingData, onBack }) {
   const liveRef = useRef(null);
   const [liveStreamText, setLiveStreamText] = useState({});
   const prevSpeechRef = useRef({});
-  const [speakingUsers, setSpeakingUsers] = useState({}); // { speaker: true/false }
-const [chatHistory, setChatHistory] = useState([]);
-
+  const [speakingUsers, setSpeakingUsers] = useState({}); 
+  const [chatHistory, setChatHistory] = useState([]);
   const [chatMessages, setChatMessages] = useState([
     {
       speaker: "Agent",
@@ -25,7 +24,6 @@ const [chatHistory, setChatHistory] = useState([]);
     },
   ]);
   const [agentTyping, setAgentTyping] = useState(false);
-
   const sampleMessages = [
     { speaker: "You", text: "Hi Agent!", isAgent: false },
     { speaker: "Agent", text: "Hello! I'm here to help with your questions.", isAgent: true },
@@ -38,14 +36,9 @@ const [chatHistory, setChatHistory] = useState([]);
     { speaker: "You", text: "Can you help me with my project?", isAgent: false },
   ];
 
-
-
-
   function isMySpeech(speaker) {
     return speaker === "You" || speaker === "Bạn";
   }
-
-
 
   useEffect(() => {
     if (liveRef.current) {
@@ -54,12 +47,10 @@ const [chatHistory, setChatHistory] = useState([]);
   }, [currentSpeech]);
 
   // Listener chrome message
-
- useEffect(() => {
+  useEffect(() => {
     const handleMessage = (message) => {
       if (message.type !== "LIVE_TRANSCRIPT") return;
       const { action, speaker, finalized, currentSpeech: liveSpeech } = message.payload;
-
       // --- Update live speech ---
       if (action === "update_live" && liveSpeech) {
         setCurrentSpeech((prev) => {
@@ -67,7 +58,6 @@ const [chatHistory, setChatHistory] = useState([]);
           Object.entries(liveSpeech).forEach(([spk, text]) => {
             const deltaText = getDeltaText(spk, text);
             if (deltaText) updated[spk] = deltaText;
-
             // Nếu user đang nói, bật speaking
             if (!isMySpeech(spk)) {
               setSpeakingUsers(prev => ({ ...prev, [spk]: true }));
@@ -83,27 +73,21 @@ const [chatHistory, setChatHistory] = useState([]);
           const newLogEntry = `${speaker}: "${finalized}"`;
           if (prev.includes(newLogEntry)) return prev;
           const updatedLog = [...prev, newLogEntry];
-
           if (!isMySpeech(speaker)) {
-            // Thêm vào chat
             setChatMessages((prevMsgs) => [...prevMsgs, { speaker, text: finalized }]);
-            // Tắt speaking
             setSpeakingUsers(prev => ({ ...prev, [speaker]: false }));
-
             sendMessageToAgent({ speaker, text: finalized }, updatedLog);
           }
 
           return updatedLog;
         });
-
-        // Xóa live speech của speaker đã finalize
+        // delete finalize speaker's live speech 
         setCurrentSpeech((prev) => {
           const updated = { ...prev };
           delete updated[speaker];
           return updated;
         });
-
-        // Cập nhật last finalized words
+        // Update last finalized words
         setLastFinalizedWords((prev) => ({
           ...prev,
           [speaker]: [...(prev[speaker] || []), ...finalized.split(/\s+/)],
@@ -159,28 +143,27 @@ const [chatHistory, setChatHistory] = useState([]);
         meetingLog: log.join("\n"),
         msg: chatHistory,
       };
-      
+
       const res = await axios.post(
         "http://127.0.0.1:8000/api/content-generators/ai_sales_agent",
         payload
       );
 
       if (res.data.status === 200) {
-      const agentText = res.data.content; // Chỉ lấy text của agent
+        const agentText = res.data.content;
 
-      setChatMessages((prev) =>
-        prev.map((msg) =>
-          msg.isTemp ? { ...msg, text: agentText, isTemp: false } : msg
-        )
-        
-      );
+        setChatMessages((prev) =>
+          prev.map((msg) =>
+            msg.isTemp ? { ...msg, text: agentText, isTemp: false } : msg
+          )
+        );
         setChatHistory(res.data.msg);
-    }
+      }
     } catch (err) {
       console.error("Send to agent failed:", err);
       setChatMessages((prev) => {
         return prev.map((msg) =>
-          msg.isTemp ? { ...msg, text: "Agent không trả lời được 😢", isTemp: false } : msg
+          msg.isTemp ? { ...msg, text: "Agent is unable to respond 😢", isTemp: false } : msg
         );
       });
     } finally {
@@ -190,21 +173,16 @@ const [chatHistory, setChatHistory] = useState([]);
 
   return (
     <div>
-
       {/* Delete duplicate rendering */}
-
       <div
         className="meeting-log-container"
-        
-        >
+      >
         {meetingLog.map((log, i) => (
           <div key={i}>{log}</div>
         ))}
       </div>
 
-
       <div ref={liveRef}>
-       
         {Object.entries(currentSpeech).map(([speaker, text]) => {
           const deltaText = getDeltaText(speaker, text);
           return deltaText ? (

@@ -9,8 +9,8 @@ export default defineConfig({
     rollupOptions: {
       input: resolve(__dirname, 'src/injectToolbar.jsx'),
       output: {
-        format: 'iife',      // phải IIFE để inject vào page
-        name: 'ToolbarApp',  // biến global
+        format: 'iife',      // Immediately Invoked Function Expression
+        name: 'ToolbarApp',  // global variable name
         entryFileNames: 'main.js'
       }
     },

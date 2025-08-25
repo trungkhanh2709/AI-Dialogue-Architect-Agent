@@ -52,18 +52,18 @@ export default function PopupPage({ onStartMeeting }) {
   };
 
   const renderTextarea = (id, label, rows = 3) => (
-  <div className="input-group">
-    <label htmlFor={id}>{label}</label>
-    {errors[id] && <div className="error-text">{errors[id]}</div>}
-    <textarea
-      id={id}
-      value={formData[id]}
-      onChange={handleChange}
-      rows={rows}
-      className={errors[id] ? "input-error" : ""}
-    />
-  </div>
-);
+    <div className="input-group">
+      <label htmlFor={id}>{label}</label>
+      {errors[id] && <div className="error-text">{errors[id]}</div>}
+      <textarea
+        id={id}
+        value={formData[id]}
+        onChange={handleChange}
+        rows={rows}
+        className={errors[id] ? "input-error" : ""}
+      />
+    </div>
+  );
   const renderInput = (id, label, type = "text") => (
     <div className="input-group">
       <label htmlFor={id}>{label}</label>
@@ -98,12 +98,12 @@ export default function PopupPage({ onStartMeeting }) {
       <div className="section-card">
         {step === 1 && (
           <>
-           
-              <div className="section-title">User A – Your Info</div>
-              {renderInput("userName", "Your Name")}
-              {renderInput("userCompanyName", "Company Name")}
-              {renderTextarea("userCompanyServices", "Services")}
-           
+
+            <div className="section-title">User A – Your Info</div>
+            {renderInput("userName", "Your Name")}
+            {renderInput("userCompanyName", "Company Name")}
+            {renderTextarea("userCompanyServices", "Services")}
+
           </>
         )}
         {step === 2 && (
@@ -114,15 +114,15 @@ export default function PopupPage({ onStartMeeting }) {
             {renderTextarea("customerCompanyServices", "Customer Services")}
           </>
         )}
-       {step === 3 && (
-  <div className="scrollable-step">
-    <h2>Contextual Information</h2>
-    {renderInput("meetingGoal", "Meeting Goal")}
-    {renderInput("meetingEmail", "Email (Optional)", "email")}
-    {renderInput("meetingMessage", "Message (Optional)")}
-    {renderTextarea("meetingNote", "Note (Optional)")}
-  </div>
-)}
+        {step === 3 && (
+          <div className="scrollable-step">
+            <h2>Contextual Information</h2>
+            {renderInput("meetingGoal", "Meeting Goal")}
+            {renderInput("meetingEmail", "Email (Optional)", "email")}
+            {renderInput("meetingMessage", "Message (Optional)")}
+            {renderTextarea("meetingNote", "Note (Optional)")}
+          </div>
+        )}
 
       </div>
 

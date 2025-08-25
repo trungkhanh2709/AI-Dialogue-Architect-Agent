@@ -44,7 +44,7 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(255, 255, 255, 0.1);
   transition: all 0.25s ease;
 }
-/* Agent (bên phải) */
+/* Agent (right side) */
 .chat-message.agent {
   margin-left: auto;
   background: rgba(0, 200, 255, 0.15);
@@ -55,15 +55,15 @@
   border: 1px solid rgba(0, 200, 255, 0.3);
 }
 
-/* User (bên trái) */
+/* User (left side) */
 .chat-message.user {
   margin-right: auto;
-  background: rgba(255, 255, 255, 0.05); /* mờ hơn (0.12 thay vì 0.25) */
-  color: #ffffff; /* chữ đen đậm rõ hơn */
+  background: rgba(255, 255, 255, 0.05);
+  color: #ffffff;
   font-weight: 500;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); /* giảm shadow cho tự nhiên */
-  border: 1px solid rgba(255, 255, 255, 0.25); /* border mảnh và trong hơn */
-  backdrop-filter: blur(6px) saturate(150%); /* thêm blur để nổi chữ */
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); 
+  border: 1px solid rgba(255, 255, 255, 0.25); 
+  backdrop-filter: blur(6px) saturate(150%); 
 }
 
 
@@ -71,7 +71,7 @@
 .chat-message b {
   margin-right: 8px;
   font-weight: 600;
-  color: #ffffff; /* vàng nổi bật */
+  color: #ffffff; 
 }
 
 
@@ -88,7 +88,7 @@
   }
 }
 
-/* Scrollbar đẹp hơn */
+/* Scrollbar */
 .chat-container::-webkit-scrollbar {
   width: 5px;
 }

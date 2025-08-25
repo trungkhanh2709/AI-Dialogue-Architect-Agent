@@ -35,16 +35,7 @@ h3 {
 /* Meeting log */
 .meeting-log-container {
   display: none;
-   flex: 0 0 auto;
-  max-height: 100px;
-  overflow-y: auto;
-  background-color: #fff;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  padding: 8px;
-  font-size: 13px;
-  line-height: 1.4;
-  color: #555;
+ 
 }
 
 /* Live captions */
