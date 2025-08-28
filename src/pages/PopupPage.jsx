@@ -54,34 +54,34 @@ export default function PopupPage({ onStartMeeting }) {
   const renderTextarea = (id, label, rows = 3) => (
     <div className="input-group">
       <label htmlFor={id}>{label}</label>
-      {errors[id] && <div className="error-text">{errors[id]}</div>}
       <textarea
         id={id}
         value={formData[id]}
         onChange={handleChange}
         rows={rows}
         className={errors[id] ? "input-error" : ""}
-      />
+        />
+        {errors[id] && <div className="error-text">{errors[id]}</div>}
     </div>
   );
   const renderInput = (id, label, type = "text") => (
     <div className="input-group">
       <label htmlFor={id}>{label}</label>
-      {errors[id] && <div className="error-text">{errors[id]}</div>}
       <input
         type={type}
         id={id}
         value={formData[id]}
         onChange={handleChange}
         className={errors[id] ? "input-error" : ""}
-      />
+        />
+        {errors[id] && <div className="error-text">{errors[id]}</div>}
     </div>
   );
 
   return (
     <div className="extension-container">
       <p className="agent_name">AI Dialogue Architect Agent</p>
-
+  <div className="blue-glow"></div>
       {/* Step Indicator */}
       <div className="step-indicator">
         {[1, 2, 3].map((num, idx) => (

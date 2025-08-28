@@ -193,8 +193,8 @@ export default function Meeting({ meetingData, onBack }) {
         })}
       </div>
 
-      <ChatUI messages={sampleMessages} />
-      {/* <ChatUI messages={chatMessages} speakingUsers={speakingUsers} /> */}
+      {/* <ChatUI messages={sampleMessages} /> */}
+      <ChatUI messages={chatMessages} speakingUsers={speakingUsers} />
     </div>
   );
 }

@@ -4,10 +4,24 @@
   gap: 14px;
   width: 100%;
   border-radius: 24px;
+  background: linear-gradient(145deg, #10121f, #1a2665ff);
 
   height: auto;
   margin: 0 auto;
   transition: all 0.3s ease;
+}
+.blue-glow {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 200px;
+  height: 200px;
+  background: rgba(37, 99, 235, 0.3);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  filter: blur(50px);
+  z-index: 0;
+  pointer-events: none; 
 }
 
 .agent_name {
@@ -32,7 +46,7 @@
   color: rgb(255, 255, 255);
   font-weight: bold;
   text-align: center;
-  margin-top: 8px;
+  margin-top: 4px;
   font-size: 16px;
 }
 
@@ -53,13 +67,14 @@
 
 .input-group input {
   width: 100%;
-  padding: 10px 12px;
+  padding: 8px 12px;
   font-size: 14px;
   border: 1px solid #d1d5db;
   border-radius: 6px;
   box-sizing: border-box;
   background: rgba(255, 255, 255, 0.05); /* trong suốt nhẹ */
   color: #fff;
+  z-index: 1000;
 }
 
 .input-group input:focus {
@@ -77,6 +92,9 @@
   box-sizing: border-box;
   resize: vertical;
   min-height: 150px;
+  z-index: 1000;
+  color: #fff;
+background: rgba(255, 255, 255, 0.05);
 }
 
 .input-group textarea:focus {
@@ -146,8 +164,8 @@
 
 
 .step-circle {
-  width: 35px;
-  height: 35px;
+  width: 30px;
+  height: 30px;
   border-radius: 50%;
   background-color: #ccc;
   color: white;

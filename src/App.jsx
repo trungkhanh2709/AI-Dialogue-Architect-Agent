@@ -18,10 +18,9 @@ export default function App() {
         left: "auto",
         transform: "none",
         width: "26%",
-        height: "80vh",
-        maxHeight: "80vh",
+        height: "fit-content",
+      
         borderRadius: "24px",
-        background: "linear-gradient(145deg, #10121f, #1a2665ff)",
         boxShadow: "0 0 10px rgba(0,0,0,0.3)",
       });
     } else if (page === "meeting") {

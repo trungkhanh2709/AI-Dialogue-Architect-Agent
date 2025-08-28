@@ -15,7 +15,6 @@ export function initToolbar() {
       transform: "translateX(-50%)",
       width: "35%",
       height: "auto",
-      maxHeight: "400px",
       backgroundColor: "transparent",
       borderRadius: "24px",
       border: "1px solid rgba(255, 255, 255, 0.2)",
