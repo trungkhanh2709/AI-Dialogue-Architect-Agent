@@ -4,21 +4,19 @@ import "../styles/chat.css";
 export default function ChatUI({ messages }) {
   const chatRef = useRef(null);
 
-useEffect(() => {
-  if (chatRef.current) {
-    const lastAgent = chatRef.current.querySelector(".chat-message.agent:last-child");
-    if (lastAgent) {
-      const margin = 10;
-chatRef.current.scrollTop = lastAgent.offsetTop - margin;    
-}
-  }
-}, [messages]);
-
-
+  useEffect(() => {
+    if (chatRef.current) {
+      const lastAgent = chatRef.current.querySelector(".chat-message.agent:last-child");
+      if (lastAgent) {
+        const margin = 10;
+        chatRef.current.scrollTop = lastAgent.offsetTop - margin;
+      }
+    }
+  }, [messages]);
 
   return (
     <div className="chat-container" ref={chatRef}>
-       <h3 className="sale-agent-text">Sale Agent</h3>
+      <h3 className="sale-agent-text">AI Dialogue Architect Agent</h3>
       {messages.map((msg, i) => (
         <div
           className={`chat-message ${msg.isAgent ? "agent" : "user"} ${msg.isTemp ? "typing" : ""}`}

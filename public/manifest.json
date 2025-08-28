@@ -1,6 +1,6 @@
 {
   "manifest_version": 3,
-  "name": "Sale Agent Extension",
+  "name": "AI Dialogue Architect Agent",
   "version": "1.0",
   "permissions": ["scripting", "activeTab"],
   "host_permissions": [

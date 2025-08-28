@@ -145,7 +145,7 @@ export default function Meeting({ meetingData, onBack }) {
       };
 
       const res = await axios.post(
-        "http://127.0.0.1:8000/api/content-generators/ai_sales_agent",
+        "https://api-as.reelsightsai.com/api/content-generators/ai_sales_agent",
         payload
       );
 
@@ -193,8 +193,8 @@ export default function Meeting({ meetingData, onBack }) {
         })}
       </div>
 
-      {/* <ChatUI messages={sampleMessages} /> */}
-      <ChatUI messages={chatMessages} speakingUsers={speakingUsers} />
+      <ChatUI messages={sampleMessages} />
+      {/* <ChatUI messages={chatMessages} speakingUsers={speakingUsers} /> */}
     </div>
   );
 }

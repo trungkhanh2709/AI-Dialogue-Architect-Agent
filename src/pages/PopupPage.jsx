@@ -80,7 +80,7 @@ export default function PopupPage({ onStartMeeting }) {
 
   return (
     <div className="extension-container">
-      <h1 className="agent_name">Sale Agent</h1>
+      <p className="agent_name">AI Dialogue Architect Agent</p>
 
       {/* Step Indicator */}
       <div className="step-indicator">
@@ -108,7 +108,7 @@ export default function PopupPage({ onStartMeeting }) {
         )}
         {step === 2 && (
           <>
-            <h2>User B – Prospect Info</h2>
+            <div className="section-title">User B – Prospect Info</div>
             {renderInput("prospectName", "Prospect Name")}
             {renderInput("customerCompanyName", "Customer Company Name")}
             {renderTextarea("customerCompanyServices", "Customer Services")}
@@ -116,7 +116,7 @@ export default function PopupPage({ onStartMeeting }) {
         )}
         {step === 3 && (
           <div className="scrollable-step">
-            <h2>Contextual Information</h2>
+            <div className="section-title">Contextual Information</div>
             {renderInput("meetingGoal", "Meeting Goal")}
             {renderInput("meetingEmail", "Email (Optional)", "email")}
             {renderInput("meetingMessage", "Message (Optional)")}

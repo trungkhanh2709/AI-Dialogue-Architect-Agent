@@ -3,7 +3,7 @@ import PopupPage from "./pages/PopupPage.jsx";
 import MeetingPage from "./pages/MeetingPage.jsx";
 
 export default function App() {
-  const [page, setPage] = useState("popup"); // popup hoặc meeting
+  const [page, setPage] = useState("popup"); // "popup" or "meeting"
   const [meetingData, setMeetingData] = useState(null);
 
   useEffect(() => {
@@ -11,7 +11,7 @@ export default function App() {
     if (!toolbar) return;
 
     if (page === "popup") {
-      // hiển thị bên phải full height
+      // Display full height right side
       Object.assign(toolbar.style, {
         top: "5vh",
         right: "5vh",
@@ -19,9 +19,9 @@ export default function App() {
         transform: "none",
         width: "26%",
         height: "80vh",
-        maxHeight: "100vh",
+        maxHeight: "80vh",
         borderRadius: "24px",
-        backgroundColor: "white",
+        background: "linear-gradient(145deg, #10121f, #1a2665ff)",
         boxShadow: "0 0 10px rgba(0,0,0,0.3)",
       });
     } else if (page === "meeting") {
@@ -32,8 +32,8 @@ export default function App() {
         right: "auto",
         transform: "translateX(-50%)",
         width: "35%",
-        height: "auto",
-        maxHeight: "400px",
+        height: "50%",
+        
         borderRadius: "24px",
         backgroundColor: "transparent",
         boxShadow: "none",
@@ -68,9 +68,16 @@ export default function App() {
           }}
         />
       )}
-      {page === "meeting" && meetingData && (
+      {/* {page === "meeting" && meetingData && (
         <MeetingPage
           meetingData={meetingData}
+          onBack={() => setPage("popup")}
+        />
+      )} */}
+
+        {page === "meeting" && testMeetingData && (
+        <MeetingPage
+          meetingData={testMeetingData}
           onBack={() => setPage("popup")}
         />
       )}
