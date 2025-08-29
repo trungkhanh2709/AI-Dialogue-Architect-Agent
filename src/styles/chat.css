@@ -14,11 +14,11 @@
   overflow-y: auto;
 
   border-radius: 24px;
-  border: 1px solid rgba(255, 255, 255, 0.2);
- 
+  /* border: 1px solid rgba(255, 255, 255, 0.2); */
+  border: 1px solid rgba(2, 82, 255, 0.999);
+ min-height: 100%;
  
   background: "transparent";
- height: 100%;
   margin: 0 auto;
   overflow-y: auto;
   transition: all 0.3s ease;

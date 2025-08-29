@@ -1,3 +1,4 @@
+//meetingpage.jsx
 import React, { useEffect, useState, useRef } from "react";
 import "../styles/meeting.css";
 import ChatUI from "../component/ChatUI";
@@ -12,8 +13,8 @@ export default function Meeting({ meetingData, onBack }) {
   const speakerTimers = useRef({});
   const liveRef = useRef(null);
   const [liveStreamText, setLiveStreamText] = useState({});
-  const prevSpeechRef = useRef({});
-  const [speakingUsers, setSpeakingUsers] = useState({}); 
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [speakingUsers, setSpeakingUsers] = useState({});
   const [chatHistory, setChatHistory] = useState([]);
   const [chatMessages, setChatMessages] = useState([
     {
@@ -72,8 +73,10 @@ export default function Meeting({ meetingData, onBack }) {
         setMeetingLog((prev) => {
           const newLogEntry = `${speaker}: "${finalized}"`;
           if (prev.includes(newLogEntry)) return prev;
+
+
           const updatedLog = [...prev, newLogEntry];
-          if (!isMySpeech(speaker)) {
+          if (!sessionExpired&&!isMySpeech(speaker)) {
             setChatMessages((prevMsgs) => [...prevMsgs, { speaker, text: finalized }]);
             setSpeakingUsers(prev => ({ ...prev, [speaker]: false }));
             sendMessageToAgent({ speaker, text: finalized }, updatedLog);
@@ -81,6 +84,9 @@ export default function Meeting({ meetingData, onBack }) {
 
           return updatedLog;
         });
+
+
+
         // delete finalize speaker's live speech 
         setCurrentSpeech((prev) => {
           const updated = { ...prev };
@@ -119,8 +125,28 @@ export default function Meeting({ meetingData, onBack }) {
       liveRef.current.scrollTop = liveRef.current.scrollHeight;
     }
   }, [currentSpeech, meetingLog]);
+ useEffect(() => {
+  const handleMessage = (message) => {
+    if (message.type === "SESSION_EXPIRED") {
+      setSessionExpired(true);
+    }
+
+    // Nếu session hết hạn, bỏ qua các LIVE_TRANSCRIPT
+    if (sessionExpired && message.type === "LIVE_TRANSCRIPT") return;
+
+    if (message.type === "LIVE_TRANSCRIPT") {
+      const { action, speaker, finalized, currentSpeech: liveSpeech } = message.payload;
+      // --- xử lý bình thường ---
+    }
+  };
+
+  chrome.runtime.onMessage.addListener(handleMessage);
+  return () => chrome.runtime.onMessage.removeListener(handleMessage);
+}, [sessionExpired]);
+
 
   const sendMessageToAgent = async (newMessage, log) => {
+    if (sessionExpired) return; // chặn gửi nếu hết hạn
     try {
       setAgentTyping(true);
 

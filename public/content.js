@@ -1,3 +1,4 @@
+//content.js
 console.log("🔍 Google Meet Caption Logger — Started v3.6.12");
 
 let currentSpeech = {}; // speaker → phần live đang nói
@@ -7,6 +8,7 @@ let lastFinalized = {}; // speaker → toàn bộ câu cuối cùng đã lưu
 const SPEAKER_TIMEOUT = 2000; // 1.0s im lặng => finalize
 let lastFinalizedWords = {}; // speaker -> array các từ đã finalize
 let lastFinalizedText = {}; // speaker → toàn bộ text đã finalize
+let sessionExpired = false;
 
 function cleanMessage(msg) {
   return msg.trim().replace(/\s+/g, " ");
@@ -22,7 +24,21 @@ function sendUpdateLive() {
     console.warn("⚠️ sendUpdateLive failed:", err);
   }
 }
+chrome.runtime.onMessage.addListener((message) => {
+  if (message.type === "SESSION_EXPIRED") {
+    console.log("⏹ Session expired, stopping caption observer...");
+    sessionExpired = true;
 
+    // Dừng observer
+    if (window._captionObserver) {
+      window._captionObserver.disconnect();
+    }
+
+    // Xóa current speech
+    currentSpeech = {};
+    speakerTimers = {};
+  }
+});
 // Loại bỏ phần trùng lặp với câu đã finalize trước đó
 function removeRepeatedPart(speaker, newText) {
   const oldText = lastFinalized[speaker] || "";

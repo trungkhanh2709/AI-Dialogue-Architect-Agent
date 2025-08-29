@@ -20,7 +20,7 @@ body {
   padding: 15px;
   display: flex;
   flex-direction: column;
- height: fit-content;
+
   gap: 12px;
 }
 
@@ -34,7 +34,8 @@ h3 {
 
 /* Meeting log */
 .meeting-log-container {
-  display: none;
+  /* display: none; */
+  color: #fff;
  
 }
 
