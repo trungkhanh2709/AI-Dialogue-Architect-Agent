@@ -14,7 +14,7 @@ export default function ChatUI({ messages }) {
       }
     }
   }, [messages]);
-  
+
   useEffect(() => {
     // Bật timer khi component mount
     chrome.runtime.sendMessage({ type: "START_TIMER" });

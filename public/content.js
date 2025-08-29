@@ -30,13 +30,7 @@ chrome.runtime.onMessage.addListener((message) => {
     sessionExpired = true;
 
     // Dừng observer
-    if (window._captionObserver) {
-      window._captionObserver.disconnect();
-    }
 
-    // Xóa current speech
-    currentSpeech = {};
-    speakerTimers = {};
   }
 });
 // Loại bỏ phần trùng lặp với câu đã finalize trước đó
