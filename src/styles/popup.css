@@ -1,3 +1,4 @@
+/* popup.css */
 .extension-container {
   display: flex;
   flex-direction: column;
@@ -5,7 +6,7 @@
   width: 100%;
   border-radius: 24px;
   background: linear-gradient(145deg, #10121f, #1a2665ff);
-
+padding: 10px 15px;
   height: auto;
   margin: 0 auto;
   transition: all 0.3s ease;

@@ -1,9 +1,11 @@
+//app.jsx
+
 import React, { useState, useEffect  } from "react";
 import PopupPage from "./pages/PopupPage.jsx";
 import MeetingPage from "./pages/MeetingPage.jsx";
 
 export default function App() {
-  const [page, setPage] = useState("meeting"); // "popup" or "meeting"
+  const [page, setPage] = useState("popup"); // "popup" or "meeting"
   const [meetingData, setMeetingData] = useState(null);
 
   useEffect(() => {
@@ -32,7 +34,6 @@ export default function App() {
         transform: "translateX(-50%)",
         width: "35%",
         height: "50%",
-        
         borderRadius: "24px",
         backgroundColor: "transparent",
         boxShadow: "none",
@@ -67,19 +68,19 @@ export default function App() {
           }}
         />
       )}
-      {/* {page === "meeting" && meetingData && (
+      {page === "meeting" && meetingData && (
         <MeetingPage
           meetingData={meetingData}
           onBack={() => setPage("popup")}
         />
-      )} */}
+      )}
 
-        {page === "meeting" && testMeetingData && (
+        {/* {page === "meeting" && testMeetingData && (
         <MeetingPage
           meetingData={testMeetingData}
           onBack={() => setPage("popup")}
         />
-      )}
+      )} */}
     </>
   );
 }

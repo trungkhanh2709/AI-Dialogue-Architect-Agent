@@ -48,69 +48,69 @@ export default function Meeting({ meetingData, onBack }) {
   }, [currentSpeech]);
 
   // Listener chrome message
-useEffect(() => {
-  const handleMessage = (message) => {
-    if (message.type === "SESSION_EXPIRED") {
-      setSessionExpired(true);
-      return; // dừng luôn, khỏi chạy tiếp
-    }
+  useEffect(() => {
+    const handleMessage = (message) => {
+      if (message.type === "SESSION_EXPIRED") {
+        setSessionExpired(true);
+        return; // dừng luôn, khỏi chạy tiếp
+      }
 
-    if (message.type !== "LIVE_TRANSCRIPT") return;
+      if (message.type !== "LIVE_TRANSCRIPT") return;
 
-    const { action, speaker, finalized, currentSpeech: liveSpeech } = message.payload;
+      const { action, speaker, finalized, currentSpeech: liveSpeech } = message.payload;
 
-    // --- Update live speech ---
-    if (action === "update_live" && liveSpeech) {
-      setCurrentSpeech((prev) => {
-        const updated = { ...prev };
-        Object.entries(liveSpeech).forEach(([spk, text]) => {
-          const deltaText = getDeltaText(spk, text);
-          if (deltaText) updated[spk] = deltaText;
+      // --- Update live speech ---
+      if (action === "update_live" && liveSpeech) {
+        setCurrentSpeech((prev) => {
+          const updated = { ...prev };
+          Object.entries(liveSpeech).forEach(([spk, text]) => {
+            const deltaText = getDeltaText(spk, text);
+            if (deltaText) updated[spk] = deltaText;
 
-          if (!isMySpeech(spk)) {
-            setSpeakingUsers(prev => ({ ...prev, [spk]: true }));
-          }
+            if (!isMySpeech(spk)) {
+              setSpeakingUsers(prev => ({ ...prev, [spk]: true }));
+            }
+          });
+          return updated;
         });
-        return updated;
-      });
-    }
+      }
 
-    // --- Handle finalize ---
-    if (action === "finalize" && finalized) {
-      setMeetingLog((prev) => {
-        const newLogEntry = `${speaker}: "${finalized}"`;
-        if (prev.includes(newLogEntry)) return prev;
+      // --- Handle finalize ---
+      if (action === "finalize" && finalized) {
+        setMeetingLog((prev) => {
+          const newLogEntry = `${speaker}: "${finalized}"`;
+          if (prev.includes(newLogEntry)) return prev;
 
-        const updatedLog = [...prev, newLogEntry];
+          const updatedLog = [...prev, newLogEntry];
 
-        // chỉ gửi agent nếu session chưa hết hạn
-        if (!sessionExpired && !isMySpeech(speaker)) {
-          setChatMessages((prevMsgs) => [...prevMsgs, { speaker, text: finalized }]);
-          setSpeakingUsers(prev => ({ ...prev, [speaker]: false }));
-          sendMessageToAgent({ speaker, text: finalized }, updatedLog);
-        }
+          // chỉ gửi agent nếu session chưa hết hạn
+          if (!sessionExpired && !isMySpeech(speaker)) {
+            setChatMessages((prevMsgs) => [...prevMsgs, { speaker, text: finalized }]);
+            setSpeakingUsers(prev => ({ ...prev, [speaker]: false }));
+            sendMessageToAgent({ speaker, text: finalized }, updatedLog);
+          }
 
-        return updatedLog;
-      });
+          return updatedLog;
+        });
 
-      setCurrentSpeech((prev) => {
-        const updated = { ...prev };
-        delete updated[speaker];
-        return updated;
-      });
+        setCurrentSpeech((prev) => {
+          const updated = { ...prev };
+          delete updated[speaker];
+          return updated;
+        });
 
-      setLastFinalizedWords((prev) => ({
-        ...prev,
-        [speaker]: [...(prev[speaker] || []), ...finalized.split(/\s+/)],
-      }));
-    }
-  };
+        setLastFinalizedWords((prev) => ({
+          ...prev,
+          [speaker]: [...(prev[speaker] || []), ...finalized.split(/\s+/)],
+        }));
+      }
+    };
 
-  chrome.runtime.onMessage.addListener(handleMessage);
-  return () => chrome.runtime.onMessage.removeListener(handleMessage);
-}, [sessionExpired]);
+    chrome.runtime.onMessage.addListener(handleMessage);
+    return () => chrome.runtime.onMessage.removeListener(handleMessage);
+  }, [sessionExpired]);
 
-  
+
 
   useEffect(() => {
     const finder = setInterval(() => {
@@ -131,7 +131,7 @@ useEffect(() => {
       liveRef.current.scrollTop = liveRef.current.scrollHeight;
     }
   }, [currentSpeech, meetingLog]);
-  
+
 
 
   const sendMessageToAgent = async (newMessage, log) => {
@@ -187,7 +187,7 @@ useEffect(() => {
   };
 
   return (
-    <div>
+    <div className="meeting-wrapper">
       {/* Delete duplicate rendering */}
       <div
         className="meeting-log-container"
@@ -207,11 +207,9 @@ useEffect(() => {
           ) : null;
         })}
       </div>
-<div className="meeting-wrapper">
 
-      {/* <ChatUI messages={sampleMessages} /> */}
-      <ChatUI messages={chatMessages} speakingUsers={speakingUsers} />
-</div>
+        {/* <ChatUI messages={sampleMessages} /> */}
+        <ChatUI messages={chatMessages}  onClose={onBack} />
     </div>
   );
 }

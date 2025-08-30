@@ -11,15 +11,14 @@ export function initToolbar() {
     toolbar.id = "toolbar";
     Object.assign(toolbar.style, {
       position: "fixed",
-      top: "0",
+      top: "10px",
       left: "50%",
       transform: "translateX(-50%)",
       width: "35%",
-      height: "auto",
+      height: "50%",
       backgroundColor: "transparent",
       borderRadius: "24px",
       // border: "1px solid rgba(255, 255, 255, 0.2)",
-      border: "1px solid rgba(241, 12, 12, 1)",
       zIndex: "9999",
       boxShadow: "none",
       overflowY: "disable",

@@ -1,30 +1,165 @@
+/* chat.css */
 * {
   margin: 0;
   padding: 0;
   box-sizing: border-box;
   font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
 }
-
 .chat-container {
+  margin-top: 60px; /* tạo khoảng cho timer cố định */
   display: flex;
   flex-direction: column;
   gap: 14px;
   padding: 20px;
   width: 100%;
   overflow-y: auto;
- flex: 1 1 auto;
+  flex: 1;
   border-radius: 24px;
-  /* border: 1px solid rgba(255, 255, 255, 0.2); */
-  border: 1px solid rgba(2, 82, 255, 0.999);
- 
-  background: "transparent";
-  margin: 0 auto;
-  overflow-y: auto;
-  transition: all 0.3s ease;
+  height: calc(100% - 60px); /* tránh bị tràn dưới */
 }
-.sale-agent-text{
+
+.chat-ui{
+  height: 100%;
+  backdrop-filter: blur(10px) saturate(150%);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+  border-radius: 24px;
+
+}
+
+.timer-container {
+  position: fixed;   /* cố định */
+  top: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 10px;
+  z-index: 999;
+  height: 50px; 
+}
+
+.timer-and-text {
+  display: flex;
+  width: auto;
+  align-items: center;
+  justify-content: center;
+  
+}
+
+.record-button {
+
+  position: relative;
+  width: 20px;
+  /* đường kính outer */
+  height: 15px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+}
+
+/* vòng tròn ngoài, nhạt, to hơn */
+.outer-circle {
+  position: absolute;
+  width: 10px;
+  /* lớn hơn vòng trong */
+  height: 10px;
+  border-radius: 50%;
+  background-color: rgba(255, 0, 0, 0.3);
+  /* đỏ nhạt */
+}
+
+/* vòng tròn trong, đậm, nhỏ hơn, nhấp nháy */
+.inner-circle {
+  position: absolute;
+  width: 5px;
+  /* nhỏ hơn vòng ngoài */
+  height: 5px;
+  border-radius: 50%;
+  background-color: rgb(237, 70, 70);
+  /* đỏ đậm */
+  animation: blink 1s steps(1, end) infinite;
+  /* nhấp nháy */
+}
+
+/* keyframes nhấp nháy */
+@keyframes blink {
+
+  0%,
+  49.999% {
+    opacity: 1;
+  }
+
+  50%,
+  100% {
+    opacity: 0;
+  }
+}
+
+.digital-timer {
+  font-size: 10px;
   color: #ffffff;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
 }
+
+.digital-timer .colon.off {
+  opacity: 0;
+  /* dấu : ẩn */
+}
+
+.close-btn {
+  position: relative;
+  width: 25px;
+  height: 25px;
+
+  border-radius: 10px;
+  background: rgba(116, 118, 128, 0.301);
+
+  border: none;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.agent-text {
+  color: #ffffff;
+  font-size: 16px;
+  text-align: center;
+flex: 1; 
+  font-weight: bold;
+}
+.close-btn .line {
+  position: absolute;
+  width: 2px;
+  /* độ dày thanh */
+  height: 14px;
+  /* chiều dài thanh */
+  background-color: #fff;
+  /* màu trắng */
+  top: 50%;
+  left: 50%;
+  border-radius: 24px;
+  transform-origin: center;
+  transform: translate(-50%, -50%) rotate(0deg);
+}
+
+.close-btn .line1 {
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.close-btn .line2 {
+  transform: translate(-50%, -50%) rotate(-45deg);
+}
+
+
+.close-btn:hover {
+
+  background: rgba(116, 118, 128, 0.49);
+}
+
 /* Tin nhắn chung */
 .chat-message {
   max-width: 80%;
@@ -42,14 +177,16 @@
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.05), 0 4px 10px rgba(255, 255, 255, 0.1);
   transition: all 0.25s ease;
 }
+
 /* Agent (right side) */
 .chat-message.agent {
   margin-left: auto;
   background: rgba(16, 18, 31, 0.150);
-  color: #ffffff; /* đổi thành trắng rõ nét */
+  color: #ffffff;
+  /* đổi thành trắng rõ nét */
   font-weight: 500;
-  box-shadow: 0 8px 25px rgba(16, 18, 31, 0.25), 
-              0 4px 15px rgba(95, 92, 92, 0.05);
+  box-shadow: 0 8px 25px rgba(16, 18, 31, 0.25),
+    0 4px 15px rgba(95, 92, 92, 0.05);
   border: 1px solid rgba(16, 18, 31, 0.3);
 }
 
@@ -59,11 +196,11 @@
   background: rgba(16, 18, 31, 0.150);
   color: #ffffff;
   font-weight: 500;
-  
-  box-shadow: 0 8px 25px rgba(16, 18, 31, 0.25), 
-              0 4px 15px rgba(95, 92, 92, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.25); 
-  backdrop-filter: blur(6px) saturate(150%); 
+
+  box-shadow: 0 8px 25px rgba(16, 18, 31, 0.25),
+    0 4px 15px rgba(95, 92, 92, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  backdrop-filter: blur(6px) saturate(150%);
 }
 
 
@@ -71,7 +208,7 @@
 .chat-message b {
   margin-right: 8px;
   font-weight: 600;
-  color: #ffffff; 
+  color: #ffffff;
 }
 
 
@@ -133,9 +270,11 @@
 .typing-dots span:nth-child(3) {
   animation-delay: 0.4s;
 }
-.typing-text{
+
+.typing-text {
   color: #ffffff;
 }
+
 @keyframes blink {
 
   0%,

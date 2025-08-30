@@ -60,8 +60,8 @@ export default function PopupPage({ onStartMeeting }) {
         onChange={handleChange}
         rows={rows}
         className={errors[id] ? "input-error" : ""}
-        />
-        {errors[id] && <div className="error-text">{errors[id]}</div>}
+      />
+      {errors[id] && <div className="error-text">{errors[id]}</div>}
     </div>
   );
   const renderInput = (id, label, type = "text") => (
@@ -73,15 +73,15 @@ export default function PopupPage({ onStartMeeting }) {
         value={formData[id]}
         onChange={handleChange}
         className={errors[id] ? "input-error" : ""}
-        />
-        {errors[id] && <div className="error-text">{errors[id]}</div>}
+      />
+      {errors[id] && <div className="error-text">{errors[id]}</div>}
     </div>
   );
 
   return (
     <div className="extension-container">
       <p className="agent_name">AI Dialogue Architect Agent</p>
-  <div className="blue-glow"></div>
+      <div className="blue-glow"></div>
       {/* Step Indicator */}
       <div className="step-indicator">
         {[1, 2, 3].map((num, idx) => (
@@ -130,7 +130,7 @@ export default function PopupPage({ onStartMeeting }) {
       <div className="btn-container">
         {step > 1 && <button className="btn back" onClick={handleBack}>Back</button>}
         {step < 3 && <button className="btn next" onClick={handleNext}>Next →</button>}
-        {step === 3 && <button className="btn start" onClick={handleStart}>Start Meeting</button>}
+        {step === 3 && <button className="btn start" onClick={handleStart}>Start</button>}
       </div>
     </div>
   );
