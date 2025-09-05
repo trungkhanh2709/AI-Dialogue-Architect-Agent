@@ -31,13 +31,7 @@ function startTimer() {
         clearInterval(timerInterval);
         timerInterval = null;
 
-        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-          if (!tabs[0]?.id) return;
-          chrome.scripting.executeScript({
-            target: { tabId: tabs[0].id },
-            func: () => alert("Your 30-minute session has ended!"),
-          });
-        });
+       
         // Thêm payload báo session expired
         chrome.tabs.query({}, (tabs) => {
           tabs.forEach((tab) => {

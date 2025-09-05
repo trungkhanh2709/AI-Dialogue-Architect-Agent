@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import "../styles/chat.css";
 
-export default function ChatUI({ messages, onClose  }) {
+export default function ChatUI({ messages, onClose,sessionExpired   }) {
   const chatRef = useRef(null);
   const [timer, setTimer] = useState({ minutes: 0, seconds: 0 });
 
@@ -93,7 +93,17 @@ export default function ChatUI({ messages, onClose  }) {
           </div>
         ))}
       </div>
-
+ {sessionExpired && (
+        <div className="popup-overlay">
+          <div className="popup-content">
+            <h2>Your session has ended!</h2>
+            <p>Upgrade your plan to continue using the assistant.</p>
+            <button className="upgrade-btn" >
+              Upgrade Now
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

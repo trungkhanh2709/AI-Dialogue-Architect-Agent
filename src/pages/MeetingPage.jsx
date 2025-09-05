@@ -36,6 +36,9 @@ export default function Meeting({ meetingData, onBack }) {
     { speaker: "You", text: "Can you help me with my project?", isAgent: false },
     { speaker: "You", text: "Can you help me with my project?", isAgent: false },
   ];
+  const [showExpirePopup, setShowExpirePopup] = useState(false);
+
+
 
   function isMySpeech(speaker) {
     return speaker === "You" || speaker === "Bạn";
@@ -122,7 +125,6 @@ export default function Meeting({ meetingData, onBack }) {
       }
     }, 300);
 
-    console.log("⏳ Waiting for caption container...");
     return () => clearInterval(finder);
   }, []);
 
@@ -209,7 +211,7 @@ export default function Meeting({ meetingData, onBack }) {
       </div>
 
         {/* <ChatUI messages={sampleMessages} /> */}
-        <ChatUI messages={chatMessages}  onClose={onBack} />
+        <ChatUI messages={chatMessages}  onClose={onBack} sessionExpired={sessionExpired}/>
     </div>
   );
 }
