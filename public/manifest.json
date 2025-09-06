@@ -2,11 +2,12 @@
   "manifest_version": 3,
   "name": "AI Dialogue Architect Agent",
   "version": "1.0",
-  "permissions": ["scripting", "activeTab", "notifications"],
+  "permissions": ["scripting", "activeTab", "notifications","cookies"],
   "host_permissions": [
     "https://meet.google.com/*",
     "http://127.0.0.1:8000/*",
-    "http://localhost:8000/*"
+    "http://localhost:8000/*",
+    "https://reelsightsai.com/*"
   ],
     "icons": {
     "16": "icons/icon16.png",

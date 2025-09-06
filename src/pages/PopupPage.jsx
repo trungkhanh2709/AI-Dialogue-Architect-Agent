@@ -1,7 +1,7 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import "../styles/popup.css";
 
-export default function PopupPage({ onStartMeeting }) {
+export default function PopupPage({ onStartMeeting, cookieUserName }) {
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     userName: "",
@@ -77,6 +77,12 @@ export default function PopupPage({ onStartMeeting }) {
       {errors[id] && <div className="error-text">{errors[id]}</div>}
     </div>
   );
+  useEffect(() => {
+    if (cookieUserName) {
+      console.log("cookieUserName", cookieUserName)
+    }
+  }, [cookieUserName]);
+
 
   return (
     <div className="extension-container">

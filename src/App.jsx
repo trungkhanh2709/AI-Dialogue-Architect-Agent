@@ -1,12 +1,16 @@
 //app.jsx
 
-import React, { useState, useEffect  } from "react";
+import React, { useState, useEffect } from "react";
 import PopupPage from "./pages/PopupPage.jsx";
 import MeetingPage from "./pages/MeetingPage.jsx";
+import LoginPage from "./pages/LoginPage.jsx";
 
 export default function App() {
-  const [page, setPage] = useState("popup"); // "popup" or "meeting"
+  const [page, setPage] = useState("login"); // "login" | "popup" | "meeting"
   const [meetingData, setMeetingData] = useState(null);
+  const [user, setUser] = useState(null);
+  const [cookieUserName, setCookieUserName] = useState(null);
+
 
   useEffect(() => {
     const toolbar = document.getElementById("toolbar");
@@ -21,7 +25,7 @@ export default function App() {
         transform: "none",
         width: "26%",
         height: "fit-content",
-      
+
         borderRadius: "24px",
         boxShadow: "0 0 10px rgba(0,0,0,0.3)",
       });
@@ -58,12 +62,39 @@ export default function App() {
     ].join("\n"),
   };
 
+
+  //hàm này là để lưu username khi login thành công và chuyển sang trang popup nhưng còn sai 
+  // (đáng ra phải lấy cookie chứ không lấy user đăng nhập)
+  const handleLoginSuccess = (username) => {
+    setUser(username); // lưu username
+    setPage("popup"); // chuyển sang popup sau login
+  };
+
+
+
+  useEffect(() => {
+    // check cookie khi app load
+     chrome.runtime.sendMessage({ action: "CHECK_COOKIE" }, (response) => {
+      if (response?.loggedIn) {
+        setCookieUserName(response.username);
+        setPage("popup"); 
+      } else {
+        setPage("login"); 
+      }
+    });
+  }, []);
   return (
     <>
+      {page === "login" && (
+        <LoginPage
+          onLoginSuccess={handleLoginSuccess}
+        />
+      )}
       {page === "popup" && (
         <PopupPage
+        cookieUserName={cookieUserName} 
           onStartMeeting={(data) => {
-            setMeetingData(data);
+            setMeetingData(data );
             setPage("meeting");
           }}
         />
@@ -75,7 +106,7 @@ export default function App() {
         />
       )}
 
-        {/* {page === "meeting" && testMeetingData && (
+      {/* {page === "meeting" && testMeetingData && (
         <MeetingPage
           meetingData={testMeetingData}
           onBack={() => setPage("popup")}

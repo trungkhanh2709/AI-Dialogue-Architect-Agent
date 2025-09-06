@@ -6,6 +6,9 @@ import axios from "axios";
 
 
 export default function Meeting({ meetingData, onBack }) {
+  const VITE_URL_BACKEND = import.meta.env.VITE_URL_BACKEND;
+
+  
   const [currentSpeech, setCurrentSpeech] = useState({});
   const [meetingLog, setMeetingLog] = useState([]);
   const [lastFinalizedWords, setLastFinalizedWords] = useState({});
@@ -162,7 +165,7 @@ export default function Meeting({ meetingData, onBack }) {
       };
 
       const res = await axios.post(
-        "https://api-as.reelsightsai.com/api/content-generators/ai_sales_agent",
+        `${VITE_URL_BACKEND}/api/content-generators/ai_sales_agent`,
         payload
       );
 

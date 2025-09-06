@@ -91,3 +91,22 @@ chrome.action.onClicked.addListener((tab) => {
     files: ["main.js"], // file build từ injectToolbar.js
   });
 });
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.action === "CHECK_COOKIE") {
+    chrome.cookies.get(
+      { url: "https://reelsightsai.com/dashboard", name: "username" },
+      (cookie) => {
+        if (cookie) {
+        console.log("Cookie username:", cookie.value); // log username từ cookie
+
+          sendResponse({ loggedIn: true, username: cookie.value });
+        } else {
+          sendResponse({ loggedIn: false });
+        }
+      }
+    );
+    return true; // keep sendResponse async
+  }
+});
+
