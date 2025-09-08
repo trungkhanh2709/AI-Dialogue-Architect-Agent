@@ -25,11 +25,13 @@ function startTimer() {
       const seconds = elapsedSeconds % 60;
 
       // Gửi lên các tab có Chat UI
-      chrome.tabs.query({}, (tabs) => {
+      chrome.tabs.query({url: "https://meet.google.com/*"}, (tabs) => {
         tabs.forEach((tab) => {
           chrome.tabs.sendMessage(tab.id, {
             type: "TIMER_UPDATE",
             payload: { minutes, seconds },
+          },()=>{
+              if (chrome.runtime.lastError) {}
           });
         });
       });
@@ -41,10 +43,12 @@ function startTimer() {
 
        
         // Thêm payload báo session expired
-        chrome.tabs.query({}, (tabs) => {
+        chrome.tabs.query({url: "https://meet.google.com/*"}, (tabs) => {
           tabs.forEach((tab) => {
             chrome.tabs.sendMessage(tab.id, {
               type: "SESSION_EXPIRED",
+            },()=>{
+                if (chrome.runtime.lastError) {}
             });
           });
         });

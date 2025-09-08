@@ -19,6 +19,8 @@ function sendUpdateLive() {
     chrome.runtime.sendMessage({
       type: "LIVE_TRANSCRIPT",
       payload: { action: "update_live", currentSpeech },
+    },()=>{
+      if (chrome.runtime.lastError) {}
     });
   } catch (err) {
     console.warn("⚠️ sendUpdateLive failed:", err);
