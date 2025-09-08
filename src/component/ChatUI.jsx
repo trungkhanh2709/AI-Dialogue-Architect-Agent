@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import "../styles/chat.css";
 
-export default function ChatUI({ messages, onClose,sessionExpired   }) {
+export default function ChatUI({ messages, onClose,sessionExpired,userEmail   }) {
   const chatRef = useRef(null);
   const [timer, setTimer] = useState({ minutes: 0, seconds: 0 });
 
@@ -16,6 +16,13 @@ export default function ChatUI({ messages, onClose,sessionExpired   }) {
     }
   }, [messages]);
 
+
+  const handleCheckout = (plan) => {
+    const url = `http://localhost:8080/pay/create-checkout-session?email=${encodeURIComponent(
+      userEmail
+    )}&plan=${plan}&env=localhost`;
+    window.open(url, "_blank");
+  };
 
   useEffect(() => {
     // Bật timer khi component mount
@@ -93,17 +100,33 @@ export default function ChatUI({ messages, onClose,sessionExpired   }) {
           </div>
         ))}
       </div>
- {sessionExpired && (
-        <div className="popup-overlay">
-          <div className="popup-content">
-            <h2>Your session has ended!</h2>
-            <p>Upgrade your plan to continue using the assistant.</p>
-            <button className="upgrade-btn" >
-              Upgrade Now
-            </button>
-          </div>
-        </div>
-      )}
+{sessionExpired && (
+  <div className="popup-overlay">
+    <div className="popup-content">
+      <h2>Your session has ended!</h2>
+      <p>Choose a package to continue using the assistant.</p>
+      <div className="button-group">
+        <button
+                className="upgrade-btn one-session"
+                onClick={() =>
+                  handleCheckout("addons_ai_dialogue_architect_agent_single")
+                }
+              >
+                Buy 1 Session
+              </button>
+              <button
+                className="upgrade-btn ten-session"
+                onClick={() =>
+                  handleCheckout("addons_ai_dialogue_architect_agent_bundle")
+                }
+              >
+                Buy 10 Sessions
+              </button>
+      </div>
+    </div>
+  </div>
+)}
+
     </div>
   );
 }

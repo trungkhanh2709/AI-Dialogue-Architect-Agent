@@ -101,6 +101,8 @@ export default function App() {
       )}
       {page === "meeting" && meetingData && (
         <MeetingPage
+          cookieUserName={cookieUserName} 
+
           meetingData={meetingData}
           onBack={() => setPage("popup")}
         />

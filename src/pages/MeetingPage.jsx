@@ -5,7 +5,7 @@ import ChatUI from "../component/ChatUI";
 import axios from "axios";
 
 
-export default function Meeting({ meetingData, onBack }) {
+export default function Meeting({ meetingData, onBack, cookieUserName }) {
   const VITE_URL_BACKEND = import.meta.env.VITE_URL_BACKEND;
 
   
@@ -40,6 +40,7 @@ export default function Meeting({ meetingData, onBack }) {
     { speaker: "You", text: "Can you help me with my project?", isAgent: false },
   ];
   const [showExpirePopup, setShowExpirePopup] = useState(false);
+  const decodedCookieEmail = decodeURIComponent(cookieUserName);
 
 
 
@@ -165,7 +166,7 @@ export default function Meeting({ meetingData, onBack }) {
       };
 
       const res = await axios.post(
-        `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent`,
+        `http:localhost:3000/api/content-generators/ai_dialogue_architect_agent`,
         payload
       );
 
@@ -214,7 +215,7 @@ export default function Meeting({ meetingData, onBack }) {
       </div>
 
         {/* <ChatUI messages={sampleMessages} /> */}
-        <ChatUI messages={chatMessages}  onClose={onBack} sessionExpired={sessionExpired}/>
+        <ChatUI messages={chatMessages}  onClose={onBack} sessionExpired={sessionExpired}   userEmail={decodedCookieEmail}/>
     </div>
   );
 }
