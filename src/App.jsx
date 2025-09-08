@@ -19,7 +19,7 @@ export default function App() {
     if (page === "popup") {
       // Display full height right side
       Object.assign(toolbar.style, {
-        top: "5vh",
+        top: "1vh",
         right: "5vh",
         left: "auto",
         transform: "none",

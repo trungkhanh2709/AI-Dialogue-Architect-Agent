@@ -92,7 +92,7 @@ padding: 10px 15px;
   border-radius: 6px;
   box-sizing: border-box;
   resize: vertical;
-  min-height: 150px;
+  min-height: 140px;
   z-index: 1000;
   color: #fff;
 background: rgba(255, 255, 255, 0.05);
@@ -197,8 +197,8 @@ background: rgba(255, 255, 255, 0.05);
 }
 
 .scrollable-step {
-  max-height: 330px;
-  overflow-y: auto;
+  /* max-height: 330px;
+  overflow-y: auto; */
   width: 100%;
   padding-right: 6px;
 }
@@ -215,4 +215,17 @@ background: rgba(255, 255, 255, 0.05);
 
 .scrollable-step::-webkit-scrollbar-track {
   background-color: transparent;
+}
+.session-remain {
+  font-size: 8px;
+  
+  text-align: center;
+}
+
+.session-remain.normal {
+  color: white;
+}
+
+.session-remain.danger {
+  color: red;
 }

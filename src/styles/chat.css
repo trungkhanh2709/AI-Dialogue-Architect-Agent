@@ -60,15 +60,14 @@
 
 }
 
-/* vòng tròn ngoài, nhạt, to hơn */
+
 .outer-circle {
   position: absolute;
   width: 10px;
-  /* lớn hơn vòng trong */
   height: 10px;
   border-radius: 50%;
   background-color: rgba(255, 0, 0, 0.3);
-  /* đỏ nhạt */
+
 }
 
 /* vòng tròn trong, đậm, nhỏ hơn, nhấp nháy */
@@ -112,11 +111,11 @@
 
 .close-btn {
   position: relative;
-  width: 25px;
-  height: 25px;
+  width: 30px;
+  height: 30px;
 
-  border-radius: 10px;
-  background: rgba(116, 118, 128, 0.301);
+  border-radius: 15px;
+  background: rgba(116, 118, 128, 0.192);
 
   border: none;
   cursor: pointer;

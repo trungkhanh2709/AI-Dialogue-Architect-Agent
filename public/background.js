@@ -3,7 +3,15 @@ let latestCaptions = [];
 let sharedCaptions = [];
 let startTime = null; // thời điểm bắt đầu
 let timerInterval = null;
-const timeRemainingThreshold = 0.1 * 60; // 5 phút
+const timeRemainingThreshold = 30 * 60; // 30 phút
+
+function resetTimer() {
+  startTime = null;
+  if (timerInterval) {
+    clearInterval(timerInterval);
+    timerInterval = null;
+  }
+}
 
 function startTimer() {
   if (!startTime) {
@@ -44,6 +52,13 @@ function startTimer() {
     }, 1000);
   }
 }
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type === "RESET_TIMER") {
+    resetTimer();
+    sendResponse({ ok: true });
+  }
+});
+
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type === "START_TIMER") {
     startTimer();

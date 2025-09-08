@@ -1,7 +1,11 @@
 import React, { useEffect, useState } from "react";
 import "../styles/popup.css";
+import axios from "axios";
 
 export default function PopupPage({ onStartMeeting, cookieUserName }) {
+  const VITE_URL_BACKEND = import.meta.env.VITE_URL_BACKEND;
+
+  const [remainSessions, setRemainSessions] = useState(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
     userName: "",
@@ -16,6 +20,31 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
     meetingNote: ""
   });
   const [errors, setErrors] = useState({});
+  const decodedCookieEmail = decodeURIComponent(cookieUserName);
+
+
+  useEffect(() => {
+    const fetchRemainSessions = async () => {
+      try {
+        const res = await axios.post(
+          `http://localhost:3000/api/addons/get_addon_sessions`,
+          {
+            email: decodedCookieEmail,
+            add_on_type: "ai_dialogue_architect_agent",
+          }
+        );
+        if (res.data.status === "200") {
+          setRemainSessions(res.data.content.value);
+        } else {
+          setRemainSessions(0);
+        }
+      } catch (err) {
+        console.error("Error fetching remain sessions:", err);
+        setRemainSessions(0);
+      }
+    };
+    fetchRemainSessions();
+  }, [decodedCookieEmail]);
 
   const validateStep = () => {
     const newErrors = {};
@@ -47,9 +76,36 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
 
   const handleBack = () => setStep(prev => prev - 1);
 
-  const handleStart = () => {
-    if (validateStep()) onStartMeeting(formData);
+  const handleStart = async () => {
+    if (!validateStep()) return;
+    try {
+      const res = await fetch("http://localhost:3000/api/addons/use_addon_session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: decodedCookieEmail,
+          add_on_type: "ai_dialogue_architect_agent"
+        })
+      });
+
+      const data = await res.json();
+
+      chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
+        chrome.runtime.sendMessage({ type: "START_TIMER" });
+
+      });
+
+      if (data.trial_used === true || data.status === "200") {
+        onStartMeeting(formData);
+      } else {
+        alert("Bạn đã hết session. Vui lòng mua thêm add-on để tiếp tục.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Có lỗi xảy ra khi gọi API.");
+    }
   };
+
 
   const renderTextarea = (id, label, rows = 3) => (
     <div className="input-group">
@@ -77,17 +133,20 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
       {errors[id] && <div className="error-text">{errors[id]}</div>}
     </div>
   );
-  useEffect(() => {
-    if (cookieUserName) {
-      console.log("cookieUserName", cookieUserName)
-    }
-  }, [cookieUserName]);
+
 
 
   return (
     <div className="extension-container">
       <p className="agent_name">AI Dialogue Architect Agent</p>
       <div className="blue-glow"></div>
+      <div
+        className={`session-remain ${remainSessions <= 1 ? "danger" : "normal"
+          }`}
+      >
+        Remaining Sessions:{" "}
+        {remainSessions !== null ? remainSessions : "Loading..."}
+      </div>
       {/* Step Indicator */}
       <div className="step-indicator">
         {[1, 2, 3].map((num, idx) => (

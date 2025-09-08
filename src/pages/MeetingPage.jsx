@@ -165,7 +165,7 @@ export default function Meeting({ meetingData, onBack }) {
       };
 
       const res = await axios.post(
-        `${VITE_URL_BACKEND}/api/content-generators/ai_sales_agent`,
+        `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent`,
         payload
       );
 
