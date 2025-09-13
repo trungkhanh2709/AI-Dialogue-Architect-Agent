@@ -166,7 +166,7 @@ export default function Meeting({ meetingData, onBack, cookieUserName }) {
       };
 
       const res = await axios.post(
-        `http:localhost:3000/api/content-generators/ai_dialogue_architect_agent`,
+        `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent`,
         payload
       );
 
@@ -215,7 +215,10 @@ export default function Meeting({ meetingData, onBack, cookieUserName }) {
       </div>
 
         {/* <ChatUI messages={sampleMessages} /> */}
-        <ChatUI messages={chatMessages}  onClose={onBack} sessionExpired={sessionExpired}   userEmail={decodedCookieEmail}/>
+        <ChatUI messages={chatMessages}  
+        onClose={onBack} sessionExpired={sessionExpired} 
+        setSessionExpired={setSessionExpired}  
+        userEmail={decodedCookieEmail}/>
     </div>
   );
 }

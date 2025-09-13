@@ -27,7 +27,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
     const fetchRemainSessions = async () => {
       try {
         const res = await axios.post(
-          `http://localhost:3000/api/addons/get_addon_sessions`,
+          `${VITE_URL_BACKEND}/api/addons/get_addon_sessions`,
           {
             email: decodedCookieEmail,
             add_on_type: "ai_dialogue_architect_agent",
@@ -79,7 +79,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
   const handleStart = async () => {
     if (!validateStep()) return;
     try {
-      const res = await fetch("http://localhost:3000/api/addons/use_addon_session", {
+      const res = await fetch(`${VITE_URL_BACKEND}/api/addons/use_addon_session`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -98,11 +98,11 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
       if (data.trial_used === true || data.status === "200") {
         onStartMeeting(formData);
       } else {
-        alert("Bạn đã hết session. Vui lòng mua thêm add-on để tiếp tục.");
+        alert("You have run out of sessions. Please purchase an add-on to continue.");
       }
     } catch (err) {
       console.error(err);
-      alert("Có lỗi xảy ra khi gọi API.");
+      alert("An error occurred while calling the API");
     }
   };
 

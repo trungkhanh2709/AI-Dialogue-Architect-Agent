@@ -3,10 +3,9 @@
 import React, { useState, useEffect } from "react";
 import PopupPage from "./pages/PopupPage.jsx";
 import MeetingPage from "./pages/MeetingPage.jsx";
-import LoginPage from "./pages/LoginPage.jsx";
 
 export default function App() {
-  const [page, setPage] = useState("login"); // "login" | "popup" | "meeting"
+  const [page, setPage] = useState("popup"); // "login" | "popup" | "meeting"
   const [meetingData, setMeetingData] = useState(null);
   const [user, setUser] = useState(null);
   const [cookieUserName, setCookieUserName] = useState(null);
@@ -78,18 +77,12 @@ export default function App() {
       if (response?.loggedIn) {
         setCookieUserName(response.username);
         setPage("popup"); 
-      } else {
-        setPage("login"); 
       }
     });
   }, []);
   return (
     <>
-      {page === "login" && (
-        <LoginPage
-          onLoginSuccess={handleLoginSuccess}
-        />
-      )}
+     
       {page === "popup" && (
         <PopupPage
         cookieUserName={cookieUserName} 

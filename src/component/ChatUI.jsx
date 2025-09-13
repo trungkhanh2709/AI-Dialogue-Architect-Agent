@@ -1,9 +1,11 @@
 import React, { useEffect, useRef, useState } from "react";
 import "../styles/chat.css";
 
-export default function ChatUI({ messages, onClose,sessionExpired,userEmail   }) {
+export default function ChatUI({ messages, onClose,sessionExpired,setSessionExpired,userEmail   }) {
   const chatRef = useRef(null);
   const [timer, setTimer] = useState({ minutes: 0, seconds: 0 });
+  const VITE_URL_BACKEND = import.meta.env.VITE_URL_BACKEND;
+  const VITE_URL_BACKEND_RBAI = import.meta.env.VITE_URL_BACKEND_RBAI;
 
   useEffect(() => {
     if (chatRef.current) {
@@ -18,9 +20,9 @@ export default function ChatUI({ messages, onClose,sessionExpired,userEmail   })
 
 
   const handleCheckout = (plan) => {
-    const url = `http://localhost:8080/pay/create-checkout-session?email=${encodeURIComponent(
+    const url = `${VITE_URL_BACKEND_RBAI}/pay/create-checkout-session?email=${encodeURIComponent(
       userEmail
-    )}&plan=${plan}&env=localhost`;
+    )}&env=rsai&plan=${plan}`;
     window.open(url, "_blank");
   };
 
@@ -122,6 +124,39 @@ export default function ChatUI({ messages, onClose,sessionExpired,userEmail   })
               >
                 Buy 10 Sessions
               </button>
+      </div>
+      <div className="continue-wrapper">
+        <span
+         className="continue-text"
+         onClick={async () => {
+           try {
+             const res = await fetch(`${VITE_URL_BACKEND}/api/addons/use_addon_session`, {
+               method: "POST",
+               headers: { "Content-Type": "application/json" },
+               body: JSON.stringify({
+                 email: userEmail,
+                 add_on_type: "ai_dialogue_architect_agent"
+               })
+             });
+             const data = await res.json();
+             if (data.trial_used === true || data.status === "200") {
+               chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
+                 chrome.runtime.sendMessage({ type: "START_TIMER" });
+               });
+                // reload lại UI, popup biến mất, tiếp tục call
+                setSessionExpired(false);
+             } else {
+               alert("You ran out of sessions. Please buy more to continue.");
+             }
+           } catch (err) {
+            console.error(err);
+             alert("Error when using session.");
+           }
+         }}
+       >
+         Continue to the Call
+       </span>
+
       </div>
     </div>
   </div>
