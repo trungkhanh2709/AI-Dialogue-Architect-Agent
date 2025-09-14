@@ -14,6 +14,7 @@ export function initToolbar() {
       top: "10px",
       left: "50%",
       transform: "translateX(-50%)",
+      minWidth: "300px",
       width: "35%",
       height: "50%",
       backgroundColor: "transparent",
