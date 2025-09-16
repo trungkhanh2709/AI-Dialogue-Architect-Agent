@@ -4,8 +4,8 @@ import "../styles/chat.css";
 export default function ChatUI({ messages, onClose,sessionExpired,setSessionExpired,userEmail   }) {
   const chatRef = useRef(null);
   const [timer, setTimer] = useState({ minutes: 0, seconds: 0 });
-  const VITE_URL_BACKEND = import.meta.env.VITE_URL_BACKEND;
-  const VITE_URL_BACKEND_RBAI = import.meta.env.VITE_URL_BACKEND_RBAI;
+  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';
+  const VITE_URL_BACKEND_RBAI = 'https://api.reelsightsai.com';
 
   useEffect(() => {
     if (chatRef.current) {

@@ -1,13 +1,13 @@
 //content.js
 console.log("🔍 Google Meet Caption Logger — Started v3.6.12");
 
-let currentSpeech = {}; // speaker → phần live đang nói
-let speakerTimers = {}; // speaker → timeout id
-let meeting_log = []; // câu đã finalize
-let lastFinalized = {}; // speaker → toàn bộ câu cuối cùng đã lưu
-const SPEAKER_TIMEOUT = 2000; // 1.0s im lặng => finalize
-let lastFinalizedWords = {}; // speaker -> array các từ đã finalize
-let lastFinalizedText = {}; // speaker → toàn bộ text đã finalize
+let currentSpeech = {}; // speaker → currently speaking part
+let speakerTimers = {}; // speaker
+let meeting_log = []; //  finalize sentences
+let lastFinalized = {}; // speaker → the entire last finalized sentence
+const SPEAKER_TIMEOUT = 2000; 
+let lastFinalizedWords = {}; // speaker -> array of finalized words
+let lastFinalizedText = {}; // speaker → full finalized text
 let sessionExpired = false;
 
 function cleanMessage(msg) {
@@ -28,26 +28,25 @@ function sendUpdateLive() {
 }
 chrome.runtime.onMessage.addListener((message) => {
   if (message.type === "SESSION_EXPIRED") {
-    console.log("⏹ Session expired, stopping caption observer...");
+    console.log("Session expired, stopping caption observer...");
     sessionExpired = true;
 
-    // Dừng observer
 
   }
 });
-// Loại bỏ phần trùng lặp với câu đã finalize trước đó
+// Remove duplicate parts from the previously finalized sentence
 function removeRepeatedPart(speaker, newText) {
   const oldText = lastFinalized[speaker] || "";
   if (!oldText) return newText;
 
-  // Nếu newText chứa oldText ở đầu => chỉ lấy phần sau
+// If newText starts with oldText => take only the remaining part
   if (newText.startsWith(oldText)) return newText.slice(oldText.length).trim();
 
-  // Nếu newText chứa oldText ở đâu đó => cắt phần trước oldText
+// If newText contains oldText somewhere => remove the part before oldText
   const index = newText.indexOf(oldText);
   if (index >= 0) return newText.slice(index + oldText.length).trim();
 
-  return newText; // nếu không trùng
+  return newText; 
 }
 function finalizeSpeech(speaker) {
   const message = currentSpeech[speaker];
@@ -64,7 +63,7 @@ function finalizeSentence(speaker, sentence) {
   const oldWords = lastFinalizedWords[speaker] || [];
   const newWords = sentence.trim().split(/\s+/);
 
-  // Tìm delta mới: bỏ những từ đã finalize
+// Find the new delta: remove words that have already been finalized
   let deltaStart = 0;
   while (deltaStart < oldWords.length && deltaStart < newWords.length && oldWords[deltaStart] === newWords[deltaStart]) {
     deltaStart++;
@@ -73,16 +72,16 @@ function finalizeSentence(speaker, sentence) {
   const deltaText = newWords.slice(deltaStart).join(" ");
   if (!deltaText) return;
 
-  // Gửi delta mới
+  // Send new delta
   chrome.runtime.sendMessage({
     type: "LIVE_TRANSCRIPT",
     payload: { action: "finalize", speaker, finalized: deltaText },
   });
 
-  // Cập nhật lastFinalizedWords
+  // Update lastFinalizedWords
   lastFinalizedWords[speaker] = newWords;
 
-  // Xóa live speech
+  // Delete live speech
   delete currentSpeech[speaker];
 }
 
@@ -115,10 +114,9 @@ function getDeltaText(speaker, newText) {
   const oldText = lastFinalizedText[speaker] || "";
   if (!oldText) return newText;
 
-  // Nếu newText chứa oldText ở đầu => chỉ lấy phần sau
   if (newText.startsWith(oldText)) return newText.slice(oldText.length).trim();
 
-  return newText; // nếu không trùng prefix
+  return newText; 
 }
 
 function initObserver(container) {
@@ -129,7 +127,6 @@ function initObserver(container) {
     subtree: true,
     characterData: true,
   });
-  console.log("✅ Real-time caption streaming activated!");
 }
 
 function waitForCaptionContainer() {

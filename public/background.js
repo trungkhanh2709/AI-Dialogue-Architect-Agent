@@ -3,7 +3,7 @@ let latestCaptions = [];
 let sharedCaptions = [];
 let startTime = null; // thời điểm bắt đầu
 let timerInterval = null;
-const timeRemainingThreshold = 0.1 * 60; // 3- phút
+const timeRemainingThreshold = 30 * 60; // 30- phút
 
 function resetTimer() {
   startTime = null;

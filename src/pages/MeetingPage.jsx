@@ -6,7 +6,7 @@ import axios from "axios";
 
 
 export default function Meeting({ meetingData, onBack, cookieUserName }) {
-  const VITE_URL_BACKEND = import.meta.env.VITE_URL_BACKEND;
+  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
 
   
   const [currentSpeech, setCurrentSpeech] = useState({});
