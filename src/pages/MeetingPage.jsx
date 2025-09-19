@@ -5,7 +5,7 @@ import ChatUI from "../component/ChatUI";
 import axios from "axios";
 
 
-export default function Meeting({ meetingData, onBack, cookieUserName }) {
+export default function Meeting({ meetingData, onBack, cookieUserName,onExpire  }) {
   const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
 
   
@@ -39,7 +39,6 @@ export default function Meeting({ meetingData, onBack, cookieUserName }) {
     { speaker: "You", text: "Can you help me with my project?", isAgent: false },
     { speaker: "You", text: "Can you help me with my project?", isAgent: false },
   ];
-  const [showExpirePopup, setShowExpirePopup] = useState(false);
   const decodedCookieEmail = decodeURIComponent(cookieUserName);
 
 
@@ -53,7 +52,11 @@ export default function Meeting({ meetingData, onBack, cookieUserName }) {
       liveRef.current.scrollTop = liveRef.current.scrollHeight;
     }
   }, [currentSpeech]);
-
+useEffect(() => {
+    if (sessionExpired) {
+      onExpire(); // báo cho App.jsx đổi sang upgrade
+    }
+  }, [sessionExpired, onExpire]);
   // Listener chrome message
   useEffect(() => {
     const handleMessage = (message) => {

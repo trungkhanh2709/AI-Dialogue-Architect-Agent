@@ -3,12 +3,14 @@
 import React, { useState, useEffect } from "react";
 import PopupPage from "./pages/PopupPage.jsx";
 import MeetingPage from "./pages/MeetingPage.jsx";
+import UpgradePopup from "./pages/UpgradePopup.jsx";
 
 export default function App() {
-  const [page, setPage] = useState("popup"); // "login" | "popup" | "meeting"
+  const [page, setPage] = useState("popup"); // "popup" | "meeting"
   const [meetingData, setMeetingData] = useState(null);
   const [user, setUser] = useState(null);
   const [cookieUserName, setCookieUserName] = useState(null);
+  const [showUpgrade, setShowUpgrade] = useState(false); // quản lý popup global
 
 
   useEffect(() => {
@@ -41,6 +43,18 @@ export default function App() {
         backgroundColor: "transparent",
         boxShadow: "none",
       });
+    } else if (page === "upgrade") {
+      Object.assign(toolbar.style, {
+        top: "40%",
+        left: "55%",
+        right: "auto",
+        transform: "translate(-50%, -50%)", // căn giữa cả ngang + dọc
+        width: "60%",
+        height: "fit-content",
+        borderRadius: "16px",
+
+        boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
+      });
     }
   }, [page]);
 
@@ -61,52 +75,56 @@ export default function App() {
     ].join("\n"),
   };
 
-
-  //hàm này là để lưu username khi login thành công và chuyển sang trang popup nhưng còn sai 
-  // (đáng ra phải lấy cookie chứ không lấy user đăng nhập)
-  const handleLoginSuccess = (username) => {
-    setUser(username); // lưu username
-    setPage("popup"); // chuyển sang popup sau login
-  };
-
-
-
+  useEffect(() => {
+    if (showUpgrade) {
+      setPage("upgrade");
+    }
+  }, [showUpgrade]);
   useEffect(() => {
     // check cookie khi app load
-     chrome.runtime.sendMessage({ action: "CHECK_COOKIE" }, (response) => {
+    chrome.runtime.sendMessage({ action: "CHECK_COOKIE" }, (response) => {
       if (response?.loggedIn) {
         setCookieUserName(response.username);
-        setPage("popup"); 
+        setPage("popup");
       }
     });
   }, []);
   return (
     <>
-     
+
       {page === "popup" && (
         <PopupPage
-        cookieUserName={cookieUserName} 
+          cookieUserName={cookieUserName}
           onStartMeeting={(data) => {
-            setMeetingData(data );
+            setMeetingData(data);
             setPage("meeting");
           }}
         />
       )}
-      {page === "meeting" && meetingData && (
+      {/* {page === "meeting" && meetingData && (
         <MeetingPage
-          cookieUserName={cookieUserName} 
+          cookieUserName={cookieUserName}
 
           meetingData={meetingData}
           onBack={() => setPage("popup")}
         />
+      )} */}
+      {page === "meeting" && meetingData && (
+        <MeetingPage
+          cookieUserName={cookieUserName}
+
+          meetingData={meetingData}
+          onBack={() => setPage("popup")}
+          onExpire={() => setShowUpgrade(true)}
+        />
+      )}
+      {page === "upgrade" && (
+        <UpgradePopup
+          onClose={() => setPage("popup")}
+          userEmail={cookieUserName}
+        />
       )}
 
-      {/* {page === "meeting" && testMeetingData && (
-        <MeetingPage
-          meetingData={testMeetingData}
-          onBack={() => setPage("popup")}
-        />
-      )} */}
     </>
   );
 }

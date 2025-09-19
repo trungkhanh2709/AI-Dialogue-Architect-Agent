@@ -1,11 +1,10 @@
 import React, { useEffect, useRef, useState } from "react";
 import "../styles/chat.css";
 
-export default function ChatUI({ messages, onClose,sessionExpired,setSessionExpired,userEmail   }) {
+export default function ChatUI({ messages, onClose,userEmail,setSessionExpired    }) {
   const chatRef = useRef(null);
   const [timer, setTimer] = useState({ minutes: 0, seconds: 0 });
-  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';
-  const VITE_URL_BACKEND_RBAI = 'https://api.reelsightsai.com';
+
 
   useEffect(() => {
     if (chatRef.current) {
@@ -19,12 +18,6 @@ export default function ChatUI({ messages, onClose,sessionExpired,setSessionExpi
   }, [messages]);
 
 
-  const handleCheckout = (plan) => {
-    const url = `${VITE_URL_BACKEND_RBAI}/pay/create-checkout-session?email=${encodeURIComponent(
-      userEmail
-    )}&env=rsai&plan=${plan}`;
-    window.open(url, "_blank");
-  };
 
   useEffect(() => {
     // Bật timer khi component mount
@@ -34,7 +27,12 @@ export default function ChatUI({ messages, onClose,sessionExpired,setSessionExpi
     const listener = (msg) => {
       if (msg.type === "TIMER_UPDATE") {
         setTimer(msg.payload);
+         if (msg.payload.minutes === 0 && msg.payload.seconds === 0) {
+      setSessionExpired(true); // cái này sẽ trigger onExpire ở MeetingPage
+      chrome.runtime.sendMessage({ type: "SESSION_EXPIRED" });
+    }
       }
+
     };
     chrome.runtime.onMessage.addListener(listener);
 
@@ -102,65 +100,7 @@ export default function ChatUI({ messages, onClose,sessionExpired,setSessionExpi
           </div>
         ))}
       </div>
-{sessionExpired && (
-  <div className="popup-overlay">
-    <div className="popup-content">
-      <h2>Your session has ended!</h2>
-      <p>Choose a package to continue using the assistant.</p>
-      <div className="button-group">
-        <button
-                className="upgrade-btn one-session"
-                onClick={() =>
-                  handleCheckout("addons_ai_dialogue_architect_agent_single")
-                }
-              >
-                Buy 1 Session
-              </button>
-              <button
-                className="upgrade-btn ten-session"
-                onClick={() =>
-                  handleCheckout("addons_ai_dialogue_architect_agent_bundle")
-                }
-              >
-                Buy 10 Sessions
-              </button>
-      </div>
-      <div className="continue-wrapper">
-        <span
-         className="continue-text"
-         onClick={async () => {
-           try {
-             const res = await fetch(`${VITE_URL_BACKEND}/api/addons/use_addon_session`, {
-               method: "POST",
-               headers: { "Content-Type": "application/json" },
-               body: JSON.stringify({
-                 email: userEmail,
-                 add_on_type: "ai_dialogue_architect_agent"
-               })
-             });
-             const data = await res.json();
-             if (data.trial_used === true || data.status === "200") {
-               chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
-                 chrome.runtime.sendMessage({ type: "START_TIMER" });
-               });
-                // reload lại UI, popup biến mất, tiếp tục call
-                setSessionExpired(false);
-             } else {
-               alert("You ran out of sessions. Please buy more to continue.");
-             }
-           } catch (err) {
-            console.error(err);
-             alert("Error when using session.");
-           }
-         }}
-       >
-         Continue to the Call
-       </span>
 
-      </div>
-    </div>
-  </div>
-)}
 
     </div>
   );

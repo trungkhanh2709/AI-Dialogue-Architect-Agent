@@ -1,0 +1,278 @@
+/* upgradePopup.css */
+.upgrade-popup-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 50%;
+  background: linear-gradient(145deg, #10121f, #1a2665ff);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+  color: #f9fafb;
+}
+
+.upgrade-popup-card {
+  background: linear-gradient(145deg, #10121f, #1a2665ff);
+  color: #f9fafb; 
+  width: 100%;
+  max-width: 650px;
+  border-radius: 24px;
+  padding: 40px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  animation: fadeInUp 0.25s ease-out;
+  max-height: 70vh;
+  overflow-y: auto;
+  position: relative;
+}
+
+.close-btn {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  cursor: pointer;
+  color: #888;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  color: #000;
+  transform: scale(1.1);
+}
+
+.headline {
+  font-size: 2rem;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.body-text {
+  font-size: 1rem;
+  color: #e5e7eb;
+  line-height: 1.7;
+}
+
+.code {
+  background: rgba(255, 255, 255, 0.1);
+  color: #60a5fa;
+  padding: 5px 10px;
+  border-radius: 6px;
+  font-weight: 600;
+  font-family: monospace;
+}
+
+.pricing {
+
+  margin-top: 15px;
+}
+
+.pricing h3 {
+  font-size: 1.3rem;
+  font-weight: 700;
+  margin-bottom: 12px;
+  color: #93c5fd;
+}
+
+.pricing table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
+
+.pricing th,
+.pricing td {
+  border-bottom: 1px solid #eee;
+  padding: 12px 8px;
+  
+  text-align: left;
+}
+
+.pricing th {
+ color: #cbd5e1;
+   font-weight: 600;
+}
+
+.pricing td {
+  color: #f9fafb;
+}
+
+.upgrade-actions {
+  display: flex;
+  gap: 16px;
+  justify-content: center;
+  margin-top: 20px;
+  flex-wrap: wrap;
+}
+
+.upgrade-btn {
+  flex: 1;
+  min-width: 180px;
+  border: none;
+  padding: 14px 22px;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 12px;
+  cursor: pointer;
+  transition: all 0.25s ease;
+  text-align: center;
+}
+
+/* nút gói 1 */
+.upgrade-btn.single {
+ background: rgba(255,255,255,0.1);
+  color: #fff;
+}
+
+.upgrade-btn.single:hover {
+  background: rgba(255,255,255,0.2);
+    transform: translateY(-2px);
+}
+
+/* nút gói 10 */
+.upgrade-btn.bundle {
+  background: linear-gradient(135deg, #3b82f6, #1e40af);
+  color: #fff;
+  box-shadow: 0 4px 16px rgba(37, 99, 235, 0.35);
+}
+
+.upgrade-btn.bundle:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 6px 20px rgba(96,165,250,0.45);
+}
+
+.pricing-title {
+  font-size: 1.4rem;
+  font-weight: 700;
+  color: #2563eb;
+  margin-bottom: 12px;
+  text-align: center;
+}
+
+.pricing-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0 10px;
+  /* khoảng giữa các row */
+  font-size: 0.95rem;
+}
+
+.pricing-head th {
+  background: #f0f4ff;
+  color: #1d4ed8;
+  font-weight: 600;
+  padding: 12px 10px;
+  text-align: left;
+}
+
+.pricing-row {
+  background: rgba(255,255,255,0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.pricing-row:hover {
+  background: rgba(255,255,255,0.08);
+  box-shadow: 0 6px 20px rgba(255,255,255,0.1);}
+
+.pricing-item {
+  padding: 12px 10px;
+  text-align: left;
+  color: #333;
+}
+
+.discount {
+  color: #16a34a;
+  /* xanh lá để nổi bật giảm giá */
+  font-weight: 600;
+}
+
+.final-price {
+  color: #2563eb;
+  /* accent màu xanh */
+  font-weight: 700;
+}
+
+/* highlight row */
+.highlight {
+  background: linear-gradient(135deg, rgba(96,165,250,0.2), rgba(59,130,246,0.15));
+  border: 2px solid #3b82f6;
+  position: relative;
+}
+
+.highlight .pricing-item {
+  font-weight: 600;
+    color: #fff;
+
+}
+
+.highlight .final-price {
+  color: #60a5fa;
+  font-size: 1.05rem;
+
+}
+
+/* badge "Most Popular" */
+.highlight::after {
+  content: "Most Popular";
+  position: absolute;
+  top: -12px;
+  right: 12px;
+   background: #3b82f6;
+  color: #fff;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 12px;
+  z-index: 20000;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+}
+
+/* responsive */
+@media (max-width: 600px) {
+  .pricing-title {
+    font-size: 1.2rem;
+  }
+
+  .pricing-item {
+    padding: 8px 6px;
+    font-size: 0.9rem;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* responsive */
+@media (max-width: 600px) {
+  .upgrade-popup-card {
+    padding: 20px 16px;
+    border-radius: 16px;
+    max-height: 90vh;
+  }
+
+  .headline {
+    font-size: 1.6rem;
+  }
+
+  .upgrade-btn {
+    width: 100%;
+    padding: 14px 0;
+  }
+}

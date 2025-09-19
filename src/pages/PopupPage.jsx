@@ -3,7 +3,7 @@ import "../styles/popup.css";
 import axios from "axios";
 
 export default function PopupPage({ onStartMeeting, cookieUserName }) {
-  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';
+  const VITE_URL_BACKEND = 'http://localhost:4000'; 
 
   const [remainSessions, setRemainSessions] = useState(null);
   const [step, setStep] = useState(1);
