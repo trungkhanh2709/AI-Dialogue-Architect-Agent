@@ -3,8 +3,7 @@ import "../styles/popup.css";
 import axios from "axios";
 
 export default function PopupPage({ onStartMeeting, cookieUserName }) {
-  const VITE_URL_BACKEND = 'http://localhost:4000'; 
-
+const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
   const [remainSessions, setRemainSessions] = useState(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -22,29 +21,36 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
   const [errors, setErrors] = useState({});
   const decodedCookieEmail = decodeURIComponent(cookieUserName);
 
-
-  useEffect(() => {
-    const fetchRemainSessions = async () => {
-      try {
-        const res = await axios.post(
-          `${VITE_URL_BACKEND}/api/addons/get_addon_sessions`,
-          {
-            email: decodedCookieEmail,
-            add_on_type: "ai_dialogue_architect_agent",
-          }
-        );
-        if (res.data.status === "200") {
-          setRemainSessions(res.data.content.value);
-        } else {
-          setRemainSessions(0);
+useEffect(() => {
+  const fetchRemainSessions = async () => {
+    try {
+      const res = await axios.post(
+        `${VITE_URL_BACKEND}/api/addons/get_addon_sessions`,
+        {
+          email: decodedCookieEmail,
+          add_on_type: "ai_dialogue_architect_agent",
         }
-      } catch (err) {
-        console.error("Error fetching remain sessions:", err);
-        setRemainSessions(0);
+      );
+
+      if (res.data.status === "200") {
+        const { value, trial } = res.data.content;
+
+        if (trial) {
+          setRemainSessions(`${value} sessions + Trial`);
+        } else {
+          setRemainSessions(`${value} sessions`);
+        }
+      } else {
+        setRemainSessions("0 sessions");
       }
-    };
-    fetchRemainSessions();
-  }, [decodedCookieEmail]);
+    } catch (err) {
+      console.error("Error fetching remain sessions:", err);
+      setRemainSessions("0 sessions");
+    }
+  };
+  fetchRemainSessions();
+}, [decodedCookieEmail]);
+
 
   const validateStep = () => {
     const newErrors = {};
@@ -140,13 +146,14 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
     <div className="extension-container">
       <p className="agent_name">AI Dialogue Architect Agent</p>
       <div className="blue-glow"></div>
-      <div
-        className={`session-remain ${remainSessions <= 1 ? "danger" : "normal"
-          }`}
-      >
-        Remaining Sessions:{" "}
-        {remainSessions !== null ? remainSessions : "Loading..."}
-      </div>
+  <div
+  className={`session-remain ${
+    remainSessions === "0 sessions" ? "danger" : "normal"
+  }`}
+>
+  Remaining Sessions: {remainSessions || "Loading..."}
+</div>
+
       {/* Step Indicator */}
       <div className="step-indicator">
         {[1, 2, 3].map((num, idx) => (
