@@ -7,9 +7,12 @@
   border-radius: 24px;
   background: linear-gradient(145deg, #10121f, #1a2665ff);
 padding: 10px 15px;
-  height: auto;
+  height: max-content;
   margin: 0 auto;
   transition: all 0.3s ease;
+max-height: 95vh; /* full chiều cao màn hình */
+  overflow-y: auto;  /* scroll khi vượt */
+  box-sizing: border-box;
 }
 .blue-glow {
   position: absolute;
@@ -228,4 +231,53 @@ background: rgba(255, 255, 255, 0.05);
 
 .session-remain.danger {
   color: red;
+}
+.divider{
+  border-right:2px solid #ccc;
+  border-radius: 4px;
+}
+.tab-container {
+  display: flex;
+  width: 100%;
+  justify-content: center;
+  gap: 1rem; /* khoảng cách giữa 2 tab */
+}
+
+.tab-item {
+  padding: 0.5rem 1rem;
+  cursor: pointer;
+  width: 45%;
+  text-align: center;
+  position: relative;
+  font-weight: 500;
+  color: #818181;
+}
+
+.tab-item.active {
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.tab-item.active::after {
+  content: "";
+  position: absolute;
+  bottom: -1px;
+  left: 0;
+  width: 100%;
+  height: 3px; 
+  border-radius: 4px;
+  background-color: #ffffff; /* màu line active */
+}
+
+.extension-container::-webkit-scrollbar {
+  width: 6px;
+}
+
+.extension-container::-webkit-scrollbar-thumb {
+  background-color: rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+}
+
+.extension-container::-webkit-scrollbar-track {
+  background: transparent;
 }

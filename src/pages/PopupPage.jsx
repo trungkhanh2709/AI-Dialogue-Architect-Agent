@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
 import "../styles/popup.css";
 import axios from "axios";
+import PopupWithSidebar from "../component/PopupWithSidebar.jsx";
 
 export default function PopupPage({ onStartMeeting, cookieUserName }) {
-const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
+  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
   const [remainSessions, setRemainSessions] = useState(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -20,37 +21,71 @@ const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
   });
   const [errors, setErrors] = useState({});
   const decodedCookieEmail = decodeURIComponent(cookieUserName);
+  const [tab, setTab] = useState("schedule"); // "instant" | "schedule"
 
-useEffect(() => {
-  const fetchRemainSessions = async () => {
-    try {
-      const res = await axios.post(
-        `${VITE_URL_BACKEND}/api/addons/get_addon_sessions`,
-        {
-          email: decodedCookieEmail,
-          add_on_type: "ai_dialogue_architect_agent",
-        }
-      );
+  useEffect(() => {
+    const fetchRemainSessions = async () => {
+      try {
+        const res = await axios.post(
+          `${VITE_URL_BACKEND}/api/addons/get_addon_sessions`,
+          {
+            email: decodedCookieEmail,
+            add_on_type: "ai_dialogue_architect_agent",
+          }
+        );
 
-      if (res.data.status === "200") {
-        const { value, trial } = res.data.content;
+        if (res.data.status === "200") {
+          const { value, trial } = res.data.content;
 
-        if (trial) {
-          setRemainSessions(`${value} sessions + Trial`);
+          if (trial) {
+            setRemainSessions(`${value} sessions + Trial`);
+          } else {
+            setRemainSessions(`${value} sessions`);
+          }
         } else {
-          setRemainSessions(`${value} sessions`);
+          setRemainSessions("0 sessions");
         }
-      } else {
+      } catch (err) {
+        console.error("Error fetching remain sessions:", err);
         setRemainSessions("0 sessions");
       }
-    } catch (err) {
-      console.error("Error fetching remain sessions:", err);
-      setRemainSessions("0 sessions");
-    }
-  };
-  fetchRemainSessions();
-}, [decodedCookieEmail]);
+    };
+    fetchRemainSessions();
+  }, [decodedCookieEmail]);
 
+const sampleBlocks = [
+  
+  {
+    id: 2,
+    name: "Follow-up Call – Client B",
+    type: "schedule",
+    userName: "Nguyễn Văn A",
+    userCompanyName: "TechCorp",
+    userCompanyServices: "Software solutions",
+    prospectName: "Mai Lan",
+    customerCompanyName: "Spa Luxury",
+    customerCompanyServices: "Chăm sóc da & làm đẹp",
+    meetingGoal: "Bàn kế hoạch hợp tác phần mềm",
+    meetingEmail: "nguyenvana@example.com",
+    meetingMessage: "Xin chào, muốn follow-up hợp đồng",
+    meetingNote: "Cuộc họp follow-up khách hàng"
+  },
+  {
+    id: 3,
+    name: "Product Pitch – Client C",
+    type: "instant",
+    userName: "Trần Thị B",
+    userCompanyName: "EduTech",
+    userCompanyServices: "Online education platform",
+    prospectName: "Hà Nội Spa",
+    customerCompanyName: "Hà Nội Spa",
+    customerCompanyServices: "Spa & Wellness",
+    meetingGoal: "Giới thiệu sản phẩm AI",
+    meetingEmail: "tranthib@example.com",
+    meetingMessage: "Chào bạn, mình muốn demo sản phẩm AI",
+    meetingNote: "Demo nội bộ"
+  }
+];
 
   const validateStep = () => {
     const newErrors = {};
@@ -139,71 +174,104 @@ useEffect(() => {
       {errors[id] && <div className="error-text">{errors[id]}</div>}
     </div>
   );
+  useEffect(() => {
+    setStep(tab === "instant" ? 1 : 0); // schedule bắt đầu từ step 1,  instant từ step 0
+  }, [tab]);
 
 
 
   return (
     <div className="extension-container">
-      <p className="agent_name">AI Dialogue Architect Agent</p>
-      <div className="blue-glow"></div>
+    <div className="tab-container">
   <div
-  className={`session-remain ${
-    remainSessions === "0 sessions" ? "danger" : "normal"
-  }`}
->
-  Remaining Sessions: {remainSessions || "Loading..."}
+    className={`tab-item ${tab === "instant" ? "active" : ""}`}
+    onClick={() => setTab("instant")}
+  >
+    Instant
+  </div>
+  <div className="divider"></div>
+  <div
+    className={`tab-item ${tab === "schedule" ? "active" : ""}`}
+    onClick={() => setTab("schedule")}
+  >
+    Schedule
+  </div>
 </div>
 
-      {/* Step Indicator */}
-      <div className="step-indicator">
-        {[1, 2, 3].map((num, idx) => (
-          <React.Fragment key={num}>
-            <div className={`step-circle ${step >= num ? "active" : ""}`}>{num}</div>
-            {idx < 2 && (
-              <div className={`step-line ${step > num ? "active" : ""}`}></div>
-            )}
-          </React.Fragment>
-        ))}
+      <p className="agent_name">AI Dialogue Architect Agent</p>
+    
+
+      <div className="blue-glow"></div>
+      <div
+        className={`session-remain ${remainSessions === "0 sessions" ? "danger" : "normal"
+          }`}
+      >
+        Remaining Sessions: {remainSessions || "Loading..."}
       </div>
-
-      {/* SECTION */}
-      <div className="section-card">
-        {step === 1 && (
-          <>
-
-            <div className="section-title">User A – Your Info</div>
-            {renderInput("userName", "Your Name")}
-            {renderInput("userCompanyName", "Company Name")}
-            {renderTextarea("userCompanyServices", "Services")}
-
-          </>
-        )}
-        {step === 2 && (
-          <>
-            <div className="section-title">User B – Prospect Info</div>
-            {renderInput("prospectName", "Prospect Name")}
-            {renderInput("customerCompanyName", "Customer Company Name")}
-            {renderTextarea("customerCompanyServices", "Customer Services")}
-          </>
-        )}
-        {step === 3 && (
-          <div className="scrollable-step">
-            <div className="section-title">Contextual Information</div>
-            {renderInput("meetingGoal", "Meeting Goal")}
-            {renderInput("meetingEmail", "Email (Optional)", "email")}
-            {renderInput("meetingMessage", "Message (Optional)")}
-            {renderTextarea("meetingNote", "Note (Optional)")}
+      {tab === "instant" && (
+        <>
+          <div className="step-indicator">
+            {[1, 2, 3].map((num, idx) => (
+              <React.Fragment key={num}>
+                <div className={`step-circle ${step >= num ? "active" : ""}`}>{num}</div>
+                {idx < 2 && (
+                  <div className={`step-line ${step > num ? "active" : ""}`}></div>
+                )}
+              </React.Fragment>
+            ))}
           </div>
-        )}
 
-      </div>
+          {/* SECTION */}
+          <div className="section-card">
+            {step === 1 && (
+              <>
 
-      {/* Buttons */}
-      <div className="btn-container">
-        {step > 1 && <button className="btn back" onClick={handleBack}>Back</button>}
-        {step < 3 && <button className="btn next" onClick={handleNext}>Next →</button>}
-        {step === 3 && <button className="btn start" onClick={handleStart}>Start</button>}
-      </div>
+                <div className="section-title">User A – Your Info</div>
+                {renderInput("userName", "Your Name")}
+                {renderInput("userCompanyName", "Company Name")}
+                {renderTextarea("userCompanyServices", "Services")}
+
+              </>
+            )}
+            {step === 2 && (
+              <>
+                <div className="section-title">User B – Prospect Info</div>
+                {renderInput("prospectName", "Prospect Name")}
+                {renderInput("customerCompanyName", "Customer Company Name")}
+                {renderTextarea("customerCompanyServices", "Customer Services")}
+              </>
+            )}
+            {step === 3 && (
+              <div className="scrollable-step">
+                <div className="section-title">Contextual Information</div>
+                {renderInput("meetingGoal", "Meeting Goal")}
+                {renderInput("meetingEmail", "Email (Optional)", "email")}
+                {renderInput("meetingMessage", "Message (Optional)")}
+                {renderTextarea("meetingNote", "Note (Optional)")}
+              </div>
+            )}
+
+          </div>
+
+          {/* Buttons */}
+          <div className="btn-container">
+            {step > 1 && <button className="btn back" onClick={handleBack}>Back</button>}
+            {step < 3 && <button className="btn next" onClick={handleNext}>Next →</button>}
+            {step === 3 && <button className="btn start" onClick={handleStart}>Start</button>}
+          </div>
+          {/* render các step 1 → 3 như cũ */}
+        </>
+      )}
+      {/* Step Indicator */}
+{tab === "schedule" && (
+  <div className="schedule-container">
+ 
+<PopupWithSidebar 
+  blocks={sampleBlocks} 
+  onSelectBlock={(block) => console.log("Selected:", block)} 
+/>  </div>
+)}
+
     </div>
   );
 }

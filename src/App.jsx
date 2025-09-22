@@ -21,11 +21,10 @@ export default function App() {
       // Display full height right side
       Object.assign(toolbar.style, {
         top: "1vh",
-        right: "5vh",
+        right: "1vh",
         left: "auto",
         transform: "none",
-        width: "26%",
-        height: "fit-content",
+        height: "100vh",
 
         borderRadius: "24px",
         boxShadow: "0 0 10px rgba(0,0,0,0.3)",
