@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import "../styles/sidebar.css";
 
-export default function Sidebar({ blocks, onSelectBlock }) {
+export default function Sidebar({ blocks, onSelectBlock, onCreateNew }) {
   const [search, setSearch] = useState("");
 
   const filteredBlocks = blocks.filter((b) =>
@@ -18,7 +18,16 @@ export default function Sidebar({ blocks, onSelectBlock }) {
         onChange={(e) => setSearch(e.target.value)}
         className="sidebar-search"
       />
+
       <div className="sidebar-list">
+        {/* First element: + */}
+        <div
+          className="sidebar-item new-block"
+          onClick={onCreateNew}
+        >
+          + Create New
+        </div>
+
         {filteredBlocks.map((block) => (
           <div
             key={block.id}
@@ -28,6 +37,7 @@ export default function Sidebar({ blocks, onSelectBlock }) {
             {block.name}
           </div>
         ))}
+
         {filteredBlocks.length === 0 && (
           <div className="sidebar-empty">No blocks found</div>
         )}

@@ -53,39 +53,39 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
     fetchRemainSessions();
   }, [decodedCookieEmail]);
 
-const sampleBlocks = [
-  
-  {
-    id: 2,
-    name: "Follow-up Call – Client B",
-    type: "schedule",
-    userName: "Nguyễn Văn A",
-    userCompanyName: "TechCorp",
-    userCompanyServices: "Software solutions",
-    prospectName: "Mai Lan",
-    customerCompanyName: "Spa Luxury",
-    customerCompanyServices: "Chăm sóc da & làm đẹp",
-    meetingGoal: "Bàn kế hoạch hợp tác phần mềm",
-    meetingEmail: "nguyenvana@example.com",
-    meetingMessage: "Xin chào, muốn follow-up hợp đồng",
-    meetingNote: "Cuộc họp follow-up khách hàng"
-  },
-  {
-    id: 3,
-    name: "Product Pitch – Client C",
-    type: "instant",
-    userName: "Trần Thị B",
-    userCompanyName: "EduTech",
-    userCompanyServices: "Online education platform",
-    prospectName: "Hà Nội Spa",
-    customerCompanyName: "Hà Nội Spa",
-    customerCompanyServices: "Spa & Wellness",
-    meetingGoal: "Giới thiệu sản phẩm AI",
-    meetingEmail: "tranthib@example.com",
-    meetingMessage: "Chào bạn, mình muốn demo sản phẩm AI",
-    meetingNote: "Demo nội bộ"
-  }
-];
+  const sampleBlocks = [
+
+    {
+      id: 2,
+      name: "Follow-up Call – Client B",
+      type: "schedule",
+      userName: "Nguyễn Văn A",
+      userCompanyName: "TechCorp",
+      userCompanyServices: "Software solutions",
+      prospectName: "Mai Lan",
+      customerCompanyName: "Spa Luxury",
+      customerCompanyServices: "Chăm sóc da & làm đẹp",
+      meetingGoal: "Bàn kế hoạch hợp tác phần mềm",
+      meetingEmail: "nguyenvana@example.com",
+      meetingMessage: "Xin chào, muốn follow-up hợp đồng",
+      meetingNote: "Cuộc họp follow-up khách hàng"
+    },
+    {
+      id: 3,
+      name: "Product Pitch – Client C",
+      type: "instant",
+      userName: "Trần Thị B",
+      userCompanyName: "EduTech",
+      userCompanyServices: "Online education platform",
+      prospectName: "Hà Nội Spa",
+      customerCompanyName: "Hà Nội Spa",
+      customerCompanyServices: "Spa & Wellness",
+      meetingGoal: "Giới thiệu sản phẩm AI",
+      meetingEmail: "tranthib@example.com",
+      meetingMessage: "Chào bạn, mình muốn demo sản phẩm AI",
+      meetingNote: "Demo nội bộ"
+    }
+  ];
 
   const validateStep = () => {
     const newErrors = {};
@@ -147,26 +147,56 @@ const sampleBlocks = [
     }
   };
 
+const renderExpandableTextarea = (id, label, maxRows = 3, placeholder) => {
+  const [value, setValue] = useState(formData[id] || "");
 
-  const renderTextarea = (id, label, rows = 3) => (
+  const handleChange = (e) => {
+    const val = e.target.value;
+    setValue(val);
+    setFormData(prev => ({ ...prev, [id]: val }));
+  };
+
+  // Tính số dòng
+  const rows = value ? Math.min(value.split("\n").length + 1, maxRows) : 1;
+
+  return (
+    <div className="input-group">
+      <label htmlFor={id}>{label}</label>
+      <textarea
+        id={id}
+        value={value}
+        onChange={handleChange}
+        placeholder={placeholder}
+        rows={rows}
+        className={errors[id] ? "input-error" : ""}
+        style={{ resize: "none" }}
+      />
+      {errors[id] && <div className="error-text">{errors[id]}</div>}
+    </div>
+  );
+};
+
+  const renderTextarea = (id, label, rows = 3, placeholder) => (
     <div className="input-group">
       <label htmlFor={id}>{label}</label>
       <textarea
         id={id}
         value={formData[id]}
         onChange={handleChange}
+        placeholder={placeholder}
         rows={rows}
         className={errors[id] ? "input-error" : ""}
       />
       {errors[id] && <div className="error-text">{errors[id]}</div>}
     </div>
   );
-  const renderInput = (id, label, type = "text") => (
+  const renderInput = (id, label, type = "text", placeholder) => (
     <div className="input-group">
       <label htmlFor={id}>{label}</label>
       <input
         type={type}
         id={id}
+        placeholder={placeholder}
         value={formData[id]}
         onChange={handleChange}
         className={errors[id] ? "input-error" : ""}
@@ -182,32 +212,32 @@ const sampleBlocks = [
 
   return (
     <div className="extension-container">
-    <div className="tab-container">
-  <div
-    className={`tab-item ${tab === "instant" ? "active" : ""}`}
-    onClick={() => setTab("instant")}
-  >
-    Instant
-  </div>
-  <div className="divider"></div>
-  <div
-    className={`tab-item ${tab === "schedule" ? "active" : ""}`}
-    onClick={() => setTab("schedule")}
-  >
-    Schedule
-  </div>
-</div>
+      <div className="tab-container">
+        <div
+          className={`tab-item ${tab === "instant" ? "active" : ""}`}
+          onClick={() => setTab("instant")}
+        >
+          Instant
+        </div>
+        <div className="divider"></div>
+        <div
+          className={`tab-item ${tab === "schedule" ? "active" : ""}`}
+          onClick={() => setTab("schedule")}
+        >
+          Schedule
+        </div>
+      </div>
 
       <p className="agent_name">AI Dialogue Architect Agent</p>
-    
-
-      <div className="blue-glow"></div>
       <div
         className={`session-remain ${remainSessions === "0 sessions" ? "danger" : "normal"
           }`}
       >
         Remaining Sessions: {remainSessions || "Loading..."}
       </div>
+
+
+      <div className="blue-glow"></div>
       {tab === "instant" && (
         <>
           <div className="step-indicator">
@@ -223,30 +253,30 @@ const sampleBlocks = [
 
           {/* SECTION */}
           <div className="section-card">
-            {step === 1 && (
+            {step === 3 && (
               <>
 
                 <div className="section-title">User A – Your Info</div>
-                {renderInput("userName", "Your Name")}
-                {renderInput("userCompanyName", "Company Name")}
-                {renderTextarea("userCompanyServices", "Services")}
+                {renderInput("userName", "Your Name - Role", "text", "Your name - Role")}
+                {renderInput("userCompanyName", "Company Name", "text", " Your Company Name")}
+                {renderTextarea("userCompanyServices", "Services", 3, "Please provide clear information about your company, including Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc.")}
 
               </>
             )}
             {step === 2 && (
               <>
                 <div className="section-title">User B – Prospect Info</div>
-                {renderInput("prospectName", "Prospect Name")}
-                {renderInput("customerCompanyName", "Customer Company Name")}
-                {renderTextarea("customerCompanyServices", "Customer Services")}
+                {renderInput("prospectName", "Prospect Name - Role", "text", "Prospect Name - Role")}
+                {renderInput("customerCompanyName", "Customer Company Name", "text", "Customer Company Name")}
+                {renderTextarea("customerCompanyServices", "Customer Services", 3, "Please provide clear information about your prospect company, including its Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc.")}
               </>
             )}
-            {step === 3 && (
+            {step === 1 && (
               <div className="scrollable-step">
                 <div className="section-title">Contextual Information</div>
-                {renderInput("meetingGoal", "Meeting Goal")}
-                {renderInput("meetingEmail", "Email (Optional)", "email")}
-                {renderInput("meetingMessage", "Message (Optional)")}
+                {renderTextarea("meetingGoal", "Meeting Goal",3,"Please be as specific as possible. Examples: Secure a partnership, schedule a demo, explore collaboration opportunities, close a sale, gather market research.")}
+                {renderTextarea("meetingEmail", "Email (Optional)", "email")}
+                {renderTextarea("meetingMessage", "Message (Optional)")}
                 {renderTextarea("meetingNote", "Note (Optional)")}
               </div>
             )}
@@ -263,14 +293,14 @@ const sampleBlocks = [
         </>
       )}
       {/* Step Indicator */}
-{tab === "schedule" && (
-  <div className="schedule-container">
- 
-<PopupWithSidebar 
-  blocks={sampleBlocks} 
-  onSelectBlock={(block) => console.log("Selected:", block)} 
-/>  </div>
-)}
+      {tab === "schedule" && (
+        <div className="schedule-container">
+
+          <PopupWithSidebar
+            blocks={sampleBlocks}
+            onSelectBlock={(block) => console.log("Selected:", block)}
+          />  </div>
+      )}
 
     </div>
   );

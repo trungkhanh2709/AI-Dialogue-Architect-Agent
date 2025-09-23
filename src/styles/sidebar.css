@@ -34,7 +34,11 @@ padding: 12px;
   border-radius: 6px;
   cursor: pointer;
   color: #ccc;
+  font-size: 12px;
+  font-weight: bold;
   transition: background 0.2s, color 0.2s;
+    background-color: #3a3a3a;
+
 }
 
 .sidebar-item:hover {

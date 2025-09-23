@@ -32,7 +32,7 @@
   border: none;
   background: #e2e2e2;
   color: #120000;
-  margin-top: 30px;
+  margin-top: 40px;
   font-size: 14px;
   cursor: pointer;
   transition: left 0.3s ease;
@@ -71,4 +71,27 @@
 
 .sidebar-toggle.collapsed {
   margin-left: -1px; /* dính sát biên trái khi sidebar ẩn */
+}
+
+.form-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;       /* chiếm toàn bộ chiều cao form-wrapper */
+  color: #888;
+  cursor: pointer;
+  transition: opacity 0.3s;
+}
+
+.form-placeholder img {
+  width: 48px;        /* icon nhỏ gọn */
+  height: 48px;
+  margin-bottom: 8px;
+  opacity: 0.8;
+}
+
+.form-placeholder p {
+  font-size: 12px;
+  color: #aaa;
 }

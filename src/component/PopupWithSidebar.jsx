@@ -1,6 +1,8 @@
+// PopupWithSidebar.jsx
 import React, { useState, useEffect } from "react";
 import "../styles/popupSidebar.css";
 import SideBar from "./Sidebar";
+import InboxOutlined from "../../public/icons/InboxOutlined.svg";
 
 export default function PopupWithSidebar({ blocks, onSelectBlock }) {
   const [selectedBlock, setSelectedBlock] = useState(null);
@@ -14,21 +16,41 @@ export default function PopupWithSidebar({ blocks, onSelectBlock }) {
     meetingGoal: "",
     meetingEmail: "",
     meetingMessage: "",
-    meetingNote: ""
+    meetingNote: "",
   });
   const [errors, setErrors] = useState({});
   const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [formVisible, setFormVisible] = useState(false);
 
   useEffect(() => {
-    if (selectedBlock) setFormData(selectedBlock);
+    if (selectedBlock) {
+      setFormData(selectedBlock);
+      setFormVisible(true); // Khi chọn block thì mở form luôn
+    }
   }, [selectedBlock]);
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+    setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+ const handleCreateNew = () => {
+    setSelectedBlock(null);
+    setFormData({
+      userName: "",
+      userCompanyName: "",
+      userCompanyServices: "",
+      prospectName: "",
+      customerCompanyName: "",
+      customerCompanyServices: "",
+      meetingGoal: "",
+      meetingEmail: "",
+      meetingMessage: "",
+      meetingNote: "",
+    });
+    setFormVisible(true);
   };
 
-  const renderInput = (id, label, type = "text") => (
+  const renderInput = (id, label, type = "text", placeholder) => (
     <div className="input-group">
       <label htmlFor={id}>{label}</label>
       <input
@@ -36,6 +58,7 @@ export default function PopupWithSidebar({ blocks, onSelectBlock }) {
         type={type}
         value={formData[id]}
         onChange={handleChange}
+        placeholder={placeholder}
         className={errors[id] ? "input-error" : ""}
       />
       {errors[id] && <div className="error-text">{errors[id]}</div>}
@@ -65,10 +88,11 @@ export default function PopupWithSidebar({ blocks, onSelectBlock }) {
             setSelectedBlock(block);
             onSelectBlock(block);
           }}
+                    onCreateNew={handleCreateNew} // click + mở form trống
+
         />
       </div>
 
-      {/* Nút toggle dính sát sidebar */}
       <button
         className={`sidebar-toggle ${sidebarVisible ? "expanded" : "collapsed"}`}
         onClick={() => setSidebarVisible((v) => !v)}
@@ -77,21 +101,31 @@ export default function PopupWithSidebar({ blocks, onSelectBlock }) {
       </button>
 
       <div className="form-wrapper">
-        <div className="section-title">User A – Your Info</div>
-        {renderInput("userName", "Your Name")}
-        {renderInput("userCompanyName", "Company Name")}
-        {renderTextarea("userCompanyServices", "Services")}
+        {!formVisible ? (
+          <div className="form-placeholder" >
+            <img src={InboxOutlined} alt="Inbox" className="icon-inbox" />
+            <p>Click to open schedule form</p>
+          </div>
 
-        <div className="section-title">User B – Prospect Info</div>
-        {renderInput("prospectName", "Prospect Name")}
-        {renderInput("customerCompanyName", "Customer Company Name")}
-        {renderTextarea("customerCompanyServices", "Customer Services")}
+        ) : (
+          <>
+            <div className="section-title">User A – Your Info</div>
+            {renderInput("userName", "Your Name","text","Your Name")}
+            {renderInput("userCompanyName", "Company Name", "text","Company Name")}
+            {renderTextarea("userCompanyServices", "Services", "textarea","Services")}
 
-        <div className="section-title">Contextual Information</div>
-        {renderInput("meetingGoal", "Meeting Goal")}
-        {renderInput("meetingEmail", "Email (Optional)", "email")}
-        {renderInput("meetingMessage", "Message (Optional)")}
-        {renderTextarea("meetingNote", "Note (Optional)")}
+            <div className="section-title">User B – Prospect Info</div>
+            {renderInput("prospectName", "Prospect Name")}
+            {renderInput("customerCompanyName", "Customer Company Name")}
+            {renderTextarea("customerCompanyServices", "Customer Services")}
+
+            <div className="section-title">Contextual Information</div>
+            {renderInput("meetingGoal", "Meeting Goal")}
+            {renderInput("meetingEmail", "Email (Optional)", "email")}
+            {renderInput("meetingMessage", "Message (Optional)")}
+            {renderTextarea("meetingNote", "Note (Optional)")}
+          </>
+        )}
       </div>
     </div>
   );
