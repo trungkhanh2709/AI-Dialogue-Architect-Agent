@@ -38,6 +38,8 @@ padding: 12px;
   font-weight: bold;
   transition: background 0.2s, color 0.2s;
     background-color: #3a3a3a;
+    align-items: center;
+    text-align: center;
 
 }
 
@@ -50,4 +52,37 @@ padding: 12px;
   text-align: center;
   color: #666;
   margin-top: 1rem;
+}
+.sidebar-item {
+  padding: 8px;
+  border-bottom: 1px solid #ccc;
+  cursor: pointer;
+}
+
+
+
+.block-actions {
+  margin-top: 4px;
+  display: flex;
+  gap: 4px;
+}
+
+.update-button,
+.delete-button {
+  padding: 4px 8px;
+  font-size: 12px;
+}
+
+.block-actions-vertical {
+  display: flex;
+  flex-direction: column;
+  margin-top: 5px;
+  gap: 5px;
+}
+
+.update-button,
+.delete-button {
+  padding: 5px 10px;
+  width: 100%;
+  cursor: pointer;
 }

@@ -1,11 +1,23 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import "../styles/sidebar.css";
 
-export default function Sidebar({ blocks, onSelectBlock, onCreateNew }) {
+export default function Sidebar({ blocks, onViewBlock, onEditBlock, onDeleteBlock, onCreateNew }) {
   const [search, setSearch] = useState("");
+  const [expandedBlockId, setExpandedBlockId] = useState(null);
+
   const filteredBlocks = blocks.filter((b) =>
     b.name.toLowerCase().includes(search.toLowerCase())
   );
+
+  const toggleExpand = (blockId) => {
+    setExpandedBlockId(expandedBlockId === blockId ? null : blockId);
+  };
+
+  // helper để auto collapse sau khi click 1 action
+  const collapseAfterAction = (action) => {
+    action();
+    setExpandedBlockId(null);
+  };
 
   return (
     <div className="sidebar-container">
@@ -22,15 +34,48 @@ export default function Sidebar({ blocks, onSelectBlock, onCreateNew }) {
           + Create New
         </div>
 
-        {filteredBlocks.map((block) => (
-          <div
-            key={block.id}
-            className="sidebar-item"
-            onClick={() => onSelectBlock(block)}
-          >
-            {block.name}
-          </div>
-        ))}
+        {filteredBlocks.map((block) => {
+          const isExpanded = expandedBlockId === block.id;
+          return (
+            <div key={block.id} className={`sidebar-item ${isExpanded ? "expanded" : ""}`}>
+              <div className="block-header" onClick={() => toggleExpand(block.id)}>
+                {block.name}
+              </div>
+
+              {isExpanded && (
+                <div className="block-actions-vertical">
+                  <button
+                    className="view-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      collapseAfterAction(() => onViewBlock(block));
+                    }}
+                  >
+                    View
+                  </button>
+                  <button
+                    className="update-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      collapseAfterAction(() => onEditBlock(block));
+                    }}
+                  >
+                    Update
+                  </button>
+                  <button
+                    className="delete-button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      collapseAfterAction(() => onDeleteBlock(block));
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
+          );
+        })}
 
         {filteredBlocks.length === 0 && (
           <div className="sidebar-empty">No blocks found</div>
@@ -39,4 +84,3 @@ export default function Sidebar({ blocks, onSelectBlock, onCreateNew }) {
     </div>
   );
 }
-

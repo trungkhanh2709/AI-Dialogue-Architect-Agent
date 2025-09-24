@@ -95,3 +95,60 @@
   font-size: 12px;
   color: #aaa;
 }
+.form-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 20px;
+  justify-content: flex-end;
+}
+
+.save-button,
+.edit-button,
+.cancel-button {
+  padding: 8px 18px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+/* Save Button - xanh lá */
+.save-button {
+  background-color: #0f60f5d1;
+  color: #fff;
+}
+.save-button:hover {
+  background-color: #457ee8d1;
+}
+
+/* Edit Button - xanh dương */
+.edit-button {
+  background-color: #007bff;
+  color: #fff;
+}
+.edit-button:hover {
+  background-color: #0069d9;
+}
+
+/* Cancel Button - đỏ */
+.cancel-button {
+  border:  1px solid #b7b4b5;
+  background: transparent;
+  color: #fff;
+}
+.cancel-button:hover {
+  background-color: #4d4c4c;
+}
+
+/* Disabled state nếu cần */
+button:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+.save-button,
+.edit-button,
+.cancel-button {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+}
