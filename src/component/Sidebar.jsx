@@ -1,10 +1,8 @@
-// Sidebar.jsx
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import "../styles/sidebar.css";
 
 export default function Sidebar({ blocks, onSelectBlock, onCreateNew }) {
   const [search, setSearch] = useState("");
-
   const filteredBlocks = blocks.filter((b) =>
     b.name.toLowerCase().includes(search.toLowerCase())
   );
@@ -20,11 +18,7 @@ export default function Sidebar({ blocks, onSelectBlock, onCreateNew }) {
       />
 
       <div className="sidebar-list">
-        {/* First element: + */}
-        <div
-          className="sidebar-item new-block"
-          onClick={onCreateNew}
-        >
+        <div className="sidebar-item new-block" onClick={onCreateNew}>
           + Create New
         </div>
 
@@ -45,3 +39,4 @@ export default function Sidebar({ blocks, onSelectBlock, onCreateNew }) {
     </div>
   );
 }
+

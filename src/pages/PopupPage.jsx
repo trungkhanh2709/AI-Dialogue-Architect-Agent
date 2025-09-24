@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import "../styles/popup.css";
 import axios from "axios";
 import PopupWithSidebar from "../component/PopupWithSidebar.jsx";
+import ExpandableTextarea from "../component/ExpandableTextarea.jsx";
 
 export default function PopupPage({ onStartMeeting, cookieUserName }) {
   const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
@@ -147,34 +148,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
     }
   };
 
-const renderExpandableTextarea = (id, label, maxRows = 3, placeholder) => {
-  const [value, setValue] = useState(formData[id] || "");
 
-  const handleChange = (e) => {
-    const val = e.target.value;
-    setValue(val);
-    setFormData(prev => ({ ...prev, [id]: val }));
-  };
-
-  // Tính số dòng
-  const rows = value ? Math.min(value.split("\n").length + 1, maxRows) : 1;
-
-  return (
-    <div className="input-group">
-      <label htmlFor={id}>{label}</label>
-      <textarea
-        id={id}
-        value={value}
-        onChange={handleChange}
-        placeholder={placeholder}
-        rows={rows}
-        className={errors[id] ? "input-error" : ""}
-        style={{ resize: "none" }}
-      />
-      {errors[id] && <div className="error-text">{errors[id]}</div>}
-    </div>
-  );
-};
 
   const renderTextarea = (id, label, rows = 3, placeholder) => (
     <div className="input-group">
@@ -207,6 +181,8 @@ const renderExpandableTextarea = (id, label, maxRows = 3, placeholder) => {
   useEffect(() => {
     setStep(tab === "instant" ? 1 : 0); // schedule bắt đầu từ step 1,  instant từ step 0
   }, [tab]);
+
+
 
 
 
@@ -274,12 +250,65 @@ const renderExpandableTextarea = (id, label, maxRows = 3, placeholder) => {
             {step === 1 && (
               <div className="scrollable-step">
                 <div className="section-title">Contextual Information</div>
-                {renderTextarea("meetingGoal", "Meeting Goal",3,"Please be as specific as possible. Examples: Secure a partnership, schedule a demo, explore collaboration opportunities, close a sale, gather market research.")}
-                {renderTextarea("meetingEmail", "Email (Optional)", "email")}
-                {renderTextarea("meetingMessage", "Message (Optional)")}
-                {renderTextarea("meetingNote", "Note (Optional)")}
+                <ExpandableTextarea
+                  id="meetingGoal"
+                  label="Meeting Goal"
+                  placeholder="Describe your objective clearly (e.g., secure a partnership, schedule a demo, explore collaboration, close a sale)."
+                  maxRows={5}
+                  formData={formData}
+                  setFormData={setFormData}
+                  errors={errors}
+                />
+                <ExpandableTextarea
+                  id="meetingEmail"
+                  label="Email (Optional)"
+                  placeholder="Copy and paste the entire email thread with the prospect, including your initial outreach"
+                  maxRows={5}
+                  formData={formData}
+                  setFormData={setFormData}
+                  errors={errors}
+                />
+                <ExpandableTextarea
+                  id="meetingMessage"
+                  label="Social Media Message History (Optional)"
+                  placeholder="Copy and paste any relevant social media conversations (e.g., LinkedIn, Twitter) with the prospect. (Optional)"
+                  maxRows={5}
+                  formData={formData}
+                  setFormData={setFormData}
+                  errors={errors}
+                />
+                <ExpandableTextarea
+                  id="meetingNote"
+                  label="Note (Optional)"
+                  placeholder="For example, additional information useful for the Agent, such as personality analysis results, BusinessDNA insights, key pain points, potential objections, and relationship history with the prospect, etc."
+                  maxRows={5}
+                  formData={formData}
+                  setFormData={setFormData}
+                  errors={errors}
+                />
+
+
+                {/* <ExpandableTextarea
+      id="meetingEmail"
+      label="Email (Optional)"
+      placeholder="Email (Optional)"
+      maxRows={5}
+    />
+    <ExpandableTextarea
+      id="meetingMessage"
+      label="Message (Optional)"
+      placeholder="Message (Optional)"
+      maxRows={5}
+    />
+    <ExpandableTextarea
+      id="meetingNote"
+      label="Note (Optional)"
+      placeholder="Note (Optional)"
+      maxRows={5}
+    /> */}
               </div>
             )}
+
 
           </div>
 
@@ -297,7 +326,8 @@ const renderExpandableTextarea = (id, label, maxRows = 3, placeholder) => {
         <div className="schedule-container">
 
           <PopupWithSidebar
-            blocks={sampleBlocks}
+                    decodedCookieEmail={decodedCookieEmail}
+
             onSelectBlock={(block) => console.log("Selected:", block)}
           />  </div>
       )}

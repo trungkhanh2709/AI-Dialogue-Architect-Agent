@@ -8,11 +8,11 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-      "build:watch": "vite build --watch"
-
+    "build:watch": "vite build --watch"
   },
   "dependencies": {
     "axios": "^1.11.0",
+    "mongodb": "^6.20.0",
     "react": "^19.1.1",
     "react-dom": "^19.1.1",
     "uuid": "^11.1.0"
