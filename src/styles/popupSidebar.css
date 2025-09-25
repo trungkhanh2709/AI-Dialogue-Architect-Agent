@@ -152,3 +152,44 @@ button:disabled {
 .cancel-button {
   box-shadow: 0 2px 6px rgba(0,0,0,0.15);
 }
+
+.google-calendar-btn {
+  margin: 12px 0;
+  background: transparent;
+  color: white;
+  border: none;
+  padding: 8px 12px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.google-calendar-btn .arrow {
+  margin-left: 8px;
+  display: inline-block;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  /* cubic-bezier này = chuẩn material design easing */
+  will-change: transform;
+}
+
+.google-calendar-btn .arrow.open {
+  transform: rotate(180deg);
+}
+
+
+.calendar-options {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, opacity 0.3s ease;
+}
+
+.calendar-options.show {
+  max-height: 500px; /* đủ lớn để chứa form */
+  opacity: 1;
+}
+

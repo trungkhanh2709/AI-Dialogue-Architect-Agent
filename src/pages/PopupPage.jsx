@@ -247,7 +247,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
                 {renderTextarea("customerCompanyServices", "Customer Services", 3, "Please provide clear information about your prospect company, including its Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc.")}
               </>
             )}
-            {step === 1 && (
+            {step === 3 && (
               <div className="scrollable-step">
                 <div className="section-title">Contextual Information</div>
                 <ExpandableTextarea
@@ -326,7 +326,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
         <div className="schedule-container">
 
           <PopupWithSidebar
-                    decodedCookieEmail={decodedCookieEmail}
+            decodedCookieEmail={decodedCookieEmail}
 
             onSelectBlock={(block) => console.log("Selected:", block)}
           />  </div>

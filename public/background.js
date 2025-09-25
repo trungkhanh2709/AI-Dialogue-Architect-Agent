@@ -4,6 +4,7 @@ let sharedCaptions = [];
 let startTime = null; // thời điểm bắt đầu
 let timerInterval = null;
 const timeRemainingThreshold = 30 * 60; // 30- phút
+const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
 
 function resetTimer() {
   startTime = null;
@@ -128,4 +129,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true; // keep sendResponse async
   }
 });
+
+chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
+  if (msg.type === "LOGIN_GOOGLE") {
+    chrome.identity.launchWebAuthFlow(
+      {
+        url: urlConnect,
+        interactive: true
+      },
+      (redirectUrl) => {
+        if (chrome.runtime.lastError || !redirectUrl) {
+          sendResponse({ error: chrome.runtime.lastError?.message || "Login failed" });
+          return;
+        }
+        const m = redirectUrl.match(/access_token=([^&]+)/);
+        const token = m ? m[1] : null;
+        sendResponse({ token });
+      }
+    );
+    return true; // GIỮ CHANNEL
+  }
+});
+
 

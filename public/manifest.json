@@ -4,16 +4,24 @@
     "description": "AI Dialogue Architect – Hyper-Personalized Sales for Everyone",
 
   "version": "1.0.1",
-  "permissions": ["scripting", "activeTab", "notifications","cookies"],
+  "permissions": ["scripting", "activeTab", "notifications","cookies","identity"],
   "host_permissions": [
     "https://meet.google.com/*",
     "https://reelsightsai.com/*"
   ],
+  
     "icons": {
     "16": "icons/icon16.png",
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
+  },
+   "oauth2": {
+    "client_id": "242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com",
+    "scopes": [
+      "https://www.googleapis.com/auth/calendar",
+      "https://www.googleapis.com/auth/calendar.events"
+    ]
   },
   "action": {
      "default_icon": {
