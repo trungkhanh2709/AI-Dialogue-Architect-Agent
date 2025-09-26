@@ -1,4 +1,44 @@
 
+.google-calendar-btn {
+  margin: 12px 0;
+  background: transparent;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  display: flex;
+  font-weight: 600;
+  align-items: center;
+  
+  width: 100%;
+}
+
+.google-calendar-btn .arrow {
+  margin-left: 8px;
+  display: inline-block;
+  transition: transform 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  /* cubic-bezier này = chuẩn material design easing */
+  will-change: transform;
+  color: #ffffff;
+}
+
+.google-calendar-btn .arrow.open {
+  transform: rotate(180deg);
+}
+
+
+.calendar-options {
+  max-height: 0;
+  opacity: 0;
+  overflow: hidden;
+  transition: max-height 0.4s ease, opacity 0.3s ease;
+}
+
+.calendar-options.show {
+  max-height: 500px; /* đủ lớn để chứa form */
+  opacity: 1;
+}
 
 .input-group select {
   padding: 8px 12px;
@@ -19,4 +59,30 @@
 .input-group select option {
   padding: 8px;
   color: #000;
+}
+input[type="datetime-local"]:empty::before {
+  content: attr(placeholder);
+  color: #aaa;
+}
+
+.confirm-calendar-btn{
+  margin-top: 12px;
+  background-color: #4285f4;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  text-align: center;
+  display: flex;
+  font-weight: 600;
+  align-items: center;
+  padding: 8px 12px;
+  width: 100%;
+}
+
+.google-calendar-icon {
+  width: 20px;
+  height: 20px;
+  margin-right: 8px;
 }

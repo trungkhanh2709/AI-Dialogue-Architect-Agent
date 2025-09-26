@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 import "../styles/popupSidebar.css";
 import SideBar from "./Sidebar";
-import InboxOutlined from "../../public/icons/InboxOutlined.svg";
+import InboxOutlined from "../assets/InboxOutlined.svg";
 import InputField from "./InputField";
 import GoogleCalendar from "./GoogleCalendar";
 import ExpandableTextarea from "./ExpandableTextarea";
@@ -409,7 +409,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
 
             />
 
-
+            <div className="section-divider" />
 
 
             <div className="section-title">User A – Your Info</div>

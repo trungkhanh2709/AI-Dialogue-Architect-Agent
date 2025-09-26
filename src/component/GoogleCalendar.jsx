@@ -2,9 +2,12 @@ import { useRef, useEffect, useState } from "react";
 import InputField from "./InputField";
 import "../styles/GoogleCalendar.css";
 import ExpandDownIcon from "../assets/Expand_down.svg";
+import GoogleCalendarIcon from "../assets/google-calendar.svg";
+import EmailInput from "./EmailInput";
 
 const GoogleCalendar = ({ formData, handleChange, error }) => {
   const [showCalendarOptions, setShowCalendarOptions] = useState(false);
+const [guestEmails, setGuestEmails] = useState([]);
 
   const handleGoogleLoginAndCreateEvent = async () => {
     chrome.runtime.sendMessage({ type: "LOGIN_GOOGLE" }, async (res) => {
@@ -49,7 +52,9 @@ const GoogleCalendar = ({ formData, handleChange, error }) => {
             dateTime: endDate.toISOString(),
             timeZone: timeZone,
           },
-          attendees: formData.guestEmail ? [{ email: formData.guestEmail }] : [],
+attendees: guestEmails.length > 0 
+  ? guestEmails.map((email) => ({ email })) 
+  : [],
         };
 
         if (formData.guestEmail) {
@@ -89,12 +94,26 @@ const GoogleCalendar = ({ formData, handleChange, error }) => {
       }
     });
   };
+
+  const getDefaultDateTime = () => {
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 15); // cộng thêm 15 phút
+  return new Date(now.getTime() - now.getTimezoneOffset() * 60000)
+    .toISOString()
+    .slice(0, 16);
+};
+
   return (
     <div className="calendar-section">
       <button
         className="google-calendar-btn"
         onClick={() => setShowCalendarOptions((prev) => !prev)}
       >
+         <img
+    src={GoogleCalendarIcon}
+    alt="Google Calendar"
+    className="google-calendar-icon"
+  />
         Create in Google Calendar
         <img
           src={ExpandDownIcon}
@@ -110,7 +129,7 @@ const GoogleCalendar = ({ formData, handleChange, error }) => {
             id="meetingStart"
             label="Start Time"
             type="datetime-local"
-            value={formData.meetingStart}
+          value={formData.meetingStart || getDefaultDateTime()}
             onChange={handleChange}
             error={error.meetingStart}
           />
@@ -128,20 +147,20 @@ const GoogleCalendar = ({ formData, handleChange, error }) => {
             </select>
           </div>
 
-          <InputField
-            id="guestEmail"
-            label="Guest Email"
-            type="email"
-            value={formData.guestEmail}
-            onChange={handleChange}
-            error={error.guestEmail}
-          />
+       <EmailInput
+         label="Guest Emails"
+
+  emails={guestEmails}
+  setEmails={setGuestEmails}
+  error={error.guestEmail}
+/>
 
           <button
             className="confirm-calendar-btn"
             onClick={handleGoogleLoginAndCreateEvent}
           >
-            Confirm & Add to Google Calendar
+             
+           Login & Add to Google Calendar
           </button>
         </div>
       )}
