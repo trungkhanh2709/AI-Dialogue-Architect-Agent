@@ -1,8 +1,15 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import "../styles/EmailInput.css";
 
-export default function EmailInput({label, emails, setEmails, error }) {
+export default function EmailInput({ label, emails, setEmails, error, inputRef,clearTrigger }) {
   const [inputValue, setInputValue] = useState("");
+  const internalRef = useRef();
+  const ref = inputRef || internalRef;
+
+  useEffect(() => {
+    if (clearTrigger) setInputValue("");  // khi GoogleCalendar muốn xoá input
+  }, [clearTrigger]);
+
 
   const handleKeyDown = (e) => {
     if (e.key === "Enter" || e.key === ",") {
@@ -21,19 +28,19 @@ export default function EmailInput({label, emails, setEmails, error }) {
 
   return (
     <div className="email-input-wrapper">
-           {label && <label className="email-input-label">{label}</label>}
-
+      {label && <label className="email-input-label">{label}</label>}
       {emails.map((email) => (
         <div key={email} className="email-chip">
           {email}
-          <button type="button" onClick={() => handleRemove(email)}>
+          <button type="button" onClick={() => setEmails(emails.filter((e) => e !== email))}>
             ×
           </button>
         </div>
       ))}
 
       <input
-      className="email-input-field"
+        ref={ref}
+        className="email-input-field"
         type="text"
         value={inputValue}
         placeholder="Enter guest emails..."
@@ -43,6 +50,7 @@ export default function EmailInput({label, emails, setEmails, error }) {
       {error && <div className="error-text">{error}</div>}
     </div>
   );
+
 }
 
 function validateEmail(email) {

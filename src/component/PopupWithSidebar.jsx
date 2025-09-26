@@ -114,100 +114,58 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
     }
   };
 
-  const handleSave = async () => {
-    try {
-      if (selectedBlock) {
-        // Update existing block
-        const meeting_id = selectedBlock._id || selectedBlock.id; // dùng _id từ Mongo
-        const payload = {
-          meetings: [
-            {
-              blockName: formData.title || "Untitled Meeting",
-              userNameAndRole: formData.userName || "",
-              userCompanyName: formData.userCompanyName || "",
-              userCompanyServices: formData.userCompanyServices || "",
-              prospectName: formData.prospectName || "",
-              customerCompanyName: formData.customerCompanyName || "",
-              customerCompanyServices: formData.customerCompanyServices || "",
-              meetingGoal: formData.meetingGoal || "",
-              meetingEmail: formData.meetingEmail || "",
-              meetingMessage: formData.meetingMessage || "",
-              meetingNote: formData.meetingNote || "",
-              meetingStart: formData.meetingStart,
-              meetingEnd: formData.meetingEnd,
+ 
+  const handleSave = async ({ resetForm = true } = {}) => {
+  try {
+    if (!formData.title) formData.title = "Untitled Meeting";
 
-              meetingLink: formData.meetingLink || "",
-              meetingEmail: formData.guestEmail || "",
+    const payloadMeeting = {
+      blockName: formData.title,
+      userNameAndRole: formData.userName || "",
+      userCompanyName: formData.userCompanyName || "",
+      userCompanyServices: formData.userCompanyServices || "",
+      prospectName: formData.prospectName || "",
+      customerCompanyName: formData.customerCompanyName || "",
+      customerCompanyServices: formData.customerCompanyServices || "",
+      meetingGoal: formData.meetingGoal || "",
+      meetingEmail: formData.meetingEmail || "",
+      meetingMessage: formData.meetingMessage || "",
+      meetingNote: formData.meetingNote || "",
+      meetingStart: formData.meetingStart || "",
+      meetingDuration: formData.meetingDuration || "15",
+      meetingEnd: formData.meetingEnd || "",
+      meetingLink: formData.meetingLink || "",
+      guestEmail: formData.guestEmail || "",
+      createdAt: selectedBlock ? selectedBlock.createdAt : new Date().toISOString(),
+    };
 
-
-            },
-          ],
-        };
-
-        const res = await fetch(
-          `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}/${meeting_id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }
-        );
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          console.error("Update failed:", errorData);
-          alert("Failed to update meeting: " + (errorData.detail || res.statusText));
-          return;
+    if (selectedBlock) {
+      // Update
+      const meeting_id = selectedBlock._id || selectedBlock.id;
+      const res = await fetch(
+        `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}/${meeting_id}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ meetings: [payloadMeeting] }),
         }
-
-        await res.json();
-        alert("Meeting updated successfully");
-      } else {
-        // Create new meeting (giữ nguyên code cũ)
-        const payload = {
-          username: decodedCookieEmail,
-          meetings: [
-            {
-              blockName: formData.title || "Untitled Meeting",
-              userNameAndRole: formData.userName || "",
-              userCompanyName: formData.userCompanyName || "",
-              userCompanyServices: formData.userCompanyServices || "",
-              prospectName: formData.prospectName || "",
-              customerCompanyName: formData.customerCompanyName || "",
-              customerCompanyServices: formData.customerCompanyServices || "",
-              meetingGoal: formData.meetingGoal || "",
-              meetingEmail: formData.meetingEmail || "",
-              meetingMessage: formData.meetingMessage || "",
-              meetingNote: formData.meetingNote || "",
-              createdAt: new Date().toISOString(),
-            },
-          ],
-        };
-
-        const res = await fetch(
-          `${VITE_URL_BACKEND}/api/meeting_prepare/create_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(payload),
-          }
-        );
-
-        if (!res.ok) {
-          const errorData = await res.json();
-          console.error("Save failed:", errorData);
-          alert("Failed to save meeting: " + (errorData.detail || res.statusText));
-          return;
+      );
+      if (!res.ok) throw new Error("Update failed");
+    } else {
+      // Create new
+      const res = await fetch(
+        `${VITE_URL_BACKEND}/api/meeting_prepare/create_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ username: decodedCookieEmail, meetings: [payloadMeeting] }),
         }
+      );
+      if (!res.ok) throw new Error("Create failed");
+    }
 
-        await res.json();
-        alert("Meeting saved successfully");
-      }
-
-      // Reload sidebar ngay lập tức
-      await fetchBlocks();
-
-      // Reset form
+    await fetchBlocks();
+    if (resetForm) {
       setSelectedBlock(null);
       setFormData({
         title: "",
@@ -219,17 +177,24 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
         customerCompanyServices: "",
         meetingGoal: "",
         meetingEmail: "",
+        guestEmail: "",
         meetingMessage: "",
         meetingNote: "",
+        meetingStart: "",
+        meetingDuration: "15",
+        meetingEnd: "",
+        meetingLink: "",
       });
       setFormVisible(false);
       setIsEditing(false);
-
-    } catch (err) {
-      console.error("Error saving meeting:", err);
-      alert("Failed to save meeting");
     }
-  };
+  } catch (err) {
+    console.error(err);
+    alert(err.message);
+  }
+};
+
+
   const handleDeleteBlock = async (block) => {
     if (!window.confirm("Are you sure you want to delete this meeting?")) return;
 
@@ -393,6 +358,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               error={errors.title}
               readOnly={!isEditing}
             />
+
             {formData.meetingLink && (
               <div className="meeting-link">
                 <span>Meeting Link: </span>
@@ -403,11 +369,13 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
             )}
 
 
-            <GoogleCalendar formData={formData}
+            <GoogleCalendar
+              formData={formData}
               handleChange={handleChange}
               error={errors}
-
+              onSaveWithCalendar={handleSave} // thêm callback
             />
+
 
             <div className="section-divider" />
 
@@ -462,15 +430,15 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               error={errors.customerCompanyName}
               readOnly={!isEditing}
             />
-<ExpandableTextarea
-  id="customerCompanyServices"
-  label="Customer Services"
-  placeholder="Enter customer services..."
-  formData={formData}
-  setFormData={setFormData}
-  errors={errors}
-  readOnly={!isEditing}
-/>
+            <ExpandableTextarea
+              id="customerCompanyServices"
+              label="Customer Services"
+              placeholder="Enter customer services..."
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+              readOnly={!isEditing}
+            />
             <div className="section-title">Contextual Information</div>
             <ExpandableTextarea
               id="meetingGoal"
@@ -480,7 +448,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               formData={formData}
               setFormData={setFormData}
               errors={errors}
-                            readOnly={!isEditing}
+              readOnly={!isEditing}
 
             />
             <ExpandableTextarea
@@ -491,7 +459,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               formData={formData}
               setFormData={setFormData}
               errors={errors}
-                            readOnly={!isEditing}
+              readOnly={!isEditing}
 
             />
             <ExpandableTextarea
@@ -502,7 +470,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               formData={formData}
               setFormData={setFormData}
               errors={errors}
-                            readOnly={!isEditing}
+              readOnly={!isEditing}
 
             />
             <ExpandableTextarea
@@ -513,10 +481,10 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               formData={formData}
               setFormData={setFormData}
               errors={errors}
-                            readOnly={!isEditing}
+              readOnly={!isEditing}
 
-            />        
-              </>
+            />
+          </>
         )}
         {formVisible && (
           <div className="form-actions">
