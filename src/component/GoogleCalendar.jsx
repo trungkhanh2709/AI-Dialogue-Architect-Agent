@@ -28,26 +28,37 @@ const [showCalendarOptions, setShowCalendarOptions] = useState(readOnly ? true :
 
   const validateEmail = (email) => /\S+@\S+\.\S+/.test(email);
 
-  const handleChangeMeetingStart = (e) => {
-    const localValue = e.target.value; // 'yyyy-MM-ddTHH:mm' local
-    const d = new Date(localValue);
-    const utcValue = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
-    handleChange({ target: { id: "meetingStart", value: utcValue } });
-  };
+const handleChangeMeetingStart = (e) => {
+  const localValue = e.target.value; // yyyy-MM-ddTHH:mm
+  if (!localValue) return;
 
-  const formatLocalDateTime = (utcString) => {
-    if (!utcString) return "";
-    const d = new Date(utcString);
-    const tzOffset = d.getTimezoneOffset() * 60000;
-    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
-  };
+  const [datePart, timePart] = localValue.split("T");
+  const [year, month, day] = datePart.split("-").map(Number);
+  const [hour, minute] = timePart.split(":").map(Number);
+
+  // tạo date local (user timezone)
+  const d = new Date(year, month - 1, day, hour, minute);
+
+  // lưu UTC ISO vào formData
+  handleChange({ target: { id: "meetingStart", value: d.toISOString() } });
+};
+
+
+const formatLocalDateTime = (utcString) => {
+  if (!utcString) return "";
+  const d = new Date(utcString);
+  // lấy local yyyy-MM-ddTHH:mm
+  const pad = (n) => String(n).padStart(2, "0");
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 
   const getDefaultDateTime = () => {
-    const now = new Date();
-    now.setMinutes(now.getMinutes() + 15);
-    const tzOffset = now.getTimezoneOffset() * 60000;
-    return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
-  };
+  const now = new Date();
+  now.setMinutes(now.getMinutes() + 15);
+  return now.toISOString().slice(0, 16);
+};
+
 
   const handleGoogleLoginAndCreateEvent = async () => {
     let emailsToSend = [...guestEmails];
@@ -123,6 +134,7 @@ const [showCalendarOptions, setShowCalendarOptions] = useState(readOnly ? true :
 
         if (data.hangoutLink) {
           handleChange({ target: { id: "meetingLink", value: data.hangoutLink } });
+          handleChange({ target: { id: "eventId", value: data.id } });
           alert("Meeting link created: " + data.hangoutLink);
           if (onSaveWithCalendar) onSaveWithCalendar({ resetForm: false });
         } else {
@@ -134,6 +146,58 @@ const [showCalendarOptions, setShowCalendarOptions] = useState(readOnly ? true :
       }
     });
   };
+
+  const updateGoogleEvent = async (emails) => {
+  chrome.runtime.sendMessage({ type: "LOGIN_GOOGLE" }, async (res) => {
+    if (!res || res.error) {
+      alert(res?.error ? "Login failed: " + res.error : "Login cancelled");
+      return;
+    }
+    const accessToken = res.token;
+    if (!accessToken) return;
+
+    if (!formData.eventId) {
+      alert("No eventId found, cannot update");
+      return;
+    }
+
+    const startDate = new Date(formData.meetingStart || new Date());
+    const durationMinutes = parseInt(formData.meetingDuration, 10) || 15;
+    const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+    const event = {
+      summary: formData.title || "Untitled Meeting",
+      start: { dateTime: startDate.toISOString(), timeZone },
+      end: { dateTime: endDate.toISOString(), timeZone },
+      attendees: emails.map((email) => ({ email })),
+    };
+
+    try {
+      const resp = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/primary/events/${formData.eventId}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(event),
+        }
+      );
+      const data = await resp.json();
+      if (!resp.ok) throw new Error(data.error?.message || "Unknown error");
+
+      alert("Event updated successfully");
+      if (data.hangoutLink) {
+        handleChange({ target: { id: "meetingLink", value: data.hangoutLink } });
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update Google Calendar event: " + err.message);
+    }
+  });
+};
 
   return (
     <div className="calendar-section">
@@ -185,10 +249,22 @@ const [showCalendarOptions, setShowCalendarOptions] = useState(readOnly ? true :
             clearTrigger={clearInput}
           />
  {!readOnly && (
-          <button className="confirm-calendar-btn" onClick={handleGoogleLoginAndCreateEvent}>
-            Login & Add to Google Calendar
-          </button>
-          )}
+  <button
+    className="confirm-calendar-btn"
+    onClick={() => {
+      if (formData.eventId) {
+        updateGoogleEvent(guestEmails);
+      } else {
+        handleGoogleLoginAndCreateEvent();
+      }
+    }}
+  >
+    {formData.eventId
+      ? "Login & Update Google Calendar"
+      : "Login & Add to Google Calendar"}
+  </button>
+)}
+
         </div>
       )}
     </div>

@@ -8,7 +8,7 @@ import GoogleCalendar from "./GoogleCalendar";
 import ExpandableTextarea from "./ExpandableTextarea";
 
 
-export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) {
+export default function PopupWithSidebar({ onStartMeeting ,onSelectBlock, decodedCookieEmail }) {
   const VITE_URL_BACKEND = 'http://localhost:4000';
   const [blocks, setBlocks] = useState([]);
   const [selectedBlock, setSelectedBlock] = useState(null);
@@ -64,6 +64,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
         meetingEnd: "",
         guestEmail: "",
         meetingLink: "", // link Google Calendar event
+         eventId: "", // link Google Calendar event
       });
     }
     setIsEditing(false);
@@ -135,6 +136,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
       meetingDuration: formData.meetingDuration || "15",
       meetingEnd: formData.meetingEnd || "",
       meetingLink: formData.meetingLink || "",
+      eventId: formData.eventId || "",
       guestEmail: formData.guestEmail || "",
       createdAt: selectedBlock ? selectedBlock.createdAt : new Date().toISOString(),
     };
@@ -307,6 +309,34 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
   };
 
 
+  const handleStart = async () => {
+    try {
+      const res = await fetch(`${VITE_URL_BACKEND}/api/addons/use_addon_session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: decodedCookieEmail,
+          add_on_type: "ai_dialogue_architect_agent"
+        })
+      });
+
+      const data = await res.json();
+
+      chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
+        chrome.runtime.sendMessage({ type: "START_TIMER" });
+
+      });
+
+      if (data.trial_used === true || data.status === "200") {
+        onStartMeeting(formData);
+      } else {
+        alert("You have run out of sessions. Please purchase an add-on to continue.");
+      }
+    } catch (err) {
+      console.error(err);
+      alert("An error occurred while calling the API");
+    }
+  };
 
 
 
@@ -354,6 +384,14 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
         ) : (
           <>
             <div className="section-title"></div>
+             {formData.meetingLink && (
+              <div className="meeting-link">
+                
+                <a href={formData.meetingLink} target="_blank" rel="noopener noreferrer">
+                  {formData.meetingLink}
+                </a>
+              </div>
+            )}
             <InputField
               id="title"
               label="Title"
@@ -365,14 +403,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               readOnly={!isEditing}
             />
 
-            {formData.meetingLink && (
-              <div className="meeting-link">
-                <span>Meeting Link: </span>
-                <a href={formData.meetingLink} target="_blank" rel="noopener noreferrer">
-                  {formData.meetingLink}
-                </a>
-              </div>
-            )}
+           
 
 
             <GoogleCalendar
@@ -501,7 +532,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
     ) : isEditing ? (
       <button className="edit-button" onClick={handleSave}>Update</button>
     ) : (
-      <button className="start-button">Start</button>
+      <button className="start-button" onClick={handleStart}>Start</button>
     )}
   </div>
 )}

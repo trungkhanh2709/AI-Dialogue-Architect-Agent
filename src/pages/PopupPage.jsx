@@ -287,25 +287,6 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
                   errors={errors}
                 />
 
-
-                {/* <ExpandableTextarea
-      id="meetingEmail"
-      label="Email (Optional)"
-      placeholder="Email (Optional)"
-      maxRows={5}
-    />
-    <ExpandableTextarea
-      id="meetingMessage"
-      label="Message (Optional)"
-      placeholder="Message (Optional)"
-      maxRows={5}
-    />
-    <ExpandableTextarea
-      id="meetingNote"
-      label="Note (Optional)"
-      placeholder="Note (Optional)"
-      maxRows={5}
-    /> */}
               </div>
             )}
 
@@ -326,6 +307,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
         <div className="schedule-container">
 
           <PopupWithSidebar
+          onStartMeeting ={onStartMeeting}
             decodedCookieEmail={decodedCookieEmail}
 
             onSelectBlock={(block) => console.log("Selected:", block)}

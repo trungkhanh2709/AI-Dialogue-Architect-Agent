@@ -41,7 +41,7 @@ export default function Meeting({ meetingData, onBack, cookieUserName,onExpire  
   ];
   const decodedCookieEmail = decodeURIComponent(cookieUserName);
 
-
+console.log("meeting data", meetingData);
 
   function isMySpeech(speaker) {
     return speaker === "You" || speaker === "Bạn";

@@ -101,7 +101,7 @@
   margin-top: 20px;
   justify-content: flex-end;
 }
-
+.start-button,
 .save-button,
 .edit-button,
 .cancel-button {
@@ -114,6 +114,11 @@
   transition: all 0.2s ease-in-out;
 }
 
+.start-button {
+  background-color: #ff7461;
+  color: #fff;
+  border: none;
+}
 /* Save Button - xanh lá */
 .save-button {
   background-color: #0f60f5d1;
@@ -164,4 +169,33 @@ button:disabled {
   height: 1px;
   background-color: #dfdfdf;
   margin: 16px 0;
+}
+
+.meeting-link {
+  margin-bottom: 12px;
+ display: block;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #333;
+}
+
+.meeting-link span {
+  color: #f9f6f6;
+}
+
+.meeting-link a {
+  background-color: #4285f4; /* xanh Google */
+  color: white;
+  padding: 6px 12px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.meeting-link a:hover {
+  background-color: #3367d6;
 }
