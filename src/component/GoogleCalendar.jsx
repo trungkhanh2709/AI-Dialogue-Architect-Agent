@@ -1,3 +1,4 @@
+// GoogleCalendar.jsx
 import { useRef, useEffect, useState } from "react";
 import InputField from "./InputField";
 import "../styles/GoogleCalendar.css";
@@ -5,61 +6,78 @@ import ExpandDownIcon from "../assets/Expand_down.svg";
 import GoogleCalendarIcon from "../assets/google-calendar.svg";
 import EmailInput from "./EmailInput";
 
-const GoogleCalendar = ({ formData, handleChange, error, onSaveWithCalendar }) => {
-  const [showCalendarOptions, setShowCalendarOptions] = useState(false);
-  const [guestEmails, setGuestEmails] = useState([]);
+const GoogleCalendar = ({ formData, handleChange, error, onSaveWithCalendar,readOnly  }) => {
+const [showCalendarOptions, setShowCalendarOptions] = useState(readOnly ? true : false);
   const emailInputRef = useRef();
+  const [guestEmails, setGuestEmails] = useState([]);
+
   const [clearInput, setClearInput] = useState(false);
 
+  // Sync guestEmails từ formData.guestEmail khi formData thay đổi
+  useEffect(() => {
+    if (formData.guestEmail) {
+      const emails = formData.guestEmail
+        .split(",")
+        .map((e) => e.trim())
+        .filter((e) => e);
+      setGuestEmails(emails);
+    } else {
+      setGuestEmails([]);
+    }
+  }, [formData.guestEmail]);
 
+  const validateEmail = (email) => /\S+@\S+\.\S+/.test(email);
 
-  const validateEmail = (email) => {
-    const re = /\S+@\S+\.\S+/;
-    return re.test(email);
+  const handleChangeMeetingStart = (e) => {
+    const localValue = e.target.value; // 'yyyy-MM-ddTHH:mm' local
+    const d = new Date(localValue);
+    const utcValue = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
+    handleChange({ target: { id: "meetingStart", value: utcValue } });
   };
 
- const handleGoogleLoginAndCreateEvent = async () => {
-  let emailsToSend = [...guestEmails];
+  const formatLocalDateTime = (utcString) => {
+    if (!utcString) return "";
+    const d = new Date(utcString);
+    const tzOffset = d.getTimezoneOffset() * 60000;
+    return new Date(d.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
 
-  if (emailInputRef.current) {
-    const value = emailInputRef.current.value.trim();
-    if (value && validateEmail(value) && !guestEmails.includes(value)) {
-      emailsToSend.push(value);
-      setGuestEmails(emailsToSend);
-      setClearInput(true);
+  const getDefaultDateTime = () => {
+    const now = new Date();
+    now.setMinutes(now.getMinutes() + 15);
+    const tzOffset = now.getTimezoneOffset() * 60000;
+    return new Date(now.getTime() - tzOffset).toISOString().slice(0, 16);
+  };
+
+  const handleGoogleLoginAndCreateEvent = async () => {
+    let emailsToSend = [...guestEmails];
+
+    if (emailInputRef.current) {
+      const value = emailInputRef.current.value.trim();
+      if (value && validateEmail(value) && !guestEmails.includes(value)) {
+        emailsToSend.push(value);
+        setGuestEmails(emailsToSend);
+        setClearInput(true);
+      }
     }
-  }
 
-  // Lấy start time từ formData, nếu rỗng thì dùng default
-  const startISO = formData.meetingStart || new Date().toISOString();
-  const startDate = new Date(startISO);
-  if (isNaN(startDate.getTime())) {
-    alert("Invalid start time");
-    return;
-  }
+    const startISO = formData.meetingStart || new Date().toISOString();
+    const startDate = new Date(startISO);
+    if (isNaN(startDate.getTime())) {
+      alert("Invalid start time");
+      return;
+    }
 
-  const durationMinutes = parseInt(formData.meetingDuration, 10) || 15;
-  const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
+    const durationMinutes = parseInt(formData.meetingDuration, 10) || 15;
+    const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
 
-  // Cập nhật formData
-  handleChange({ target: { id: "guestEmail", value: emailsToSend.join(", ") } });
-  handleChange({ target: { id: "meetingStart", value: startDate.toISOString() } });
-  handleChange({ target: { id: "meetingEnd", value: endDate.toISOString() } });
+    handleChange({ target: { id: "guestEmail", value: emailsToSend.join(", ") } });
+    handleChange({ target: { id: "meetingStart", value: startDate.toISOString() } });
+    handleChange({ target: { id: "meetingEnd", value: endDate.toISOString() } });
 
-  // Gọi API
-  createGoogleEvent(emailsToSend);
-  setClearInput(false);
-};
-
-
-const handleChangeMeetingStart = (e) => {
-  const localValue = e.target.value; // 'yyyy-MM-ddTHH:mm' local
-  const d = new Date(localValue); 
-  const utcValue = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString();
-  handleChange({ target: { id: "meetingStart", value: utcValue } });
-};
-
-
+    createGoogleEvent(emailsToSend);
+    setClearInput(false);
+  };
 
   const createGoogleEvent = async (emails) => {
     chrome.runtime.sendMessage({ type: "LOGIN_GOOGLE" }, async (res) => {
@@ -70,27 +88,16 @@ const handleChangeMeetingStart = (e) => {
       const accessToken = res.token;
       if (!accessToken) return;
 
-      // Start time
-      const startDate = formData.meetingStart
-        ? new Date(formData.meetingStart)
-        : new Date(getDefaultDateTime());
-      if (isNaN(startDate.getTime())) {
-        alert("Invalid start time");
-        return;
-      }
-
-      // End time
+      const startDate = new Date(formData.meetingStart || new Date());
       const durationMinutes = parseInt(formData.meetingDuration, 10) || 15;
       const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
-
       const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
 
-      // Tạo event với Google Meet
       const event = {
         summary: formData.title || "Untitled Meeting",
         start: { dateTime: startDate.toISOString(), timeZone },
         end: { dateTime: endDate.toISOString(), timeZone },
-        attendees: emails.map(email => ({ email })), // nếu rỗng cũng ok
+        attendees: emails.map((email) => ({ email })),
         conferenceData: {
           createRequest: {
             requestId: String(Date.now()),
@@ -111,14 +118,13 @@ const handleChangeMeetingStart = (e) => {
             body: JSON.stringify(event),
           }
         );
-
         const data = await resp.json();
-
         if (!resp.ok) throw new Error(data.error?.message || "Unknown error");
 
         if (data.hangoutLink) {
           handleChange({ target: { id: "meetingLink", value: data.hangoutLink } });
           alert("Meeting link created: " + data.hangoutLink);
+          if (onSaveWithCalendar) onSaveWithCalendar({ resetForm: false });
         } else {
           alert("Meeting created but no Google Meet link returned.");
         }
@@ -129,62 +135,36 @@ const handleChangeMeetingStart = (e) => {
     });
   };
 
-
-
-const getDefaultDateTime = () => {
-  const now = new Date();
-  now.setMinutes(now.getMinutes() + 15);
-  const tzOffset = now.getTimezoneOffset() * 60000;
-  const local = new Date(now.getTime() - tzOffset);
-  return local.toISOString().slice(0,16);
-};
-
-const formatLocalDateTime = (utcString) => {
-  const d = new Date(utcString);
-  const tzOffset = d.getTimezoneOffset() * 60000; // offset in ms
-  const local = new Date(d.getTime() - tzOffset);
-  return local.toISOString().slice(0,16);
-};
-
-
-
   return (
     <div className="calendar-section">
       <button
         className="google-calendar-btn"
-        onClick={() => setShowCalendarOptions((prev) => !prev)}
+        onClick={() => {  if (!readOnly) setShowCalendarOptions((prev) => !prev);}}
       >
-        <img
-          src={GoogleCalendarIcon}
-          alt="Google Calendar"
-          className="google-calendar-icon"
-        />
+        <img src={GoogleCalendarIcon} alt="Google Calendar" className="google-calendar-icon" />
         Schedule a meeting in Google Calendar
-        <img
-          src={ExpandDownIcon}
-          alt="expand"
-          className={`arrow ${showCalendarOptions ? "open" : ""}`}
-        />
+        <img src={ExpandDownIcon} alt="expand" className={`arrow ${showCalendarOptions ? "open" : ""}`} />
       </button>
 
-
       {showCalendarOptions && (
-        <div className={`calendar-options ${showCalendarOptions ? "show" : ""}`}>
-         <InputField
-  id="meetingStart"
-  label="Start Time"
-  type="datetime-local"
-  value={formData.meetingStart ? formatLocalDateTime(formData.meetingStart) : getDefaultDateTime()}
-  onChange={handleChangeMeetingStart}
-  error={error.meetingStart}
-/>
+        <div className={`calendar-options show`}>
+          <InputField
+            id="meetingStart"
+            label="Start Time"
+            type="datetime-local"
+            value={formData.meetingStart ? formatLocalDateTime(formData.meetingStart) : getDefaultDateTime()}
+            onChange={handleChangeMeetingStart}
+            error={error.meetingStart}
+             readOnly={readOnly}
+          />
 
           <div className="input-group">
             <label htmlFor="meetingDuration">Duration</label>
             <select
               id="meetingDuration"
-              value={formData.meetingDuration}
-              onChange={handleChange}
+              value={formData.meetingDuration || "15"}
+        onChange={readOnly ? undefined : handleChange}
+                 disabled={readOnly}
             >
               <option value="15">15 minutes</option>
               <option value="30">30 minutes</option>
@@ -196,24 +176,19 @@ const formatLocalDateTime = (utcString) => {
             label="Guest Emails"
             emails={guestEmails}
             setEmails={(newEmails) => {
+                if (!readOnly) {
               setGuestEmails(newEmails);
-              // CẬP NHẬT CHỈ guestEmail, không chạm meetingEmail
               handleChange({ target: { id: "guestEmail", value: newEmails.join(", ") } });
-            }}
+             } }}
             error={error.guestEmail}
             inputRef={emailInputRef}
             clearTrigger={clearInput}
           />
-
-
-
-          <button
-            className="confirm-calendar-btn"
-            onClick={handleGoogleLoginAndCreateEvent}
-          >
-
+ {!readOnly && (
+          <button className="confirm-calendar-btn" onClick={handleGoogleLoginAndCreateEvent}>
             Login & Add to Google Calendar
           </button>
+          )}
         </div>
       )}
     </div>

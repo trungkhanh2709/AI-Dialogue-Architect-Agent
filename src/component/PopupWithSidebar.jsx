@@ -251,23 +251,29 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
 
 
   useEffect(() => {
-    if (selectedBlock) {
-      setFormData({
-        title: selectedBlock.blockName,
-        userName: selectedBlock.userNameAndRole || "",
-        userCompanyName: selectedBlock.userCompanyName || "",
-        userCompanyServices: selectedBlock.userCompanyServices || "",
-        prospectName: selectedBlock.prospectName || "",
-        customerCompanyName: selectedBlock.customerCompanyName || "",
-        customerCompanyServices: selectedBlock.customerCompanyServices || "",
-        meetingGoal: selectedBlock.meetingGoal || "",
-        meetingEmail: selectedBlock.meetingEmail || "",
-        meetingMessage: selectedBlock.meetingMessage || "",
-        meetingNote: selectedBlock.meetingNote || "",
-      });
-      setFormVisible(true);
-    }
-  }, [selectedBlock]);
+  if (selectedBlock) {
+    setFormData({
+      title: selectedBlock.blockName || "",
+      userName: selectedBlock.userNameAndRole || "",
+      userCompanyName: selectedBlock.userCompanyName || "",
+      userCompanyServices: selectedBlock.userCompanyServices || "",
+      prospectName: selectedBlock.prospectName || "",
+      customerCompanyName: selectedBlock.customerCompanyName || "",
+      customerCompanyServices: selectedBlock.customerCompanyServices || "",
+      meetingGoal: selectedBlock.meetingGoal || "",
+      meetingEmail: selectedBlock.meetingEmail || "",
+      meetingMessage: selectedBlock.meetingMessage || "",
+      meetingNote: selectedBlock.meetingNote || "",
+      meetingStart: selectedBlock.meetingStart || "",
+      meetingDuration: selectedBlock.meetingDuration || "15",
+      meetingEnd: selectedBlock.meetingEnd || "",
+      guestEmail: selectedBlock.guestEmail || "",
+      meetingLink: selectedBlock.meetingLink || "",   // <<< THÊM VÀO
+    });
+    setFormVisible(true);
+  }
+}, [selectedBlock]);
+
 
   useEffect(() => {
     if (!formData.meetingStart) return;
@@ -374,7 +380,8 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               handleChange={handleChange}
               error={errors}
               onSaveWithCalendar={handleSave} // thêm callback
-            />
+            readOnly={!isEditing}
+           />
 
 
             <div className="section-divider" />
@@ -486,18 +493,19 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
             />
           </>
         )}
-        {formVisible && (
-          <div className="form-actions">
-            <button className="cancel-button" onClick={handleCancel}>Cancel</button>
-            {isEditing ? (
-              <button className="edit-button" onClick={handleSave}>Update</button>
-            ) : selectedBlock ? (
-              <button className="start-button">Start</button>
-            ) : (
-              <button className="save-button" onClick={handleSave}>Save</button>
-            )}
-          </div>
-        )}
+       {formVisible && (
+  <div className="form-actions">
+    <button className="cancel-button" onClick={handleCancel}>Cancel</button>
+    {!selectedBlock ? (
+      <button className="save-button" onClick={handleSave}>Save</button>
+    ) : isEditing ? (
+      <button className="edit-button" onClick={handleSave}>Update</button>
+    ) : (
+      <button className="start-button">Start</button>
+    )}
+  </div>
+)}
+
 
 
 
