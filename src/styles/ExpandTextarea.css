@@ -28,3 +28,8 @@ background: rgba(255, 255, 255, 0.05);
   margin-bottom: 2px;
   color: #ffffff;
 }
+textarea[readonly] {
+  background-color: transparent; /* nền trong hoặc xám nhẹ */
+  color: #666;                   /* chữ nhạt hơn */
+  cursor: not-allowed;           /* đổi con trỏ */
+}

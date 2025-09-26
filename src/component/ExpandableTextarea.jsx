@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
-import ExpandTextarea from "../styles/ExpandTextarea.css";
+import  "../styles/ExpandTextarea.css";
 
-const ExpandableTextarea = ({ id, label, placeholder, maxRows = 5, formData, setFormData, errors }) => {
+const ExpandableTextarea = ({ id, label, placeholder, maxRows = 5, formData, setFormData, errors,readOnly = false }) => {
   const textareaRef = useRef(null);
 
   const resizeTextarea = () => {
@@ -33,6 +33,7 @@ const ExpandableTextarea = ({ id, label, placeholder, maxRows = 5, formData, set
         onChange={(e) => setFormData(prev => ({ ...prev, [id]: e.target.value }))}
         style={{ resize: "vertical", overflow: "auto" }}
         className={errors[id] ? "input-error" : ""}
+         readOnly={readOnly} 
       />
       {errors[id] && <div className="error-text">{errors[id]}</div>}
     </div>

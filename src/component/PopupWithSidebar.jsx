@@ -5,9 +5,11 @@ import SideBar from "./Sidebar";
 import InboxOutlined from "../../public/icons/InboxOutlined.svg";
 import InputField from "./InputField";
 import GoogleCalendar from "./GoogleCalendar";
-export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) {
-  const VITE_URL_BACKEND = 'http://localhost:4000'; //process.env.VITE_URL_BACKEND || 'http://localhost:3000';
+import ExpandableTextarea from "./ExpandableTextarea";
 
+
+export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) {
+  const VITE_URL_BACKEND = 'http://localhost:4000';
   const [blocks, setBlocks] = useState([]);
   const [selectedBlock, setSelectedBlock] = useState(null);
   const [formData, setFormData] = useState({
@@ -26,6 +28,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
     meetingDuration: "15", // default 15 minutes
     meetingEnd: "",
     guestEmail: "",
+    meetingLink: "", // link Google Calendar event
   });
   const [errors, setErrors] = useState({});
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -40,29 +43,6 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
     }
   }, [selectedBlock]);
 
-  // const handleSelectBlock = (block) => {
-  //   setSelectedBlock(block);
-  //   setFormData({
-  //     title: block.blockName,
-  //     userName: block.userNameAndRole || "",
-  //     userCompanyName: block.userCompanyName || "",
-  //     userCompanyServices: block.userCompanyServices || "",
-  //     prospectName: block.prospectName || "",
-  //     customerCompanyName: block.customerCompanyName || "",
-  //     customerCompanyServices: block.customerCompanyServices || "",
-  //     meetingGoal: block.meetingGoal || "",
-  //     meetingEmail: block.meetingEmail || "",
-  //     meetingMessage: block.meetingMessage || "",
-  //     meetingNote: block.meetingNote || "",
-  //   });
-  //   setFormVisible(true);
-  //   setIsEditing(false); // mặc định không edit ngay, chỉ xem
-  // };
-
-  // Khi nhấn Edit
-  // const handleEdit = () => {
-  //   setIsEditing(true);
-  // };
 
   const handleCancel = () => {
     if (selectedBlock) {
@@ -79,6 +59,11 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
         meetingEmail: selectedBlock.meetingEmail || "",
         meetingMessage: selectedBlock.meetingMessage || "",
         meetingNote: selectedBlock.meetingNote || "",
+        meetingStart: "",
+        meetingDuration: "15", // default 15 minutes
+        meetingEnd: "",
+        guestEmail: "",
+        meetingLink: "", // link Google Calendar event
       });
     }
     setIsEditing(false);
@@ -150,6 +135,11 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               meetingNote: formData.meetingNote || "",
               meetingStart: formData.meetingStart,
               meetingEnd: formData.meetingEnd,
+
+              meetingLink: formData.meetingLink || "",
+              meetingEmail: formData.guestEmail || "",
+
+
             },
           ],
         };
@@ -342,6 +332,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
       meetingNote: "",
     });
     setFormVisible(true);
+    setIsEditing(true);
   };
 
 
@@ -385,7 +376,8 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
         {!formVisible ? (
           <div className="form-placeholder" >
             <img src={InboxOutlined} alt="Inbox" className="icon-inbox" />
-            <p>Click to open schedule form</p>
+            <p>Click View from the sidebar item to start the meeting</p>
+
           </div>
 
         ) : (
@@ -399,7 +391,17 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               onChange={handleChange}
               placeholder="Meeting Title"
               error={errors.title}
+              readOnly={!isEditing}
             />
+            {formData.meetingLink && (
+              <div className="meeting-link">
+                <span>Meeting Link: </span>
+                <a href={formData.meetingLink} target="_blank" rel="noopener noreferrer">
+                  {formData.meetingLink}
+                </a>
+              </div>
+            )}
+
 
             <GoogleCalendar formData={formData}
               handleChange={handleChange}
@@ -419,6 +421,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               onChange={handleChange}
               placeholder="Your Name"
               error={errors.userName}
+              readOnly={!isEditing}
             />
             <InputField
               id="userCompanyName"
@@ -428,8 +431,17 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               onChange={handleChange}
               placeholder="Company Name"
               error={errors.userCompanyName}
+              readOnly={!isEditing}
             />
-            {renderTextarea("userCompanyServices", "Services", "textarea", "Services")}
+            <ExpandableTextarea
+              id="userCompanyServices"
+              label="Services"
+              placeholder="Enter your services..."
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+              readOnly={!isEditing}
+            />
 
             <div className="section-title">User B – Prospect Info</div>
             <InputField
@@ -439,6 +451,7 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               value={formData.prospectName}
               onChange={handleChange}
               error={errors.prospectName}
+              readOnly={!isEditing}
             />
             <InputField
               id="customerCompanyName"
@@ -447,36 +460,63 @@ export default function PopupWithSidebar({ onSelectBlock, decodedCookieEmail }) 
               value={formData.customerCompanyName}
               onChange={handleChange}
               error={errors.customerCompanyName}
+              readOnly={!isEditing}
             />
-            {renderTextarea("customerCompanyServices", "Customer Services")}
-
+<ExpandableTextarea
+  id="customerCompanyServices"
+  label="Customer Services"
+  placeholder="Enter customer services..."
+  formData={formData}
+  setFormData={setFormData}
+  errors={errors}
+  readOnly={!isEditing}
+/>
             <div className="section-title">Contextual Information</div>
-            <InputField
+            <ExpandableTextarea
               id="meetingGoal"
               label="Meeting Goal"
-              type="text"
-              value={formData.meetingGoal}
-              onChange={handleChange}
-              error={errors.meetingGoal}
+              placeholder="Describe your objective clearly (e.g., secure a partnership, schedule a demo, explore collaboration, close a sale)."
+              maxRows={5}
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+                            readOnly={!isEditing}
+
             />
-            <InputField
+            <ExpandableTextarea
               id="meetingEmail"
               label="Email (Optional)"
-              type="email"
-              value={formData.meetingEmail}
-              onChange={handleChange}
-              error={errors.meetingEmail}
+              placeholder="Copy and paste the entire email thread with the prospect, including your initial outreach"
+              maxRows={5}
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+                            readOnly={!isEditing}
+
             />
-            <InputField
+            <ExpandableTextarea
               id="meetingMessage"
-              label="Message (Optional)"
-              type="text"
-              value={formData.meetingMessage}
-              onChange={handleChange}
-              error={errors.meetingMessage}
+              label="Social Media Message History (Optional)"
+              placeholder="Copy and paste any relevant social media conversations (e.g., LinkedIn, Twitter) with the prospect. (Optional)"
+              maxRows={5}
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+                            readOnly={!isEditing}
+
             />
-            {renderTextarea("meetingNote", "Note (Optional)")}
-          </>
+            <ExpandableTextarea
+              id="meetingNote"
+              label="Note (Optional)"
+              placeholder="For example, additional information useful for the Agent, such as personality analysis results, BusinessDNA insights, key pain points, potential objections, and relationship history with the prospect, etc."
+              maxRows={5}
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+                            readOnly={!isEditing}
+
+            />        
+              </>
         )}
         {formVisible && (
           <div className="form-actions">

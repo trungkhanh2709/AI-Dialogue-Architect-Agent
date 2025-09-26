@@ -1,5 +1,7 @@
 import { useRef, useEffect, useState } from "react";
 import InputField from "./InputField";
+import "../styles/GoogleCalendar.css";
+import ExpandDownIcon from "../assets/Expand_down.svg";
 
 const GoogleCalendar = ({ formData, handleChange, error }) => {
   const [showCalendarOptions, setShowCalendarOptions] = useState(false);
@@ -14,38 +16,38 @@ const GoogleCalendar = ({ formData, handleChange, error }) => {
         alert("Login failed: " + res.error);
         return;
       }
-      
+
       const accessToken = res.token;
       if (!accessToken) return;
-      
+
       try {
         if (!formData.meetingStart) {
           alert("Please select start time");
           return;
         }
-        
+
         // input datetime-local trả về chuỗi kiểu "2025-09-24T15:30"
         const startDate = new Date(formData.meetingStart);
-        
+
         if (isNaN(startDate.getTime())) {
           alert("Invalid start time");
           return;
         }
-        
+
         const durationMinutes = parseInt(formData.meetingDuration, 10) || 15;
         const endDate = new Date(startDate.getTime() + durationMinutes * 60000);
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone;
-        
+
         const event = {
           summary: formData.title || "Untitled Meeting",
-          
+
           start: {
             dateTime: startDate.toISOString(),
             timeZone: timeZone,
           },
           end: {
             dateTime: endDate.toISOString(),
-            timeZone:timeZone,
+            timeZone: timeZone,
           },
           attendees: formData.guestEmail ? [{ email: formData.guestEmail }] : [],
         };
@@ -78,7 +80,9 @@ const GoogleCalendar = ({ formData, handleChange, error }) => {
           throw new Error(data.error?.message || "Unknown error");
         }
 
-        alert("Event created: " + (data.hangoutLink || data.htmlLink));
+        if (data.hangoutLink) {
+          handleChange({ target: { id: "meetingLink", value: data.hangoutLink } });
+        }
       } catch (err) {
         console.error("Calendar API error:", err);
         alert("Calendar API failed: " + err.message);
@@ -92,8 +96,13 @@ const GoogleCalendar = ({ formData, handleChange, error }) => {
         onClick={() => setShowCalendarOptions((prev) => !prev)}
       >
         Create in Google Calendar
-        <span className={`arrow ${showCalendarOptions ? "open" : ""}`}>v</span>
-      </button>
+        <img
+          src={ExpandDownIcon}
+          alt="expand"
+          className={`arrow ${showCalendarOptions ? "open" : ""}`}
+        />      
+        </button>
+
 
       {showCalendarOptions && (
         <div className={`calendar-options ${showCalendarOptions ? "show" : ""}`}>

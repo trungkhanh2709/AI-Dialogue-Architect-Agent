@@ -1,5 +1,5 @@
 import React from "react";
-
+import "../styles/InputField.css";
 export default function InputField({
   id,
   label,
@@ -7,7 +7,8 @@ export default function InputField({
   value,
   onChange,
   placeholder = "",
-  error
+  error,
+  readOnly,
 }) {
   return (
     <div className="input-group">
@@ -19,6 +20,8 @@ export default function InputField({
         onChange={onChange}
         placeholder={placeholder}
         className={error ? "input-error" : ""}
+              readOnly={readOnly}
+
       />
       {error && <div className="error-text">{error}</div>}
     </div>

@@ -229,7 +229,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
 
           {/* SECTION */}
           <div className="section-card">
-            {step === 3 && (
+            {step === 1 && (
               <>
 
                 <div className="section-title">User A – Your Info</div>
