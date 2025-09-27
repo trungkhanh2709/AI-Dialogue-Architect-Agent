@@ -150,20 +150,37 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
 
 
 
-  const renderTextarea = (id, label, rows = 3, placeholder) => (
+const renderTextarea = (id, label, rows = 3, placeholder) => {
+  const words = formData[id].trim() === "" ? [] : formData[id].trim().split(/\s+/);
+  const wordCount = words.length;
+
+  return (
     <div className="input-group">
       <label htmlFor={id}>{label}</label>
       <textarea
         id={id}
         value={formData[id]}
-        onChange={handleChange}
+        onChange={(e) => {
+          const newWords = e.target.value.trim() === "" ? [] : e.target.value.trim().split(/\s+/);
+          if (newWords.length <= 1000) {
+            handleChange(e);
+          } else {
+            e.target.value = formData[id]; // giữ giá trị cũ
+            alert("Maximum 1000 words allowed");
+          }
+        }}
         placeholder={placeholder}
         rows={rows}
         className={errors[id] ? "input-error" : ""}
       />
+      <div className="word-counter">{wordCount}/1000 words</div>
       {errors[id] && <div className="error-text">{errors[id]}</div>}
     </div>
   );
+};
+
+
+
   const renderInput = (id, label, type = "text", placeholder) => (
     <div className="input-group">
       <label htmlFor={id}>{label}</label>
@@ -233,18 +250,18 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
               <>
 
                 <div className="section-title">User A – Your Info</div>
-                {renderInput("userName", "Your Name - Role", "text", "Your name - Role")}
+                {renderInput("userName", "Your Name - Role/Title", "text", "Your name - Role/Title")}
                 {renderInput("userCompanyName", "Company Name", "text", " Your Company Name")}
-                {renderTextarea("userCompanyServices", "Services", 3, "Please provide clear information about your company, including Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc.")}
+                {renderTextarea("userCompanyServices", "Your Company: Business, Products, and Services", 3, "Please provide clear information about your company, including Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc.")}
 
               </>
             )}
             {step === 2 && (
               <>
                 <div className="section-title">User B – Prospect Info</div>
-                {renderInput("prospectName", "Prospect Name - Role", "text", "Prospect Name - Role")}
-                {renderInput("customerCompanyName", "Customer Company Name", "text", "Customer Company Name")}
-                {renderTextarea("customerCompanyServices", "Customer Services", 3, "Please provide clear information about your prospect company, including its Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc.")}
+                {renderInput("prospectName", "Prospect's Name - Role/Title", "text", "Prospect's Name - Role/Title")}
+                {renderInput("customerCompanyName", "Prospect Company Name", "text", "Prospect Company Name")}
+                {renderTextarea("customerCompanyServices", "Prospect Company: Business, Products, and Services", 3, "Please provide clear information about your prospect company, including its Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc.")}
               </>
             )}
             {step === 3 && (

@@ -8,8 +8,8 @@ import GoogleCalendar from "./GoogleCalendar";
 import ExpandableTextarea from "./ExpandableTextarea";
 
 
-export default function PopupWithSidebar({ onStartMeeting ,onSelectBlock, decodedCookieEmail }) {
-  const VITE_URL_BACKEND = 'http://localhost:4000';
+export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decodedCookieEmail }) {
+  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';
   const [blocks, setBlocks] = useState([]);
   const [selectedBlock, setSelectedBlock] = useState(null);
   const [formData, setFormData] = useState({
@@ -64,7 +64,7 @@ export default function PopupWithSidebar({ onStartMeeting ,onSelectBlock, decode
         meetingEnd: "",
         guestEmail: "",
         meetingLink: "", // link Google Calendar event
-         eventId: "", // link Google Calendar event
+        eventId: "", // link Google Calendar event
       });
     }
     setIsEditing(false);
@@ -115,86 +115,86 @@ export default function PopupWithSidebar({ onStartMeeting ,onSelectBlock, decode
     }
   };
 
- 
+
   const handleSave = async ({ resetForm = true } = {}) => {
-  try {
-    if (!formData.title) formData.title = "Untitled Meeting";
+    try {
+      if (!formData.title) formData.title = "Untitled Meeting";
 
-    const payloadMeeting = {
-      blockName: formData.title,
-      userNameAndRole: formData.userName || "",
-      userCompanyName: formData.userCompanyName || "",
-      userCompanyServices: formData.userCompanyServices || "",
-      prospectName: formData.prospectName || "",
-      customerCompanyName: formData.customerCompanyName || "",
-      customerCompanyServices: formData.customerCompanyServices || "",
-      meetingGoal: formData.meetingGoal || "",
-      meetingEmail: formData.meetingEmail || "",
-      meetingMessage: formData.meetingMessage || "",
-      meetingNote: formData.meetingNote || "",
-      meetingStart: formData.meetingStart || "",
-      meetingDuration: formData.meetingDuration || "15",
-      meetingEnd: formData.meetingEnd || "",
-      meetingLink: formData.meetingLink || "",
-      eventId: formData.eventId || "",
-      guestEmail: formData.guestEmail || "",
-      createdAt: selectedBlock ? selectedBlock.createdAt : new Date().toISOString(),
-    };
+      const payloadMeeting = {
+        blockName: formData.title,
+        userNameAndRole: formData.userName || "",
+        userCompanyName: formData.userCompanyName || "",
+        userCompanyServices: formData.userCompanyServices || "",
+        prospectName: formData.prospectName || "",
+        customerCompanyName: formData.customerCompanyName || "",
+        customerCompanyServices: formData.customerCompanyServices || "",
+        meetingGoal: formData.meetingGoal || "",
+        meetingEmail: formData.meetingEmail || "",
+        meetingMessage: formData.meetingMessage || "",
+        meetingNote: formData.meetingNote || "",
+        meetingStart: formData.meetingStart || "",
+        meetingDuration: formData.meetingDuration || "15",
+        meetingEnd: formData.meetingEnd || "",
+        meetingLink: formData.meetingLink || "",
+        eventId: formData.eventId || "",
+        guestEmail: formData.guestEmail || "",
+        createdAt: selectedBlock ? selectedBlock.createdAt : new Date().toISOString(),
+      };
 
-    if (selectedBlock) {
-      // Update
-      const meeting_id = selectedBlock._id || selectedBlock.id;
-      const res = await fetch(
-        `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}/${meeting_id}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ meetings: [payloadMeeting] }),
-        }
-      );
-      if (!res.ok) throw new Error("Update failed");
-    } else {
-      // Create new
-      const res = await fetch(
-        `${VITE_URL_BACKEND}/api/meeting_prepare/create_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ username: decodedCookieEmail, meetings: [payloadMeeting] }),
-        }
-      );
-      if (!res.ok) throw new Error("Create failed");
+      if (selectedBlock) {
+        // Update
+        const meeting_id = selectedBlock._id || selectedBlock.id;
+        const res = await fetch(
+          `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}/${meeting_id}`,
+          {
+            method: "PUT",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ meetings: [payloadMeeting] }),
+          }
+        );
+        if (!res.ok) throw new Error("Update failed");
+      } else {
+        // Create new
+        const res = await fetch(
+          `${VITE_URL_BACKEND}/api/meeting_prepare/create_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ username: decodedCookieEmail, meetings: [payloadMeeting] }),
+          }
+        );
+        if (!res.ok) throw new Error("Create failed");
+      }
+
+      await fetchBlocks();
+      if (resetForm) {
+        setSelectedBlock(null);
+        setFormData({
+          title: "",
+          userName: "",
+          userCompanyName: "",
+          userCompanyServices: "",
+          prospectName: "",
+          customerCompanyName: "",
+          customerCompanyServices: "",
+          meetingGoal: "",
+          meetingEmail: "",
+          guestEmail: "",
+          meetingMessage: "",
+          meetingNote: "",
+          meetingStart: "",
+          meetingDuration: "15",
+          meetingEnd: "",
+          meetingLink: "",
+        });
+        setFormVisible(false);
+        setIsEditing(false);
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
     }
-
-    await fetchBlocks();
-    if (resetForm) {
-      setSelectedBlock(null);
-      setFormData({
-        title: "",
-        userName: "",
-        userCompanyName: "",
-        userCompanyServices: "",
-        prospectName: "",
-        customerCompanyName: "",
-        customerCompanyServices: "",
-        meetingGoal: "",
-        meetingEmail: "",
-        guestEmail: "",
-        meetingMessage: "",
-        meetingNote: "",
-        meetingStart: "",
-        meetingDuration: "15",
-        meetingEnd: "",
-        meetingLink: "",
-      });
-      setFormVisible(false);
-      setIsEditing(false);
-    }
-  } catch (err) {
-    console.error(err);
-    alert(err.message);
-  }
-};
+  };
 
 
   const handleDeleteBlock = async (block) => {
@@ -253,28 +253,28 @@ export default function PopupWithSidebar({ onStartMeeting ,onSelectBlock, decode
 
 
   useEffect(() => {
-  if (selectedBlock) {
-    setFormData({
-      title: selectedBlock.blockName || "",
-      userName: selectedBlock.userNameAndRole || "",
-      userCompanyName: selectedBlock.userCompanyName || "",
-      userCompanyServices: selectedBlock.userCompanyServices || "",
-      prospectName: selectedBlock.prospectName || "",
-      customerCompanyName: selectedBlock.customerCompanyName || "",
-      customerCompanyServices: selectedBlock.customerCompanyServices || "",
-      meetingGoal: selectedBlock.meetingGoal || "",
-      meetingEmail: selectedBlock.meetingEmail || "",
-      meetingMessage: selectedBlock.meetingMessage || "",
-      meetingNote: selectedBlock.meetingNote || "",
-      meetingStart: selectedBlock.meetingStart || "",
-      meetingDuration: selectedBlock.meetingDuration || "15",
-      meetingEnd: selectedBlock.meetingEnd || "",
-      guestEmail: selectedBlock.guestEmail || "",
-      meetingLink: selectedBlock.meetingLink || "",   // <<< THÊM VÀO
-    });
-    setFormVisible(true);
-  }
-}, [selectedBlock]);
+    if (selectedBlock) {
+      setFormData({
+        title: selectedBlock.blockName || "",
+        userName: selectedBlock.userNameAndRole || "",
+        userCompanyName: selectedBlock.userCompanyName || "",
+        userCompanyServices: selectedBlock.userCompanyServices || "",
+        prospectName: selectedBlock.prospectName || "",
+        customerCompanyName: selectedBlock.customerCompanyName || "",
+        customerCompanyServices: selectedBlock.customerCompanyServices || "",
+        meetingGoal: selectedBlock.meetingGoal || "",
+        meetingEmail: selectedBlock.meetingEmail || "",
+        meetingMessage: selectedBlock.meetingMessage || "",
+        meetingNote: selectedBlock.meetingNote || "",
+        meetingStart: selectedBlock.meetingStart || "",
+        meetingDuration: selectedBlock.meetingDuration || "15",
+        meetingEnd: selectedBlock.meetingEnd || "",
+        guestEmail: selectedBlock.guestEmail || "",
+        meetingLink: selectedBlock.meetingLink || "",   // <<< THÊM VÀO
+      });
+      setFormVisible(true);
+    }
+  }, [selectedBlock]);
 
 
   useEffect(() => {
@@ -384,9 +384,9 @@ export default function PopupWithSidebar({ onStartMeeting ,onSelectBlock, decode
         ) : (
           <>
             <div className="section-title"></div>
-             {formData.meetingLink && (
+            {formData.meetingLink && (
               <div className="meeting-link">
-                
+
                 <a href={formData.meetingLink} target="_blank" rel="noopener noreferrer">
                   {formData.meetingLink}
                 </a>
@@ -403,7 +403,7 @@ export default function PopupWithSidebar({ onStartMeeting ,onSelectBlock, decode
               readOnly={!isEditing}
             />
 
-           
+
 
 
             <GoogleCalendar
@@ -411,8 +411,8 @@ export default function PopupWithSidebar({ onStartMeeting ,onSelectBlock, decode
               handleChange={handleChange}
               error={errors}
               onSaveWithCalendar={handleSave} // thêm callback
-            readOnly={!isEditing}
-           />
+              readOnly={!isEditing}
+            />
 
 
             <div className="section-divider" />
@@ -421,48 +421,51 @@ export default function PopupWithSidebar({ onStartMeeting ,onSelectBlock, decode
             <div className="section-title">User A – Your Info</div>
             <InputField
               id="userName"
-              label="Your Name"
+              label="Your Name and Role/Title:"
               type="text"
               value={formData.userName}
               onChange={handleChange}
-              placeholder="Your Name"
+              placeholder="Your Name and Role/Title:"
               error={errors.userName}
               readOnly={!isEditing}
             />
             <InputField
               id="userCompanyName"
-              label="Company Name"
+              label="Your Company Name"
               type="text"
               value={formData.userCompanyName}
               onChange={handleChange}
-              placeholder="Company Name"
+              placeholder="Your Company Name"
               error={errors.userCompanyName}
               readOnly={!isEditing}
             />
             <ExpandableTextarea
               id="userCompanyServices"
-              label="Services"
-              placeholder="Enter your services..."
+              label="Your Company – Industry, Products, and Services"
+              placeholder="Please provide clear information about your company, including Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc."
               formData={formData}
               setFormData={setFormData}
               errors={errors}
               readOnly={!isEditing}
             />
+            <div className="section-divider" />
 
             <div className="section-title">User B – Prospect Info</div>
             <InputField
               id="prospectName"
-              label="Prospect Name"
+              label="Prospect's Name - Role/Title"
               type="text"
               value={formData.prospectName}
               onChange={handleChange}
+              placeholder="Prospect's Name - Role/Title"
               error={errors.prospectName}
               readOnly={!isEditing}
             />
             <InputField
               id="customerCompanyName"
-              label="Customer Company Name"
+              label="Prospect Company Name"
               type="text"
+              placeholder="Prospect Company Name"
               value={formData.customerCompanyName}
               onChange={handleChange}
               error={errors.customerCompanyName}
@@ -470,13 +473,15 @@ export default function PopupWithSidebar({ onStartMeeting ,onSelectBlock, decode
             />
             <ExpandableTextarea
               id="customerCompanyServices"
-              label="Customer Services"
-              placeholder="Enter customer services..."
+              label="Prospect Company – Industry, Products, Services"
+              placeholder="Please provide clear information about your prospect company, including its Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc."
               formData={formData}
               setFormData={setFormData}
               errors={errors}
               readOnly={!isEditing}
             />
+            <div className="section-divider" />
+
             <div className="section-title">Contextual Information</div>
             <ExpandableTextarea
               id="meetingGoal"
@@ -524,18 +529,18 @@ export default function PopupWithSidebar({ onStartMeeting ,onSelectBlock, decode
             />
           </>
         )}
-       {formVisible && (
-  <div className="form-actions">
-    <button className="cancel-button" onClick={handleCancel}>Cancel</button>
-    {!selectedBlock ? (
-      <button className="save-button" onClick={handleSave}>Save</button>
-    ) : isEditing ? (
-      <button className="edit-button" onClick={handleSave}>Update</button>
-    ) : (
-      <button className="start-button" onClick={handleStart}>Start</button>
-    )}
-  </div>
-)}
+        {formVisible && (
+          <div className="form-actions">
+            <button className="cancel-button" onClick={handleCancel}>Cancel</button>
+            {!selectedBlock ? (
+              <button className="save-button" onClick={handleSave}>Save</button>
+            ) : isEditing ? (
+              <button className="edit-button" onClick={handleSave}>Update</button>
+            ) : (
+              <button className="start-button" onClick={handleStart}>Start</button>
+            )}
+          </div>
+        )}
 
 
 

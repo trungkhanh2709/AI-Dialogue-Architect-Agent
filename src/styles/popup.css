@@ -282,3 +282,10 @@ background: rgba(255, 255, 255, 0.05);
 .extension-container::-webkit-scrollbar-track {
   background: transparent;
 }
+
+.word-counter {
+  font-size: 12px;
+  color: #666;
+  text-align: right;
+  margin-top: 4px;
+}

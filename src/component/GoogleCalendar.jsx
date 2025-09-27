@@ -132,14 +132,14 @@ const formatLocalDateTime = (utcString) => {
         const data = await resp.json();
         if (!resp.ok) throw new Error(data.error?.message || "Unknown error");
 
-        if (data.hangoutLink) {
-          handleChange({ target: { id: "meetingLink", value: data.hangoutLink } });
-          handleChange({ target: { id: "eventId", value: data.id } });
-          alert("Meeting link created: " + data.hangoutLink);
-          if (onSaveWithCalendar) onSaveWithCalendar({ resetForm: false });
-        } else {
-          alert("Meeting created but no Google Meet link returned.");
-        }
+       if (data.hangoutLink) {
+  handleChange({ target: { id: "meetingLink", value: data.hangoutLink } });
+  handleChange({ target: { id: "eventId", value: data.id } });
+  alert("Meeting link created: " + data.hangoutLink);
+} else {
+  alert("Meeting created but no Google Meet link returned.");
+}
+
       } catch (err) {
         console.error(err);
         alert("Failed to create Google Calendar event: " + err.message);
