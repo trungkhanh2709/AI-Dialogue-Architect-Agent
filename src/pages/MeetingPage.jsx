@@ -1,21 +1,20 @@
 //meetingpage.jsx
 import React, { useEffect, useState, useRef } from "react";
+import axios from "axios";
 import "../styles/meeting.css";
 import ChatUI from "../component/ChatUI";
-import axios from "axios";
+import SaveConfirmPopup from "../component/SaveConfirmPopup";
 
 
-export default function Meeting({ meetingData, onBack, cookieUserName,onExpire  }) {
-  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
+export default function Meeting({ meetingData, onBack, cookieUserName, onExpire }) {
+  // const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
+  const VITE_URL_BACKEND = 'http://localhost:4000'
 
-  
+
   const [currentSpeech, setCurrentSpeech] = useState({});
   const [meetingLog, setMeetingLog] = useState([]);
   const [lastFinalizedWords, setLastFinalizedWords] = useState({});
-  const [summary, setSummary] = useState("(The summary will appear here)");
-  const speakerTimers = useRef({});
   const liveRef = useRef(null);
-  const [liveStreamText, setLiveStreamText] = useState({});
   const [sessionExpired, setSessionExpired] = useState(false);
   const [speakingUsers, setSpeakingUsers] = useState({});
   const [chatHistory, setChatHistory] = useState([]);
@@ -28,20 +27,10 @@ export default function Meeting({ meetingData, onBack, cookieUserName,onExpire  
     },
   ]);
   const [agentTyping, setAgentTyping] = useState(false);
-  const sampleMessages = [
-    { speaker: "You", text: "Hi Agent!", isAgent: false },
-    { speaker: "Agent", text: "Hello! I'm here to help with your questions.", isAgent: true },
-    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
-    { speaker: "Agent", text: "Sure! Let's start.", isAgent: true },
-    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
-    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
-    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
-    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
-    { speaker: "You", text: "Can you help me with my project?", isAgent: false },
-  ];
-  const decodedCookieEmail = decodeURIComponent(cookieUserName);
 
-console.log("meeting data", meetingData);
+  const decodedCookieEmail = decodeURIComponent(cookieUserName);
+  const [showSavePopup, setShowSavePopup] = useState(false);
+
 
   function isMySpeech(speaker) {
     return speaker === "You" || speaker === "Bạn";
@@ -52,7 +41,8 @@ console.log("meeting data", meetingData);
       liveRef.current.scrollTop = liveRef.current.scrollHeight;
     }
   }, [currentSpeech]);
-useEffect(() => {
+
+  useEffect(() => {
     if (sessionExpired) {
       onExpire(); // báo cho App.jsx đổi sang upgrade
     }
@@ -195,6 +185,74 @@ useEffect(() => {
     }
   };
 
+
+
+  const handleClose = () => {
+    const alreadyConfirmed = localStorage.getItem("saveConfirmed");
+    if (alreadyConfirmed === "true") {
+      // đã từng đồng ý => auto save và đóng
+      saveMeetingData();
+      onBack();
+    } else {
+      // lần đầu => hỏi
+      setShowSavePopup(true);
+    }
+  };
+  const saveMeetingData = async () => {
+    try {
+     const meetingId =
+  (meetingData._id && meetingData._id.$oid) ||
+  meetingData._id ||
+  meetingData.id;
+
+if (!meetingId) {
+  console.error("Missing meetingId in meetingData", meetingData);
+  return;
+}
+
+      const payloadMeeting = {
+        ...meetingData,
+        meeting_transcript: meetingLog.join("\n"), // thêm transcript vào payload
+      };
+console.log("meetingId",meetingId);
+      const res = await fetch(
+        `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}/${meetingId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ meetings: [payloadMeeting] }),
+        }
+      );
+
+      if (!res.ok) throw new Error("Save meeting failed");
+
+      console.log("Meeting saved with transcript");
+    } catch (err) {
+      console.error("Save failed", err);
+    }
+  };
+
+
+  const handleConfirmSave = () => {
+    saveMeetingData();
+    localStorage.setItem("saveConfirmed", "true");
+    setShowSavePopup(false);
+    onBack();
+  };
+
+  const handleCancelSave = () => {
+    localStorage.setItem("saveConfirmed", "false");
+    setShowSavePopup(false);
+    onBack();
+  };
+  //nhớ lên prodS thì xoá
+  useEffect(() => {
+    localStorage.removeItem("saveConfirmed");
+  }, []);
+
+
+
+
   return (
     <div className="meeting-wrapper">
       {/* Delete duplicate rendering */}
@@ -217,11 +275,19 @@ useEffect(() => {
         })}
       </div>
 
-        {/* <ChatUI messages={sampleMessages} /> */}
-        <ChatUI messages={chatMessages}  
-        onClose={onBack} sessionExpired={sessionExpired} 
-        setSessionExpired={setSessionExpired}  
-        userEmail={decodedCookieEmail}/>
+      {/* <ChatUI messages={sampleMessages} /> */}
+      <ChatUI messages={chatMessages}
+        onClose={handleClose}
+        sessionExpired={sessionExpired}
+        setSessionExpired={setSessionExpired}
+        userEmail={decodedCookieEmail} />
+
+      {showSavePopup && (
+        <SaveConfirmPopup
+          onConfirm={handleConfirmSave}
+          onCancel={handleCancelSave}
+        />
+      )}
     </div>
   );
 }

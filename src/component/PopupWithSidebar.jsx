@@ -328,7 +328,12 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
       });
 
       if (data.trial_used === true || data.status === "200") {
-        onStartMeeting(formData);
+       onStartMeeting({
+  ...formData,
+  id: selectedBlock?.id,
+  _id: selectedBlock?.id, // ép luôn cho MeetingPage dùng được
+});
+
       } else {
         alert("You have run out of sessions. Please purchase an add-on to continue.");
       }
