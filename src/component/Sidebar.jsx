@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import "../styles/sidebar.css";
 
-export default function Sidebar({ blocks, onViewBlock, onEditBlock, onDeleteBlock, onCreateNew }) {
+export default function Sidebar({ blocks, onViewBlock, onEditBlock, onDeleteBlock, onCreateNew,setSidebarVisible  }) {
   const [search, setSearch] = useState("");
   const [expandedBlockId, setExpandedBlockId] = useState(null);
 
@@ -17,6 +17,7 @@ export default function Sidebar({ blocks, onViewBlock, onEditBlock, onDeleteBloc
   const collapseAfterAction = (action) => {
     action();
     setExpandedBlockId(null);
+     setSidebarVisible(false); 
   };
 
   return (
@@ -30,7 +31,10 @@ export default function Sidebar({ blocks, onViewBlock, onEditBlock, onDeleteBloc
       />
 
       <div className="sidebar-list">
-        <div className="sidebar-item new-block" onClick={onCreateNew}>
+        <div className="sidebar-item new-block" onClick={() => {
+            onCreateNew();
+            setSidebarVisible(false); // hide khi tạo mới
+          }}>
           + Create New
         </div>
 

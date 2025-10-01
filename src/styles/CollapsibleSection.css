@@ -1,0 +1,79 @@
+.collapsible-section {
+margin-top: 16px;
+  border-radius: 12px;
+  margin: 12px 0;
+  overflow: hidden;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+}
+
+.collapsible-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 15px;
+  color: #ffffff;
+  transition: background 0.2s ease;
+}
+
+.collapsible-title {
+  flex: 1;
+}
+
+.arrow {
+  width: 18px;
+  height: 18px;
+  transition: transform 0.3s ease;
+}
+
+.arrow.open {
+  transform: rotate(180deg);
+}
+
+.collapsible-body {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: 
+    max-height 0.35s ease,
+    opacity 0.25s ease,
+    transform 0.25s ease,
+    padding 0.25s ease;
+}
+
+.collapsible-body.active {
+   max-height: 1000px; 
+  padding: 12px 8px 0 8px;
+  opacity: 1;
+  transform: translateY(0);
+}
+.continue-container {
+  display: flex;
+  justify-content: flex-end; /* đẩy nút qua phải */
+  margin-top: 10px;
+}
+.continue-button, .finish-button {
+  margin-top: 4px;
+  background: #007bff;
+  border: none;
+  color: white;
+  padding: 10px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s ease;
+}
+.continue-button:hover, .finish-button:hover {
+  background: #0056b3;
+}
+.collapsible-header.active-step {
+  font-weight: 600;
+  color: #ffffff; /* rõ */
+}
+
+.collapsible-header.inactive-step {
+  font-weight: 400;
+  color: #cdcdcd; /* mờ đi */
+}

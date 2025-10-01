@@ -64,25 +64,46 @@ input[type="datetime-local"]:empty::before {
   content: attr(placeholder);
   color: #aaa;
 }
-
-.confirm-calendar-btn{
-  margin-top: 12px;
+.confirm-calendar-btn {
   background-color: #4285f4;
   color: white;
   border: none;
   border-radius: 6px;
   cursor: pointer;
   font-size: 14px;
-  text-align: center;
-  display: flex;
   font-weight: 600;
+  padding: 8px 16px;
+  display: inline-flex;
+  margin-top: 20px;
   align-items: center;
-  padding: 8px 12px;
-  width: 100%;
+  justify-content: center;
+  float: right; /* đưa nút sang phải */
+  transition: background 0.2s, transform 0.2s;
+}
+
+.confirm-calendar-btn:hover {
+  background-color: #3367d6;
+  transform: translateY(-1px);
+}
+
+.confirm-calendar-btn:active {
+  transform: translateY(1px);
 }
 
 .google-calendar-icon {
   width: 20px;
   height: 20px;
   margin-right: 8px;
+}
+
+.calendar-hint {
+  font-size: 13px;
+  color: #bcbcbc;
+  margin-bottom: 8px;
+}
+.calendar-label {
+  font-size: 16px;
+  font-weight: 500;
+  color: #ffffff;
+  margin: 8px 0;
 }

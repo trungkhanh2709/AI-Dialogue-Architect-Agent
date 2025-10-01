@@ -6,7 +6,7 @@ import InboxOutlined from "../assets/InboxOutlined.svg";
 import InputField from "./InputField";
 import GoogleCalendar from "./GoogleCalendar";
 import ExpandableTextarea from "./ExpandableTextarea";
-
+import CollapsibleSection from "./CollapsibleSection";
 
 export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decodedCookieEmail }) {
   const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';
@@ -35,6 +35,8 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
   const [formVisible, setFormVisible] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
 
+  const [currentStep, setCurrentStep] = useState(1);
+  const [openSections, setOpenSections] = useState([1]);
 
   useEffect(() => {
     if (selectedBlock) {
@@ -328,11 +330,11 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
       });
 
       if (data.trial_used === true || data.status === "200") {
-       onStartMeeting({
-  ...formData,
-  id: selectedBlock?.id,
-  _id: selectedBlock?.id, // ép luôn cho MeetingPage dùng được
-});
+        onStartMeeting({
+          ...formData,
+          id: selectedBlock?.id,
+          _id: selectedBlock?.id, // ép luôn cho MeetingPage dùng được
+        });
 
       } else {
         alert("You have run out of sessions. Please purchase an add-on to continue.");
@@ -363,8 +365,8 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
             setFormVisible(true);
           }}
           onDeleteBlock={handleDeleteBlock}
-
           onCreateNew={handleCreateNew}
+          setSidebarVisible={setSidebarVisible}
         />
 
 
@@ -397,6 +399,16 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
                 </a>
               </div>
             )}
+  <CollapsibleSection
+              step={1}
+              title="Step 1: Meeting Information"
+              currentStep={currentStep}
+              setCurrentStep={setCurrentStep}
+
+              openSections={openSections}
+              setOpenSections={setOpenSections}
+            >
+
             <InputField
               id="title"
               label="Title"
@@ -407,131 +419,180 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
               error={errors.title}
               readOnly={!isEditing}
             />
+             <GoogleCalendar
+                formData={formData}
+                handleChange={handleChange}
+                error={errors}
+                onSaveWithCalendar={handleSave} // thêm callback
+                readOnly={!isEditing}
+                 currentStep={currentStep}      
+  setCurrentStep={setCurrentStep} 
+  setOpenSections={setOpenSections}
+              />
+
+            </CollapsibleSection>
+            <CollapsibleSection
+              step={2}
+              title="Step 2: User A – Your Info"
+              currentStep={currentStep}
+              setCurrentStep={setCurrentStep}
+              openSections={openSections}
+              setOpenSections={setOpenSections}
+            >
+              <InputField
+                id="userName"
+                label="Your Name and Role/Title:"
+                type="text"
+                value={formData.userName}
+                onChange={handleChange}
+                placeholder="Your Name and Role/Title:"
+                error={errors.userName}
+                readOnly={!isEditing}
+              />
+              <InputField
+                id="userCompanyName"
+                label="Your Company Name"
+                type="text"
+                value={formData.userCompanyName}
+                onChange={handleChange}
+                placeholder="Your Company Name"
+                error={errors.userCompanyName}
+                readOnly={!isEditing}
+              />
+              <ExpandableTextarea
+                id="userCompanyServices"
+                label="Your Company – Industry, Products, and Services"
+                placeholder="Please provide clear information about your company, including Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc."
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+              />
+
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              step={3}
+              title="Step 3: User B – Prospect Info"
+              currentStep={currentStep}
+              setCurrentStep={setCurrentStep}
+
+              openSections={openSections}
+              setOpenSections={setOpenSections}
+            >
+
+
+
+              <InputField
+                id="prospectName"
+                label="Prospect's Name - Role/Title"
+                type="text"
+                value={formData.prospectName}
+                onChange={handleChange}
+                placeholder="Prospect's Name - Role/Title"
+                error={errors.prospectName}
+                readOnly={!isEditing}
+              />
+              <InputField
+                id="customerCompanyName"
+                label="Prospect Company Name"
+                type="text"
+                placeholder="Prospect Company Name"
+                value={formData.customerCompanyName}
+                onChange={handleChange}
+                error={errors.customerCompanyName}
+                readOnly={!isEditing}
+              />
+              <ExpandableTextarea
+                id="customerCompanyServices"
+                label="Prospect Company – Industry, Products, Services"
+                placeholder="Please provide clear information about your prospect company, including its Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc."
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+              />
+
+            </CollapsibleSection>
+
+
+            <CollapsibleSection
+              step={4}
+              title="Step 4: Contextual Information"
+              currentStep={currentStep}
+              setCurrentStep={setCurrentStep}
+
+              openSections={openSections}
+              setOpenSections={setOpenSections}
+            >
+
+              <ExpandableTextarea
+                id="meetingGoal"
+                label="Meeting Goal"
+                placeholder="Describe your objective clearly (e.g., secure a partnership, schedule a demo, explore collaboration, close a sale)."
+                maxRows={5}
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+
+              />
+              <ExpandableTextarea
+                id="meetingEmail"
+                label="Email (Optional)"
+                placeholder="Copy and paste the entire email thread with the prospect, including your initial outreach"
+                maxRows={5}
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+
+              />
+              <ExpandableTextarea
+                id="meetingMessage"
+                label="Social Media Message History (Optional)"
+                placeholder="Copy and paste any relevant social media conversations (e.g., LinkedIn, Twitter) with the prospect. (Optional)"
+                maxRows={5}
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+
+              />
+              <ExpandableTextarea
+                id="meetingNote"
+                label="Note (Optional)"
+                placeholder="For example, additional information useful for the Agent, such as personality analysis results, BusinessDNA insights, key pain points, potential objections, and relationship history with the prospect, etc."
+                maxRows={5}
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+              />
+            </CollapsibleSection>
+
+            <CollapsibleSection
+              step={5}
+              title="Step 5: Schedule a meeting on Google Calendar (Optional)"
+              currentStep={currentStep}
+              setCurrentStep={setCurrentStep}
+
+              openSections={openSections}
+              setOpenSections={setOpenSections}
+            >
+              <GoogleCalendar
+                formData={formData}
+                handleChange={handleChange}
+                error={errors}
+                onSaveWithCalendar={handleSave} // thêm callback
+                readOnly={!isEditing}
+              />
+
+            </CollapsibleSection>
 
 
 
 
-            <GoogleCalendar
-              formData={formData}
-              handleChange={handleChange}
-              error={errors}
-              onSaveWithCalendar={handleSave} // thêm callback
-              readOnly={!isEditing}
-            />
-
-
-            <div className="section-divider" />
-
-
-            <div className="section-title">User A – Your Info</div>
-            <InputField
-              id="userName"
-              label="Your Name and Role/Title:"
-              type="text"
-              value={formData.userName}
-              onChange={handleChange}
-              placeholder="Your Name and Role/Title:"
-              error={errors.userName}
-              readOnly={!isEditing}
-            />
-            <InputField
-              id="userCompanyName"
-              label="Your Company Name"
-              type="text"
-              value={formData.userCompanyName}
-              onChange={handleChange}
-              placeholder="Your Company Name"
-              error={errors.userCompanyName}
-              readOnly={!isEditing}
-            />
-            <ExpandableTextarea
-              id="userCompanyServices"
-              label="Your Company – Industry, Products, and Services"
-              placeholder="Please provide clear information about your company, including Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc."
-              formData={formData}
-              setFormData={setFormData}
-              errors={errors}
-              readOnly={!isEditing}
-            />
-            <div className="section-divider" />
-
-            <div className="section-title">User B – Prospect Info</div>
-            <InputField
-              id="prospectName"
-              label="Prospect's Name - Role/Title"
-              type="text"
-              value={formData.prospectName}
-              onChange={handleChange}
-              placeholder="Prospect's Name - Role/Title"
-              error={errors.prospectName}
-              readOnly={!isEditing}
-            />
-            <InputField
-              id="customerCompanyName"
-              label="Prospect Company Name"
-              type="text"
-              placeholder="Prospect Company Name"
-              value={formData.customerCompanyName}
-              onChange={handleChange}
-              error={errors.customerCompanyName}
-              readOnly={!isEditing}
-            />
-            <ExpandableTextarea
-              id="customerCompanyServices"
-              label="Prospect Company – Industry, Products, Services"
-              placeholder="Please provide clear information about your prospect company, including its Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc."
-              formData={formData}
-              setFormData={setFormData}
-              errors={errors}
-              readOnly={!isEditing}
-            />
-            <div className="section-divider" />
-
-            <div className="section-title">Contextual Information</div>
-            <ExpandableTextarea
-              id="meetingGoal"
-              label="Meeting Goal"
-              placeholder="Describe your objective clearly (e.g., secure a partnership, schedule a demo, explore collaboration, close a sale)."
-              maxRows={5}
-              formData={formData}
-              setFormData={setFormData}
-              errors={errors}
-              readOnly={!isEditing}
-
-            />
-            <ExpandableTextarea
-              id="meetingEmail"
-              label="Email (Optional)"
-              placeholder="Copy and paste the entire email thread with the prospect, including your initial outreach"
-              maxRows={5}
-              formData={formData}
-              setFormData={setFormData}
-              errors={errors}
-              readOnly={!isEditing}
-
-            />
-            <ExpandableTextarea
-              id="meetingMessage"
-              label="Social Media Message History (Optional)"
-              placeholder="Copy and paste any relevant social media conversations (e.g., LinkedIn, Twitter) with the prospect. (Optional)"
-              maxRows={5}
-              formData={formData}
-              setFormData={setFormData}
-              errors={errors}
-              readOnly={!isEditing}
-
-            />
-            <ExpandableTextarea
-              id="meetingNote"
-              label="Note (Optional)"
-              placeholder="For example, additional information useful for the Agent, such as personality analysis results, BusinessDNA insights, key pain points, potential objections, and relationship history with the prospect, etc."
-              maxRows={5}
-              formData={formData}
-              setFormData={setFormData}
-              errors={errors}
-              readOnly={!isEditing}
-
-            />
           </>
         )}
         {formVisible && (
