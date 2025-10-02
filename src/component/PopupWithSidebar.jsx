@@ -9,7 +9,9 @@ import ExpandableTextarea from "./ExpandableTextarea";
 import CollapsibleSection from "./CollapsibleSection";
 
 export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decodedCookieEmail }) {
-  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';
+  // const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';
+  const VITE_URL_BACKEND = "http://localhost:4000";
+
   const [blocks, setBlocks] = useState([]);
   const [selectedBlock, setSelectedBlock] = useState(null);
   const [formData, setFormData] = useState({
@@ -230,29 +232,28 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
 
 
 
-  useEffect(() => {
-    const fetchBlocks = async () => {
-      try {
-        const res = await fetch(
-          `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}`
-        );
-        const data = await res.json();
-        const meetings = data.meeting?.meetings || [];
+useEffect(() => {
+  if (!decodedCookieEmail) return;
+  chrome.runtime.sendMessage(
+    { type: "GET_MEETING_PREPARE", payload: { email: decodedCookieEmail } },
+    (res) => {
+          console.log("Response from background:", res);
+
+      if (res?.data?.meeting?.meetings) {
+        const meetings = res.data.meeting.meetings;
         setBlocks(
-          meetings.map(m => ({
-            id: m._id.$oid || m._id,
+          meetings.map((m) => ({
+            id: m._id?.$oid || m._id || m.id,
             name: m.blockName,
-            ...m
+            ...m,
           }))
         );
-      } catch (err) {
-        console.error(err);
+      } else {
+        setBlocks([]);
       }
-    };
-    if (decodedCookieEmail) fetchBlocks();
-
-  }, [decodedCookieEmail]);
-
+    }
+  );
+}, [decodedCookieEmail]);
 
   useEffect(() => {
     if (selectedBlock) {

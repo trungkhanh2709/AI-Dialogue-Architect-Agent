@@ -38,7 +38,6 @@ useEffect(() => {
     },
   },
   (res) => {
-    console.log("Popup GET_REMAIN_SESSIONS result:", res);
     if (res.error || !res.data) {
       setRemainSessions("0 sessions");
       return;

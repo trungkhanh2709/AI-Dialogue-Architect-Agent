@@ -133,6 +133,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         .catch((err) => sendResponse({ data: null, error: err.message }));
       return true;
 
+case "GET_MEETING_PREPARE":
+  const { email: meetingEmail } = msg.payload;
+  fetch(`${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(meetingEmail)}`)
+    .then((res) => res.json())
+    .then((data) => {
+      sendResponse({ data }); // luôn trả response
+    })
+    .catch((err) => sendResponse({ data: null, error: err.message }));
+  return true; // giữ sendResponse mở
+
     default:
       if (msg.action === "pushCaption") {
         sharedCaptions.push(msg.data);
