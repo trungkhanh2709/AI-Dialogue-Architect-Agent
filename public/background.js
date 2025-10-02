@@ -4,7 +4,7 @@ let startTime = null;
 let timerInterval = null;
 const timeRemainingThreshold = 30 * 60;
 const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
-const VITE_URL_BACKEND = 'http://localhost:4000';
+const VITE_URL_BACKEND = "http://localhost:4000";
 
 function resetTimer() {
   startTime = null;
@@ -25,8 +25,12 @@ function startTimer() {
     const seconds = elapsedSeconds % 60;
 
     chrome.tabs.query({ url: "https://meet.google.com/*" }, (tabs) => {
-      tabs.forEach(tab => {
-        chrome.tabs.sendMessage(tab.id, { type: "TIMER_UPDATE", payload: { minutes, seconds } }, () => {});
+      tabs.forEach((tab) => {
+        chrome.tabs.sendMessage(
+          tab.id,
+          { type: "TIMER_UPDATE", payload: { minutes, seconds } },
+          () => {}
+        );
       });
     });
 
@@ -34,8 +38,12 @@ function startTimer() {
       clearInterval(timerInterval);
       timerInterval = null;
       chrome.tabs.query({ url: "https://meet.google.com/*" }, (tabs) => {
-        tabs.forEach(tab => {
-          chrome.tabs.sendMessage(tab.id, { type: "SESSION_EXPIRED" }, () => {});
+        tabs.forEach((tab) => {
+          chrome.tabs.sendMessage(
+            tab.id,
+            { type: "SESSION_EXPIRED" },
+            () => {}
+          );
         });
       });
     }
@@ -43,7 +51,7 @@ function startTimer() {
 }
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
-   console.log("Background received message:", msg);
+  console.log("Background received message:", msg);
   switch (msg.type) {
     case "RESET_TIMER":
       resetTimer();
@@ -60,7 +68,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       } else {
         const elapsedMs = Date.now() - startTime;
         const elapsedSeconds = Math.floor(elapsedMs / 1000);
-        sendResponse({ minutes: Math.floor(elapsedSeconds / 60), seconds: elapsedSeconds % 60 });
+        sendResponse({
+          minutes: Math.floor(elapsedSeconds / 60),
+          seconds: elapsedSeconds % 60,
+        });
       }
       return true;
 
@@ -80,14 +91,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
 
     case "LOGIN_GOOGLE":
-      chrome.identity.launchWebAuthFlow({ url: urlConnect, interactive: true }, (redirectUrl) => {
-        if (chrome.runtime.lastError || !redirectUrl) {
-          sendResponse({ error: chrome.runtime.lastError?.message || "Login failed" });
-          return;
+      chrome.identity.launchWebAuthFlow(
+        { url: urlConnect, interactive: true },
+        (redirectUrl) => {
+          if (chrome.runtime.lastError || !redirectUrl) {
+            sendResponse({
+              error: chrome.runtime.lastError?.message || "Login failed",
+            });
+            return;
+          }
+          const m = redirectUrl.match(/access_token=([^&]+)/);
+          sendResponse({ token: m ? m[1] : null });
         }
-        const m = redirectUrl.match(/access_token=([^&]+)/);
-        sendResponse({ token: m ? m[1] : null });
-      });
+      );
       return true;
 
     case "GET_REMAIN_SESSIONS":
@@ -95,14 +111,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       fetch(`${VITE_URL_BACKEND}/api/addons/get_addon_sessions`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, add_on_type })
+        body: JSON.stringify({ email, add_on_type }),
       })
-      .then(res => res.json())
-     .then(data => {
-    console.log("GET_REMAIN_SESSIONS response:", data);
-    sendResponse({ data });
-  })
-      .catch(err => sendResponse({ data: null, error: err.message }));
+        .then((res) => res.json())
+        .then((data) => {
+          console.log("GET_REMAIN_SESSIONS response:", data);
+          sendResponse({ data });
+        })
+        .catch((err) => sendResponse({ data: null, error: err.message }));
+      return true;
+
+    case "USE_ADDON_SESSION":
+      const { email: userEmail, add_on_type: addonType } = msg.payload;
+      fetch(`${VITE_URL_BACKEND}/api/addons/use_addon_session`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: userEmail, add_on_type: addonType }),
+      })
+        .then((res) => res.json())
+        .then((data) => sendResponse({ data }))
+        .catch((err) => sendResponse({ data: null, error: err.message }));
       return true;
 
     default:
@@ -112,16 +140,23 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ captions: sharedCaptions });
         return true;
       } else if (msg.action === "CHECK_COOKIE") {
-        chrome.cookies.get({ url: "https://reelsightsai.com/dashboard", name: "username" }, (cookie) => {
-          sendResponse(cookie ? { loggedIn: true, username: cookie.value } : { loggedIn: false });
-        });
+        chrome.cookies.get(
+          { url: "https://reelsightsai.com/dashboard", name: "username" },
+          (cookie) => {
+            sendResponse(
+              cookie
+                ? { loggedIn: true, username: cookie.value }
+                : { loggedIn: false }
+            );
+          }
+        );
         return true;
       }
       return true;
   }
 });
 
-chrome.action.onClicked.addListener(tab => {
+chrome.action.onClicked.addListener((tab) => {
   chrome.scripting.executeScript({
     target: { tabId: tab.id },
     files: ["main.js"],

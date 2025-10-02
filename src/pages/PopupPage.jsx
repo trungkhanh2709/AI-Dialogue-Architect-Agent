@@ -118,35 +118,37 @@ useEffect(() => {
 
   const handleBack = () => setStep(prev => prev - 1);
 
-  const handleStart = async () => {
-    if (!validateStep()) return;
-    try {
-      const res = await fetch(`${VITE_URL_BACKEND}/api/addons/use_addon_session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: decodedCookieEmail,
-          add_on_type: "ai_dialogue_architect_agent"
-        })
-      });
+ const handleStart = () => {
+  if (!validateStep()) return;
 
-      const data = await res.json();
+  chrome.runtime.sendMessage(
+    {
+      type: "USE_ADDON_SESSION",
+      payload: {
+        email: decodedCookieEmail,
+        add_on_type: "ai_dialogue_architect_agent"
+      }
+    },
+    (res) => {
+      if (!res || res.error || !res.data) {
+        alert("An error occurred while calling the API");
+        return;
+      }
 
+      // Reset & start timer
       chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
         chrome.runtime.sendMessage({ type: "START_TIMER" });
-
       });
 
+      const data = res.data;
       if (data.trial_used === true || data.status === "200") {
         onStartMeeting(formData);
       } else {
         alert("You have run out of sessions. Please purchase an add-on to continue.");
       }
-    } catch (err) {
-      console.error(err);
-      alert("An error occurred while calling the API");
     }
-  };
+  );
+};
 
 
 
