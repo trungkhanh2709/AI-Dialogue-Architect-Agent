@@ -5,7 +5,7 @@ import PopupWithSidebar from "../component/PopupWithSidebar.jsx";
 import ExpandableTextarea from "../component/ExpandableTextarea.jsx";
 
 export default function PopupPage({ onStartMeeting, cookieUserName }) {
-  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
+const VITE_URL_BACKEND = 'http://localhost:4000';
   const [remainSessions, setRemainSessions] = useState(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -24,35 +24,35 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
   const decodedCookieEmail = decodeURIComponent(cookieUserName);
   const [tab, setTab] = useState("schedule"); // "instant" | "schedule"
 
-  useEffect(() => {
-    const fetchRemainSessions = async () => {
-      try {
-        const res = await axios.post(
-          `${VITE_URL_BACKEND}/api/addons/get_addon_sessions`,
-          {
-            email: decodedCookieEmail,
-            add_on_type: "ai_dialogue_architect_agent",
-          }
-        );
 
-        if (res.data.status === "200") {
-          const { value, trial } = res.data.content;
 
-          if (trial) {
-            setRemainSessions(`${value} sessions + Trial`);
-          } else {
-            setRemainSessions(`${value} sessions`);
-          }
-        } else {
-          setRemainSessions("0 sessions");
-        }
-      } catch (err) {
-        console.error("Error fetching remain sessions:", err);
-        setRemainSessions("0 sessions");
-      }
-    };
-    fetchRemainSessions();
-  }, [decodedCookieEmail]);
+  console.log("decodedCookieEmail",decodedCookieEmail);
+useEffect(() => {
+  const fetchRemainSessions = () => {
+   chrome.runtime.sendMessage(
+  {
+    type: "GET_REMAIN_SESSIONS",
+    payload: {
+      email: decodedCookieEmail,
+      add_on_type: "ai_dialogue_architect_agent",
+    },
+  },
+  (res) => {
+    console.log("Popup GET_REMAIN_SESSIONS result:", res);
+    if (res.error || !res.data) {
+      setRemainSessions("0 sessions");
+      return;
+    }
+    const { value, trial } = res.data.content;
+    setRemainSessions(trial ? `${value} sessions + Trial` : `${value} sessions`);
+  }
+);
+
+  };
+
+  fetchRemainSessions();
+}, [decodedCookieEmail]);
+
 
   const sampleBlocks = [
 
