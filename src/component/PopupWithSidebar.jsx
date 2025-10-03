@@ -80,6 +80,43 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
+  const handleUpdateBlock = (block, updatedData) => {
+    chrome.runtime.sendMessage(
+      {
+        type: "UPDATE_MEETING_PREPARE",
+        payload: {
+          email: decodedCookieEmail,
+          meetingId: block._id || block.id,
+          payload: updatedData,
+        },
+      },
+      (res) => {
+        if (res?.error) {
+          alert("Update failed: " + res.error);
+        } else {
+          alert("Meeting updated successfully");
+          setSelectedBlock(null);
+          setFormVisible(false);
+
+          // refresh lại danh sách từ background
+          chrome.runtime.sendMessage(
+            { type: "GET_MEETING_PREPARE", payload: { email: decodedCookieEmail } },
+            (res2) => {
+              if (res2?.data?.meeting?.meetings) {
+                setBlocks(
+                  res2.data.meeting.meetings.map((m) => ({
+                    id: m._id?.$oid || m._id || m.id,
+                    name: m.blockName,
+                    ...m,
+                  }))
+                );
+              }
+            }
+          );
+        }
+      }
+    );
+  };
 
 
 
@@ -147,7 +184,7 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
 
       if (selectedBlock) {
         // update via background
-      const meetingId = selectedBlock._id || selectedBlock.id; // chỉ dùng _id
+        const meetingId = selectedBlock._id || selectedBlock.id; // chỉ dùng _id
         console.log("=== UPDATE MEETING ===");
         console.log("decodedCookieEmail:", decodedCookieEmail);
         console.log("meetingId:", meetingId);
@@ -159,23 +196,29 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
         console.log("Payload:", payloadMeeting);
 
 
-    chrome.runtime.sendMessage(
-  {
-    type: "UPDATE_MEETING_PREPARE",
-    payload: {
-      email: decodedCookieEmail,
-      meetingId,
-      payload: payloadMeeting
-    }
-  },
-  (res) => {
-    if (res?.error) alert("Update failed: " + res.error);
-    else setFormVisible(false); // hide form sau update
-  }
-);
-
-
-      } else {
+        chrome.runtime.sendMessage(
+          {
+            type: "UPDATE_MEETING_PREPARE",
+            payload: {
+              email: decodedCookieEmail,
+              meetingId: selectedBlock._id || selectedBlock.id,
+              payload: payloadMeeting,
+            },
+          },
+          (res) => {
+            if (res?.error) {
+              alert("Update failed: " + res.error);
+            } else {
+              alert("Update successful");
+              refreshBlocks();
+            }
+          }
+        );
+      }
+      
+      
+      
+      else {
         console.log("Payload sending to server:", JSON.stringify(payloadMeeting, null, 2));
 
         // create new
@@ -200,47 +243,52 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
 
 
 
-const handleDeleteBlock = (block) => {
-  if (!window.confirm("Are you sure you want to delete this meeting?")) return;
+  const handleDeleteBlock = (block) => {
+    if (!window.confirm("Are you sure you want to delete this meeting?")) return;
 
-  chrome.runtime.sendMessage(
-    {
-      type: "DELETE_MEETING_PREPARE",
-      payload: {
-        email: decodedCookieEmail,
-        meetingId: block._id || block.id
+    chrome.runtime.sendMessage(
+      {
+        type: "DELETE_MEETING_PREPARE",
+        payload: {
+          email: decodedCookieEmail,
+          meetingId: block._id || block.id
+        }
+      },
+      (res) => {
+        if (res?.error) {
+          alert("Delete failed: " + res.error);
+        } else {
+          alert("Meeting deleted successfully");
+          setSelectedBlock(null);
+          setFormVisible(false);
+         refreshBlocks();
+        }
       }
-    },
-    (res) => {
-      if (res?.error) {
-        alert("Delete failed: " + res.error);
-      } else {
-        alert("Meeting deleted successfully");
-        setSelectedBlock(null);
-        setFormVisible(false);
-         chrome.runtime.sendMessage(
-          { type: "GET_MEETING_PREPARE", payload: { email: decodedCookieEmail } },
-          (res2) => {
-            if (res2?.data?.meeting?.meetings) {
-              const meetings = res2.data.meeting.meetings;
-              setBlocks(
-                meetings.map((m) => ({
-                  id: m._id?.$oid || m._id || m.id,
-                  name: m.blockName,
-                  ...m,
-                }))
-              );
-            } else {
-              setBlocks([]);
-            }
-          }
+    );
+  };
+
+
+// Hàm gọi background để refresh danh sách meetings
+const refreshBlocks = () => {
+  if (!decodedCookieEmail) return;
+  chrome.runtime.sendMessage(
+    { type: "GET_MEETING_PREPARE", payload: { email: decodedCookieEmail } },
+    (res2) => {
+      if (res2?.data?.meeting?.meetings) {
+        const meetings = res2.data.meeting.meetings;
+        setBlocks(
+          meetings.map((m) => ({
+            id: m._id?.$oid || m._id || m.id,
+            name: m.blockName,
+            ...m,
+          }))
         );
+      } else {
+        setBlocks([]);
       }
     }
   );
 };
-
-
 
 
 
@@ -583,7 +631,7 @@ const handleDeleteBlock = (block) => {
               />
             </CollapsibleSection>
 
-           
+
 
 
 
