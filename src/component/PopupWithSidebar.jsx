@@ -80,81 +80,11 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
-  const handleUpdateBlock = (block, updatedData) => {
-    chrome.runtime.sendMessage(
-      {
-        type: "UPDATE_MEETING_PREPARE",
-        payload: {
-          email: decodedCookieEmail,
-          meetingId: block._id || block.id,
-          payload: updatedData,
-        },
-      },
-      (res) => {
-        if (res?.error) {
-          alert("Update failed: " + res.error);
-        } else {
-          alert("Meeting updated successfully");
-          setSelectedBlock(null);
-          setFormVisible(false);
-
-          // refresh lại danh sách từ background
-          chrome.runtime.sendMessage(
-            { type: "GET_MEETING_PREPARE", payload: { email: decodedCookieEmail } },
-            (res2) => {
-              if (res2?.data?.meeting?.meetings) {
-                setBlocks(
-                  res2.data.meeting.meetings.map((m) => ({
-                    id: m._id?.$oid || m._id || m.id,
-                    name: m.blockName,
-                    ...m,
-                  }))
-                );
-              }
-            }
-          );
-        }
-      }
-    );
-  };
+ 
 
 
 
-  const renderTextarea = (id, label, rows = 3) => (
-    <div className="input-group">
-      <label htmlFor={id}>{label}</label>
-      <textarea
-        id={id}
-        rows={rows}
-        value={formData[id]}
-        onChange={handleChange}
-        className={errors[id] ? "input-error" : ""}
-      />
-      {errors[id] && <div className="error-text">{errors[id]}</div>}
-    </div>
-  );
 
-
-  // Hàm tải lại danh sách blocks từ server
-
-  const fetchBlocks = async () => {
-    try {
-      const res = await fetch(
-        `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}`
-      );
-      const data = await res.json();
-      const meetings = data.meeting?.meetings || [];
-      setBlocks(
-        meetings.map((m) => ({
-          id: m._id.$oid || m._id,
-          name: m.blockName,
-          ...m,
-        }))
-      );
-    } catch (err) {
-      console.error(err);
-    }
-  };
 
 
   const handleSave = async ({ resetForm = true } = {}) => {
@@ -185,16 +115,7 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
       if (selectedBlock) {
         // update via background
         const meetingId = selectedBlock._id || selectedBlock.id; // chỉ dùng _id
-        console.log("=== UPDATE MEETING ===");
-        console.log("decodedCookieEmail:", decodedCookieEmail);
-        console.log("meetingId:", meetingId);
-        console.log("payloadMeeting:", payloadMeeting);
-        console.log('-------------')
-        console.log("selectedBlock:", selectedBlock);
-        console.log("meetingId used:", selectedBlock._id || selectedBlock.id);
-        console.log("Updating meetingId:", meetingId);
-        console.log("Payload:", payloadMeeting);
-
+    
 
         chrome.runtime.sendMessage(
           {
@@ -222,18 +143,23 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
         console.log("Payload sending to server:", JSON.stringify(payloadMeeting, null, 2));
 
         // create new
-        const res = await fetch(
-          `${VITE_URL_BACKEND}/api/meeting_prepare/create_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}`,
-          {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ username: decodedCookieEmail, meetings: [payloadMeeting] }),
-          }
-        );
-        if (!res.ok) throw new Error("Create failed");
-        await fetchBlocks();
+         chrome.runtime.sendMessage(
+    {
+      type: "CREATE_MEETING_PREPARE",
+      payload: { email: decodedCookieEmail, payload: payloadMeeting },
+    },
+    (response) => {
+      if (response?.error) {
+        console.error("Create error:", response.error);
+      } else {
+        console.log("Created:", response.data);
+        // load lại list
+        refreshBlocks();
         setFormVisible(false);
         setSelectedBlock(null);
+      }
+    }
+  );
       }
     } catch (err) {
       console.error(err);
