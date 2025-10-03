@@ -13,7 +13,7 @@ export default function CollapsibleSection({
 }) {
   const isActiveStep = currentStep === step;
   const isOpen = openSections.includes(step);
-  const finalStep = 5;
+  const finalStep = 4;
   const firstStep = 1;
 
   const toggleSection = () => {

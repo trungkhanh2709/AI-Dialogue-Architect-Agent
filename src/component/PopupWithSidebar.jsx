@@ -146,19 +146,39 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
       };
 
       if (selectedBlock) {
-        // Update
-        const meeting_id = selectedBlock._id || selectedBlock.id;
-        const res = await fetch(
-          `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}/${meeting_id}`,
-          {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ meetings: [payloadMeeting] }),
-          }
-        );
-        if (!res.ok) throw new Error("Update failed");
+        // update via background
+      const meetingId = selectedBlock._id || selectedBlock.id; // chỉ dùng _id
+        console.log("=== UPDATE MEETING ===");
+        console.log("decodedCookieEmail:", decodedCookieEmail);
+        console.log("meetingId:", meetingId);
+        console.log("payloadMeeting:", payloadMeeting);
+        console.log('-------------')
+        console.log("selectedBlock:", selectedBlock);
+        console.log("meetingId used:", selectedBlock._id || selectedBlock.id);
+        console.log("Updating meetingId:", meetingId);
+        console.log("Payload:", payloadMeeting);
+
+
+    chrome.runtime.sendMessage(
+  {
+    type: "UPDATE_MEETING_PREPARE",
+    payload: {
+      email: decodedCookieEmail,
+      meetingId,
+      payload: payloadMeeting
+    }
+  },
+  (res) => {
+    if (res?.error) alert("Update failed: " + res.error);
+    else setFormVisible(false); // hide form sau update
+  }
+);
+
+
       } else {
-        // Create new
+        console.log("Payload sending to server:", JSON.stringify(payloadMeeting, null, 2));
+
+        // create new
         const res = await fetch(
           `${VITE_URL_BACKEND}/api/meeting_prepare/create_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}`,
           {
@@ -168,31 +188,9 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
           }
         );
         if (!res.ok) throw new Error("Create failed");
-      }
-
-      await fetchBlocks();
-      if (resetForm) {
-        setSelectedBlock(null);
-        setFormData({
-          title: "",
-          userName: "",
-          userCompanyName: "",
-          userCompanyServices: "",
-          prospectName: "",
-          customerCompanyName: "",
-          customerCompanyServices: "",
-          meetingGoal: "",
-          meetingEmail: "",
-          guestEmail: "",
-          meetingMessage: "",
-          meetingNote: "",
-          meetingStart: "",
-          meetingDuration: "15",
-          meetingEnd: "",
-          meetingLink: "",
-        });
+        await fetchBlocks();
         setFormVisible(false);
-        setIsEditing(false);
+        setSelectedBlock(null);
       }
     } catch (err) {
       console.error(err);
@@ -201,59 +199,72 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
   };
 
 
-  const handleDeleteBlock = async (block) => {
-    if (!window.confirm("Are you sure you want to delete this meeting?")) return;
 
-    try {
-      const res = await fetch(
-        `${VITE_URL_BACKEND}/api/meeting_prepare/delete_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}/${block.id}`,
-        { method: "DELETE" }
-      );
+const handleDeleteBlock = (block) => {
+  if (!window.confirm("Are you sure you want to delete this meeting?")) return;
 
-      if (!res.ok) {
-        const errorData = await res.json();
-        alert("Failed to delete: " + (errorData.detail || res.statusText));
-        return;
-      }
-
-      await res.json();
-      alert("Meeting deleted successfully");
-
-      await fetchBlocks(); // reload lại sidebar
-      setSelectedBlock(null);
-      setFormVisible(false);
-    } catch (err) {
-      console.error(err);
-      alert("Error deleting meeting");
-    }
-  };
-
-
-
-
-
-useEffect(() => {
-  if (!decodedCookieEmail) return;
   chrome.runtime.sendMessage(
-    { type: "GET_MEETING_PREPARE", payload: { email: decodedCookieEmail } },
+    {
+      type: "DELETE_MEETING_PREPARE",
+      payload: {
+        email: decodedCookieEmail,
+        meetingId: block._id || block.id
+      }
+    },
     (res) => {
-          console.log("Response from background:", res);
-
-      if (res?.data?.meeting?.meetings) {
-        const meetings = res.data.meeting.meetings;
-        setBlocks(
-          meetings.map((m) => ({
-            id: m._id?.$oid || m._id || m.id,
-            name: m.blockName,
-            ...m,
-          }))
-        );
+      if (res?.error) {
+        alert("Delete failed: " + res.error);
       } else {
-        setBlocks([]);
+        alert("Meeting deleted successfully");
+        setSelectedBlock(null);
+        setFormVisible(false);
+         chrome.runtime.sendMessage(
+          { type: "GET_MEETING_PREPARE", payload: { email: decodedCookieEmail } },
+          (res2) => {
+            if (res2?.data?.meeting?.meetings) {
+              const meetings = res2.data.meeting.meetings;
+              setBlocks(
+                meetings.map((m) => ({
+                  id: m._id?.$oid || m._id || m.id,
+                  name: m.blockName,
+                  ...m,
+                }))
+              );
+            } else {
+              setBlocks([]);
+            }
+          }
+        );
       }
     }
   );
-}, [decodedCookieEmail]);
+};
+
+
+
+
+
+  useEffect(() => {
+    if (!decodedCookieEmail) return;
+    chrome.runtime.sendMessage(
+      { type: "GET_MEETING_PREPARE", payload: { email: decodedCookieEmail } },
+      (res) => {
+
+        if (res?.data?.meeting?.meetings) {
+          const meetings = res.data.meeting.meetings;
+          setBlocks(
+            meetings.map((m) => ({
+              id: m._id?.$oid || m._id || m.id,
+              name: m.blockName,
+              ...m,
+            }))
+          );
+        } else {
+          setBlocks([]);
+        }
+      }
+    );
+  }, [decodedCookieEmail]);
 
   useEffect(() => {
     if (selectedBlock) {
@@ -400,7 +411,7 @@ useEffect(() => {
                 </a>
               </div>
             )}
-  <CollapsibleSection
+            <CollapsibleSection
               step={1}
               title="Step 1: Meeting Information"
               currentStep={currentStep}
@@ -410,25 +421,25 @@ useEffect(() => {
               setOpenSections={setOpenSections}
             >
 
-            <InputField
-              id="title"
-              label="Title"
-              type="text"
-              value={formData.title}
-              onChange={handleChange}
-              placeholder="Meeting Title"
-              error={errors.title}
-              readOnly={!isEditing}
-            />
-             <GoogleCalendar
+              <InputField
+                id="title"
+                label="Title"
+                type="text"
+                value={formData.title}
+                onChange={handleChange}
+                placeholder="Meeting Title"
+                error={errors.title}
+                readOnly={!isEditing}
+              />
+              <GoogleCalendar
                 formData={formData}
                 handleChange={handleChange}
                 error={errors}
                 onSaveWithCalendar={handleSave} // thêm callback
                 readOnly={!isEditing}
-                 currentStep={currentStep}      
-  setCurrentStep={setCurrentStep} 
-  setOpenSections={setOpenSections}
+                currentStep={currentStep}
+                setCurrentStep={setCurrentStep}
+                setOpenSections={setOpenSections}
               />
 
             </CollapsibleSection>
@@ -572,24 +583,7 @@ useEffect(() => {
               />
             </CollapsibleSection>
 
-            <CollapsibleSection
-              step={5}
-              title="Step 5: Schedule a meeting on Google Calendar (Optional)"
-              currentStep={currentStep}
-              setCurrentStep={setCurrentStep}
-
-              openSections={openSections}
-              setOpenSections={setOpenSections}
-            >
-              <GoogleCalendar
-                formData={formData}
-                handleChange={handleChange}
-                error={errors}
-                onSaveWithCalendar={handleSave} // thêm callback
-                readOnly={!isEditing}
-              />
-
-            </CollapsibleSection>
+           
 
 
 

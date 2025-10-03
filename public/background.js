@@ -133,15 +133,80 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         .catch((err) => sendResponse({ data: null, error: err.message }));
       return true;
 
-case "GET_MEETING_PREPARE":
-  const { email: meetingEmail } = msg.payload;
-  fetch(`${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(meetingEmail)}`)
-    .then((res) => res.json())
-    .then((data) => {
-      sendResponse({ data }); // luôn trả response
-    })
-    .catch((err) => sendResponse({ data: null, error: err.message }));
-  return true; // giữ sendResponse mở
+    case "GET_MEETING_PREPARE":
+      const { email: meetingEmail } = msg.payload;
+      fetch(
+        `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
+          meetingEmail
+        )}`
+      )
+        .then((res) => res.json())
+        .then((data) => {
+          sendResponse({ data }); // luôn trả response
+        })
+        .catch((err) => sendResponse({ data: null, error: err.message }));
+      return true; // giữ sendResponse mở
+
+case "UPDATE_MEETING_PREPARE":
+  (async function() {
+    try {
+      const { email, meetingId, payload } = msg.payload;
+      const res = await fetch(
+        `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(email)}/${meetingId}`,
+        {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ meetings: [payload] }),
+        }
+      );
+
+      if (!res.ok) throw new Error("Update failed: " + res.status);
+
+      const data = await res.json();
+      sendResponse({ data });
+
+      // update local state: fetch lại blocks
+      const res2 = await fetch(
+        `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(email)}`
+      );
+      const newData = await res2.json();
+      chrome.runtime.sendMessage({ type: "REFRESH_BLOCKS", payload: newData.meeting?.meetings || [] });
+
+    } catch (err) {
+      sendResponse({ error: err.message });
+    }
+  })();
+  return true;
+
+  case "DELETE_MEETING_PREPARE":
+  (async function () {
+    try {
+      const { email, meetingId } = msg.payload;
+      const res = await fetch(
+        `${VITE_URL_BACKEND}/api/meeting_prepare/delete_meeting_prepare/${encodeURIComponent(email)}/${meetingId}`,
+        { method: "DELETE" }
+      );
+
+      if (!res.ok) throw new Error("Delete failed: " + res.status);
+
+      const data = await res.json();
+      sendResponse({ data });
+
+      // Sau khi xoá thì fetch lại danh sách mới
+      const res2 = await fetch(
+        `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(email)}`
+      );
+      const newData = await res2.json();
+      chrome.runtime.sendMessage({
+        type: "REFRESH_BLOCKS",
+        payload: newData.meeting?.meetings || []
+      });
+
+    } catch (err) {
+      sendResponse({ error: err.message });
+    }
+  })();
+  return true;
 
     default:
       if (msg.action === "pushCaption") {
