@@ -1,3 +1,4 @@
+// injectToolbar.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
@@ -9,14 +10,14 @@ function initToolbar() {
     toolbar.id = "toolbar";
     Object.assign(toolbar.style, {
       position: "fixed",
-      top: "10px",
+      top: "10%",
       left: "50%",
       transform: "translateX(-50%)",
       zIndex: 999999,
-      width: "35%",
-      height: "50%",
-      borderRadius: "16px",
-      background: "transparent",
+      width: "40%",
+      height: "70%",
+      borderRadius: "20px",
+      background: "transparent", // transparent background
       boxShadow: "none",
       overflow: "hidden",
     });
