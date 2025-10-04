@@ -5,8 +5,8 @@ import PopupPage from "./pages/PopupPage.jsx";
 import MeetingPage from "./pages/MeetingPage.jsx";
 import UpgradePopup from "./pages/UpgradePopup.jsx";
 
-export default function App() {
-  const [page, setPage] = useState("popup"); // "popup" | "meeting"
+export default function App({ defaultPage = "popup" }) {
+  const [page, setPage] = useState(defaultPage);
   const [meetingData, setMeetingData] = useState(null);
   const [user, setUser] = useState(null);
   const [cookieUserName, setCookieUserName] = useState(null);
@@ -14,22 +14,10 @@ export default function App() {
 
 
   useEffect(() => {
-    const toolbar = document.getElementById("toolbar");
-    if (!toolbar) return;
+ const toolbar = document.getElementById("toolbar");
+  if (!toolbar) return;
 
-    if (page === "popup") {
-      // Display full height right side
-      Object.assign(toolbar.style, {
-        top: "1vh",
-        right: "1vh",
-        left: "auto",
-        transform: "none",
-        height: "100vh",
-
-        borderRadius: "24px",
-        boxShadow: "0 0 10px rgba(0,0,0,0.3)",
-      });
-    } else if (page === "meeting") {
+    else if (page === "meeting") {
       // top-center auto height
       Object.assign(toolbar.style, {
         top: "0",
@@ -79,15 +67,19 @@ export default function App() {
       setPage("upgrade");
     }
   }, [showUpgrade]);
+ 
+ 
   useEffect(() => {
-    // check cookie khi app load
-    chrome.runtime.sendMessage({ action: "CHECK_COOKIE" }, (response) => {
-      if (response?.loggedIn) {
-        setCookieUserName(response.username);
-        setPage("popup");
-      }
-    });
-  }, []);
+  chrome.runtime.sendMessage({ action: "CHECK_COOKIE" }, (response) => {
+    if (response?.loggedIn) {
+      setCookieUserName(response.username);
+      // chỉ set nếu chưa có meetingData (tức là đang không trong context meeting)
+      if (!meetingData && defaultPage !== "meeting") setPage("popup");
+    }
+  });
+}, []);
+
+
   return (
     <>
 

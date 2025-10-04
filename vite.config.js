@@ -7,18 +7,14 @@ export default defineConfig({
   build: {
     outDir: "dist",
     rollupOptions: {
-      input: resolve(__dirname, "src/injectToolbar.jsx"),
-      output: {
-        format: "iife", // Immediately Invoked Function Expression
-        name: "ToolbarApp", // global variable name
-        entryFileNames: "main.js",
+      input: {
+        popup: resolve(__dirname, "src/popup.jsx"),
+        toolbar: resolve(__dirname, "src/injectToolbar.jsx"),
       },
-    },
-    target: "es2017",
-    minify: false,
-    server: {
-      port: 5173,
-      strictPort: true,
+      output: {
+        entryFileNames: "[name].js",
+        format: "es",
+      },
     },
   },
 });

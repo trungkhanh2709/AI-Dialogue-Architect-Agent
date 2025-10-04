@@ -143,4 +143,9 @@ const finder = setInterval(() => {
   if (waitForCaptionContainer()) clearInterval(finder);
 }, 300);
 
-console.log("Waiting for caption container...");
+if (window.location.hostname === "meet.google.com") {
+  const script = document.createElement("script");
+  script.src = chrome.runtime.getURL("toolbar.js");
+  script.type = "module";
+  (document.head || document.documentElement).appendChild(script);
+}

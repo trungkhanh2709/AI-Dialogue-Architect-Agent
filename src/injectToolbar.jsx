@@ -1,10 +1,8 @@
-// src/injectToolbar.jsx
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 
-export function initToolbar() {
-  // Check if the toolbar is already there.
+function initToolbar() {
   let toolbar = document.getElementById("toolbar");
   if (!toolbar) {
     toolbar = document.createElement("div");
@@ -14,28 +12,22 @@ export function initToolbar() {
       top: "10px",
       left: "50%",
       transform: "translateX(-50%)",
-      minWidth: "500px",
-      width: "55%",
-      height: "100%",
-      backgroundColor: "transparent",
-      borderRadius: "24px",
-      // border: "1px solid rgba(255, 255, 255, 0.2)",
-      zIndex: "9999",
+      zIndex: 999999,
+      width: "35%",
+      height: "50%",
+      borderRadius: "16px",
+      background: "transparent",
       boxShadow: "none",
-      overflowY: "disable",
+      overflow: "hidden",
     });
     document.body.appendChild(toolbar);
-  } else {
-    // toggle display 
-    toolbar.style.display = toolbar.style.display === "none" ? "block" : "none";
-    if (toolbar.style.display === "none") return;
   }
 
-  // render React App into toolbar
-  if (!window.toolbarRoot) {
-    window.toolbarRoot = ReactDOM.createRoot(toolbar);
-    window.toolbarRoot.render(<App />);
-  }
+  ReactDOM.createRoot(toolbar).render(
+    <React.StrictMode>
+      <App defaultPage="meeting" />
+    </React.StrictMode>
+  );
 }
 
 initToolbar();
