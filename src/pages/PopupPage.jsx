@@ -3,9 +3,10 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import PopupWithSidebar from "../component/PopupWithSidebar.jsx";
 import ExpandableTextarea from "../component/ExpandableTextarea.jsx";
+import Setting_line_light from "../assets/Setting_line_light.svg?react";
+import SettingsPage from "../component/SettingsPage.jsx"
 
 export default function PopupPage({ onStartMeeting, cookieUserName }) {
-const VITE_URL_BACKEND = 'http://localhost:4000';
   const [remainSessions, setRemainSessions] = useState(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -26,31 +27,31 @@ const VITE_URL_BACKEND = 'http://localhost:4000';
 
 
 
-  console.log("decodedCookieEmail",decodedCookieEmail);
-useEffect(() => {
-  const fetchRemainSessions = () => {
-   chrome.runtime.sendMessage(
-  {
-    type: "GET_REMAIN_SESSIONS",
-    payload: {
-      email: decodedCookieEmail,
-      add_on_type: "ai_dialogue_architect_agent",
-    },
-  },
-  (res) => {
-    if (res.error || !res.data) {
-      setRemainSessions("0 sessions");
-      return;
-    }
-    const { value, trial } = res.data.content;
-    setRemainSessions(trial ? `${value} sessions + Trial` : `${value} sessions`);
-  }
-);
+  console.log("decodedCookieEmail", decodedCookieEmail);
+  useEffect(() => {
+    const fetchRemainSessions = () => {
+      chrome.runtime.sendMessage(
+        {
+          type: "GET_REMAIN_SESSIONS",
+          payload: {
+            email: decodedCookieEmail,
+            add_on_type: "ai_dialogue_architect_agent",
+          },
+        },
+        (res) => {
+          if (res.error || !res.data) {
+            setRemainSessions("0 sessions");
+            return;
+          }
+          const { value, trial } = res.data.content;
+          setRemainSessions(trial ? `${value} sessions + Trial` : `${value} sessions`);
+        }
+      );
 
-  };
+    };
 
-  fetchRemainSessions();
-}, [decodedCookieEmail]);
+    fetchRemainSessions();
+  }, [decodedCookieEmail]);
 
 
   const sampleBlocks = [
@@ -117,68 +118,68 @@ useEffect(() => {
 
   const handleBack = () => setStep(prev => prev - 1);
 
- const handleStart = () => {
-  if (!validateStep()) return;
+  const handleStart = () => {
+    if (!validateStep()) return;
 
-  chrome.runtime.sendMessage(
-    {
-      type: "USE_ADDON_SESSION",
-      payload: {
-        email: decodedCookieEmail,
-        add_on_type: "ai_dialogue_architect_agent"
+    chrome.runtime.sendMessage(
+      {
+        type: "USE_ADDON_SESSION",
+        payload: {
+          email: decodedCookieEmail,
+          add_on_type: "ai_dialogue_architect_agent"
+        }
+      },
+      (res) => {
+        if (!res || res.error || !res.data) {
+          alert("An error occurred while calling the API");
+          return;
+        }
+
+        // Reset & start timer
+        chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
+          chrome.runtime.sendMessage({ type: "START_TIMER" });
+        });
+
+        const data = res.data;
+        if (data.trial_used === true || data.status === "200") {
+          onStartMeeting(formData);
+        } else {
+          alert("You have run out of sessions. Please purchase an add-on to continue.");
+        }
       }
-    },
-    (res) => {
-      if (!res || res.error || !res.data) {
-        alert("An error occurred while calling the API");
-        return;
-      }
-
-      // Reset & start timer
-      chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
-        chrome.runtime.sendMessage({ type: "START_TIMER" });
-      });
-
-      const data = res.data;
-      if (data.trial_used === true || data.status === "200") {
-        onStartMeeting(formData);
-      } else {
-        alert("You have run out of sessions. Please purchase an add-on to continue.");
-      }
-    }
-  );
-};
+    );
+  };
 
 
 
-const renderTextarea = (id, label, rows = 3, placeholder) => {
-  const words = formData[id].trim() === "" ? [] : formData[id].trim().split(/\s+/);
-  const wordCount = words.length;
+  const renderTextarea = (id, label, rows = 3, placeholder) => {
+    const words = formData[id].trim() === "" ? [] : formData[id].trim().split(/\s+/);
+    const wordCount = words.length;
 
-  return (
-    <div className="input-group">
-      <label htmlFor={id}>{label}</label>
-      <textarea
-        id={id}
-        value={formData[id]}
-        onChange={(e) => {
-          const newWords = e.target.value.trim() === "" ? [] : e.target.value.trim().split(/\s+/);
-          if (newWords.length <= 1000) {
-            handleChange(e);
-          } else {
-            e.target.value = formData[id]; // giữ giá trị cũ
-            alert("Maximum 1000 words allowed");
-          }
-        }}
-        placeholder={placeholder}
-        rows={rows}
-        className={errors[id] ? "input-error" : ""}
-      />
-      <div className="word-counter">{wordCount}/1000 words</div>
-      {errors[id] && <div className="error-text">{errors[id]}</div>}
-    </div>
-  );
-};
+    return (
+      <div className="input-group">
+        <label htmlFor={id}>{label}</label>
+        <textarea
+          id={id}
+          value={formData[id]}
+          onChange={(e) => {
+            const newWords = e.target.value.trim() === "" ? [] : e.target.value.trim().split(/\s+/);
+            if (newWords.length <= 1000) {
+              handleChange(e);
+            } else {
+              e.target.value = formData[id]; // giữ giá trị cũ
+              alert("Maximum 1000 words allowed");
+            }
+          }}
+          placeholder={placeholder}
+          rows={rows}
+          className={errors[id] ? "input-error" : ""}
+        />
+        <div className="word-counter">{wordCount}/1000 words</div>
+        {errors[id] && <div className="error-text">{errors[id]}</div>}
+      </div>
+    );
+  };
 
 
 
@@ -222,7 +223,14 @@ const renderTextarea = (id, label, rows = 3, placeholder) => {
         </div>
       </div>
 
-      <p className="agent_name">AI Dialogue Architect Agent</p>
+      <div className="agent-header">
+  <p className="agent_name">AI Dialogue Architect Agent</p>
+  <Setting_line_light
+    size={8}
+    className="settings-icon"
+    onClick={() => setTab("settings")}
+  />
+</div>
       <div
         className={`session-remain ${remainSessions === "0 sessions" ? "danger" : "normal"
           }`}
@@ -325,12 +333,13 @@ const renderTextarea = (id, label, rows = 3, placeholder) => {
         <div className="schedule-container">
 
           <PopupWithSidebar
-          onStartMeeting ={onStartMeeting}
+            onStartMeeting={onStartMeeting}
             decodedCookieEmail={decodedCookieEmail}
 
             onSelectBlock={(block) => console.log("Selected:", block)}
           />  </div>
       )}
+{tab === "settings" && <SettingsPage onBack={() => setTab("instant")} />}
 
     </div>
   );

@@ -303,3 +303,23 @@ min-width: 450px;
   text-align: right;
   margin-top: 4px;
 }
+
+.agent-header {
+  display: flex;
+  align-items: center;
+  justify-content: center; /* căn giữa phần text */
+  position: relative;
+  margin-top: 12px;
+}
+
+.agent_name {
+  font-size: 16px;
+  font-weight: 600;
+  color: #fff;
+}
+
+.settings-icon {
+  position: absolute;
+  right: 0;
+  cursor: pointer;
+}

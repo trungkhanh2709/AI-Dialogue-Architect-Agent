@@ -9,8 +9,8 @@ import ExpandableTextarea from "./ExpandableTextarea";
 import CollapsibleSection from "./CollapsibleSection";
 
 export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decodedCookieEmail }) {
-  // const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';
-  const VITE_URL_BACKEND = "http://localhost:4000";
+  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';
+  // const VITE_URL_BACKEND = "http://localhost:4000";
 
   const [blocks, setBlocks] = useState([]);
   const [selectedBlock, setSelectedBlock] = useState(null);
@@ -80,7 +80,7 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
- 
+
 
 
 
@@ -115,7 +115,7 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
       if (selectedBlock) {
         // update via background
         const meetingId = selectedBlock._id || selectedBlock.id; // chỉ dùng _id
-    
+
 
         chrome.runtime.sendMessage(
           {
@@ -136,30 +136,30 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
           }
         );
       }
-      
-      
-      
+
+
+
       else {
         console.log("Payload sending to server:", JSON.stringify(payloadMeeting, null, 2));
 
         // create new
-         chrome.runtime.sendMessage(
-    {
-      type: "CREATE_MEETING_PREPARE",
-      payload: { email: decodedCookieEmail, payload: payloadMeeting },
-    },
-    (response) => {
-      if (response?.error) {
-        console.error("Create error:", response.error);
-      } else {
-        console.log("Created:", response.data);
-        // load lại list
-        refreshBlocks();
-        setFormVisible(false);
-        setSelectedBlock(null);
-      }
-    }
-  );
+        chrome.runtime.sendMessage(
+          {
+            type: "CREATE_MEETING_PREPARE",
+            payload: { email: decodedCookieEmail, payload: payloadMeeting },
+          },
+          (response) => {
+            if (response?.error) {
+              console.error("Create error:", response.error);
+            } else {
+              console.log("Created:", response.data);
+              // load lại list
+              refreshBlocks();
+              setFormVisible(false);
+              setSelectedBlock(null);
+            }
+          }
+        );
       }
     } catch (err) {
       console.error(err);
@@ -187,34 +187,34 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
           alert("Meeting deleted successfully");
           setSelectedBlock(null);
           setFormVisible(false);
-         refreshBlocks();
+          refreshBlocks();
         }
       }
     );
   };
 
 
-// Hàm gọi background để refresh danh sách meetings
-const refreshBlocks = () => {
-  if (!decodedCookieEmail) return;
-  chrome.runtime.sendMessage(
-    { type: "GET_MEETING_PREPARE", payload: { email: decodedCookieEmail } },
-    (res2) => {
-      if (res2?.data?.meeting?.meetings) {
-        const meetings = res2.data.meeting.meetings;
-        setBlocks(
-          meetings.map((m) => ({
-            id: m._id?.$oid || m._id || m.id,
-            name: m.blockName,
-            ...m,
-          }))
-        );
-      } else {
-        setBlocks([]);
+  // Hàm gọi background để refresh danh sách meetings
+  const refreshBlocks = () => {
+    if (!decodedCookieEmail) return;
+    chrome.runtime.sendMessage(
+      { type: "GET_MEETING_PREPARE", payload: { email: decodedCookieEmail } },
+      (res2) => {
+        if (res2?.data?.meeting?.meetings) {
+          const meetings = res2.data.meeting.meetings;
+          setBlocks(
+            meetings.map((m) => ({
+              id: m._id?.$oid || m._id || m.id,
+              name: m.blockName,
+              ...m,
+            }))
+          );
+        } else {
+          setBlocks([]);
+        }
       }
-    }
-  );
-};
+    );
+  };
 
 
 
@@ -369,8 +369,8 @@ const refreshBlocks = () => {
       <div className="form-wrapper">
         {!formVisible ? (
           <div className="form-placeholder" >
-<InboxOutlined className="icon-inbox" />
-<p className="form-placeholder-text">Click View from the sidebar item to start the meeting</p>
+            <InboxOutlined className="icon-inbox" />
+            <p className="form-placeholder-text">Click View from the sidebar item to start the meeting</p>
 
           </div>
 

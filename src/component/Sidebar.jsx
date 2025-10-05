@@ -41,8 +41,9 @@ export default function Sidebar({ blocks, onViewBlock, onEditBlock, onDeleteBloc
         {filteredBlocks.map((block) => {
           const isExpanded = expandedBlockId === block.id;
           return (
-            <div key={block.id} className={`sidebar-item ${isExpanded ? "expanded" : ""}`}>
-              <div className="block-header" onClick={() => toggleExpand(block.id)}>
+            <div key={block.id} className={`sidebar-item ${isExpanded ? "expanded" : ""}`}
+            onClick={() => toggleExpand(block.id)}>
+              <div className="block-header" >
                 {block.name}
               </div>
 

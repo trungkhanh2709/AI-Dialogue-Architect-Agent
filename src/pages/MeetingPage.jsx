@@ -7,8 +7,8 @@ import SaveConfirmPopup from "../component/SaveConfirmPopup";
 
 
 export default function Meeting({ meetingData, onBack, cookieUserName, onExpire }) {
-  // const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
-  const VITE_URL_BACKEND = 'http://localhost:4000'
+  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
+  // const VITE_URL_BACKEND = 'http://localhost:4000'
 
 
   const [currentSpeech, setCurrentSpeech] = useState({});
@@ -188,33 +188,40 @@ export default function Meeting({ meetingData, onBack, cookieUserName, onExpire 
 
 
   const handleClose = () => {
+
+    const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
     const alreadyConfirmed = localStorage.getItem("saveConfirmed");
+
+    if (autoSaveEnabled) {
+      saveMeetingData();
+      onBack();
+      return;
+    }
+
     if (alreadyConfirmed === "true") {
-      // đã từng đồng ý => auto save và đóng
       saveMeetingData();
       onBack();
     } else {
-      // lần đầu => hỏi
       setShowSavePopup(true);
     }
   };
   const saveMeetingData = async () => {
     try {
-     const meetingId =
-  (meetingData._id && meetingData._id.$oid) ||
-  meetingData._id ||
-  meetingData.id;
+      const meetingId =
+        (meetingData._id && meetingData._id.$oid) ||
+        meetingData._id ||
+        meetingData.id;
 
-if (!meetingId) {
-  console.error("Missing meetingId in meetingData", meetingData);
-  return;
-}
+      if (!meetingId) {
+        console.error("Missing meetingId in meetingData", meetingData);
+        return;
+      }
 
       const payloadMeeting = {
         ...meetingData,
         meeting_transcript: meetingLog.join("\n"), // thêm transcript vào payload
       };
-console.log("meetingId",meetingId);
+      console.log("meetingId", meetingId);
       const res = await fetch(
         `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}/${meetingId}`,
         {
@@ -236,6 +243,8 @@ console.log("meetingId",meetingId);
   const handleConfirmSave = () => {
     saveMeetingData();
     localStorage.setItem("saveConfirmed", "true");
+    localStorage.setItem("autoSaveEnabled", "true"); // thêm dòng này
+
     setShowSavePopup(false);
     onBack();
   };
@@ -245,10 +254,12 @@ console.log("meetingId",meetingId);
     setShowSavePopup(false);
     onBack();
   };
-  //nhớ lên prodS thì xoá
-  useEffect(() => {
-    localStorage.removeItem("saveConfirmed");
-  }, []);
+
+
+  // // //nhớ lên prodS thì xoá
+  // useEffect(() => {
+  //   localStorage.removeItem("saveConfirmed");
+  // }, []);
 
 
 

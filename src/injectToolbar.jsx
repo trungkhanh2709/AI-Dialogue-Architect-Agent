@@ -14,7 +14,7 @@ import SaveConfirmPopupCss from "../src/styles/SaveConfirmPopup.css?raw";
 import sidebarCss from "../src/styles/sidebar.css?raw";
 import popupSidebarCss from "../src/styles/popupSidebar.css?raw";
 import upgradePopupCss from "../src/styles/upgradePopup.css?raw";
-
+import settingPageCss from  "../src/styles/settingPage.css?raw";
 
 
 export function initToolbar() {
@@ -42,7 +42,7 @@ export function initToolbar() {
       + "\n" + sidebarCss + "\n"
       + collapsibleSectionCss
       + blockListCss + "\n" + chatCss + "\n" + emailInputCss + expandTextareaCss
-      + "\n" + GoogleCalendarCss + "\n" + InputFieldCss + SaveConfirmPopupCss;
+      + "\n" + GoogleCalendarCss + "\n" + InputFieldCss + SaveConfirmPopupCss + settingPageCss;
 
     shadow.appendChild(style);
     // wrapper nội dung React
