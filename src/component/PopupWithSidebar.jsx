@@ -9,7 +9,6 @@ import ExpandableTextarea from "./ExpandableTextarea";
 import CollapsibleSection from "./CollapsibleSection";
 
 export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decodedCookieEmail }) {
-  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';
   // const VITE_URL_BACKEND = "http://localhost:4000";
 
   const [blocks, setBlocks] = useState([]);
@@ -297,39 +296,35 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
   };
 
 
-  const handleStart = async () => {
-    try {
-      const res = await fetch(`${VITE_URL_BACKEND}/api/addons/use_addon_session`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: decodedCookieEmail,
-          add_on_type: "ai_dialogue_architect_agent"
-        })
-      });
-
-      const data = await res.json();
-
+const handleStart = () => {
+  chrome.runtime.sendMessage(
+    {
+      type: "USE_ADDON_SESSION",
+      payload: {
+        email: decodedCookieEmail,
+        add_on_type: "ai_dialogue_architect_agent",
+      },
+    },
+    (data) => {
       chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
         chrome.runtime.sendMessage({ type: "START_TIMER" });
-
       });
 
-      if (data.trial_used === true || data.status === "200") {
+      if (data?.data?.trial_used === true || data?.data?.status === "200") {
         onStartMeeting({
           ...formData,
           id: selectedBlock?.id,
-          _id: selectedBlock?.id, // ép luôn cho MeetingPage dùng được
+          _id: selectedBlock?.id,
         });
-
       } else {
-        alert("You have run out of sessions. Please purchase an add-on to continue.");
+        alert(
+          "You have run out of sessions. Please purchase an add-on to continue."
+        );
       }
-    } catch (err) {
-      console.error(err);
-      alert("An error occurred while calling the API");
     }
-  };
+  );
+};
+
 
 
 

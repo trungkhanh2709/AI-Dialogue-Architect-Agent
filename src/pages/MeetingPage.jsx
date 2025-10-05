@@ -88,6 +88,12 @@ export default function Meeting({ meetingData, onBack, cookieUserName, onExpire 
             setChatMessages((prevMsgs) => [...prevMsgs, { speaker, text: finalized }]);
             setSpeakingUsers(prev => ({ ...prev, [speaker]: false }));
             sendMessageToAgent({ speaker, text: finalized }, updatedLog);
+            const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
+
+            // chỉ lưu nếu autoSave bật
+            if (autoSaveEnabled) {
+              saveMeetingData();
+            }
           }
 
           return updatedLog;
@@ -133,64 +139,53 @@ export default function Meeting({ meetingData, onBack, cookieUserName, onExpire 
 
 
 
-  const sendMessageToAgent = async (newMessage, log) => {
-    if (sessionExpired) return; // chặn gửi nếu hết hạn
-    try {
-      setAgentTyping(true);
+  const sendMessageToAgent = (newMessage, log) => {
+    if (sessionExpired) return;
 
-      setChatMessages((prev) => [
-        ...prev,
-        { speaker: "Agent", text: "The agent is responding...", isAgent: true, isTemp: true },
-      ]);
+    setAgentTyping(true);
 
-      const payload = {
-        userName: meetingData.userName,
-        userCompanyName: meetingData.userCompanyName,
-        userCompanyServices: meetingData.userCompanyServices,
-        prospectName: meetingData.prospectName,
-        customerCompanyName: meetingData.customerCompanyName,
-        customerCompanyServices: meetingData.customerCompanyServices,
-        meetingGoal: meetingData.meetingGoal,
-        meetingEmail: meetingData.meetingEmail,
-        meetingMessage: meetingData.meetingMessage,
-        meetingNote: meetingData.meetingNote,
-        meetingLog: log.join("\n"),
-        msg: chatHistory,
-      };
+    setChatMessages(prev => [
+      ...prev,
+      { speaker: "Agent", text: "The agent is responding...", isAgent: true, isTemp: true },
+    ]);
 
-      const res = await axios.post(
-        `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent`,
-        payload
-      );
-
-      if (res.data.status === 200) {
-        const agentText = res.data.content;
-
-        setChatMessages((prev) =>
-          prev.map((msg) =>
-            msg.isTemp ? { ...msg, text: agentText, isTemp: false } : msg
-          )
-        );
-        setChatHistory(res.data.msg);
+    chrome.runtime.sendMessage(
+      {
+        type: "SEND_MESSAGE_TO_AGENT",
+        payload: {
+          meetingData,
+          chatHistory,
+          log,
+        },
+      },
+      (res) => {
+        if (res?.error) {
+          console.error("Agent failed:", res.error);
+          setChatMessages(prev =>
+            prev.map(msg =>
+              msg.isTemp ? { ...msg, text: "Agent is unable to respond 😢", isTemp: false } : msg
+            )
+          );
+        } else if (res?.data?.status === 200) {
+          const agentText = res.data.content;
+          setChatMessages(prev =>
+            prev.map(msg =>
+              msg.isTemp ? { ...msg, text: agentText, isTemp: false } : msg
+            )
+          );
+          setChatHistory(res.data.msg);
+        }
+        setAgentTyping(false);
       }
-    } catch (err) {
-      console.error("Send to agent failed:", err);
-      setChatMessages((prev) => {
-        return prev.map((msg) =>
-          msg.isTemp ? { ...msg, text: "Agent is unable to respond 😢", isTemp: false } : msg
-        );
-      });
-    } finally {
-      setAgentTyping(false);
-    }
+    );
   };
 
 
 
-  const handleClose = () => {
 
+  const handleClose = () => {
     const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
-    const alreadyConfirmed = localStorage.getItem("saveConfirmed");
+    const alreadyConfirmed = localStorage.getItem("saveConfirmed") === "true";
 
     if (autoSaveEnabled) {
       saveMeetingData();
@@ -198,68 +193,63 @@ export default function Meeting({ meetingData, onBack, cookieUserName, onExpire 
       return;
     }
 
-    if (alreadyConfirmed === "true") {
-      saveMeetingData();
-      onBack();
-    } else {
-      setShowSavePopup(true);
-    }
+    // autoSave disabled và chưa confirm -> hiện popup
+    setShowSavePopup(true);
   };
-  const saveMeetingData = async () => {
-    try {
-      const meetingId =
-        (meetingData._id && meetingData._id.$oid) ||
-        meetingData._id ||
-        meetingData.id;
 
-      if (!meetingId) {
-        console.error("Missing meetingId in meetingData", meetingData);
-        return;
-      }
 
-      const payloadMeeting = {
-        ...meetingData,
-        meeting_transcript: meetingLog.join("\n"), // thêm transcript vào payload
-      };
-      console.log("meetingId", meetingId);
-      const res = await fetch(
-        `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(decodedCookieEmail)}/${meetingId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ meetings: [payloadMeeting] }),
+  const saveMeetingData = () => {
+    const meetingId = meetingData._id?._id || meetingData._id || meetingData.id;
+
+
+    if (!meetingId) {
+      console.error("Missing meetingId in meetingData", meetingData);
+      return;
+    }
+
+    const payloadMeeting = {
+      ...meetingData,
+      meeting_transcript: meetingLog.join("\n")
+    };
+
+    chrome.runtime.sendMessage(
+      {
+        type: "SAVE_MEETING_TRANSCRIPT",
+        payload: {
+          email: decodedCookieEmail,
+          meetingId,
+          payloadMeeting,
+        },
+      },
+      (res) => {
+        if (res?.error) {
+          console.error("Save failed:", res.error);
+        } else {
+          console.log("Meeting saved with transcript", res.data);
         }
-      );
-
-      if (!res.ok) throw new Error("Save meeting failed");
-
-      console.log("Meeting saved with transcript");
-    } catch (err) {
-      console.error("Save failed", err);
-    }
+      }
+    );
   };
+
 
 
   const handleConfirmSave = () => {
     saveMeetingData();
     localStorage.setItem("saveConfirmed", "true");
-    localStorage.setItem("autoSaveEnabled", "true"); // thêm dòng này
-
+    localStorage.setItem("autoSaveEnabled", "true"); // bật switch
     setShowSavePopup(false);
     onBack();
   };
 
   const handleCancelSave = () => {
     localStorage.setItem("saveConfirmed", "false");
+    localStorage.setItem("autoSaveEnabled", "false"); // tắt switch
     setShowSavePopup(false);
     onBack();
   };
 
 
   // // //nhớ lên prodS thì xoá
-  // useEffect(() => {
-  //   localStorage.removeItem("saveConfirmed");
-  // }, []);
 
 
 

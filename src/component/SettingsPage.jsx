@@ -6,10 +6,11 @@ export default function SettingsPage({ onBack }) {
   );
 
   const handleToggle = () => {
-    const newValue = !autoSave;
-    setAutoSave(newValue);
-    localStorage.setItem("autoSaveEnabled", newValue);
-  };
+  const newValue = !autoSave;
+  setAutoSave(newValue);
+  localStorage.setItem("autoSaveEnabled", newValue);
+};
+
 
   return (
     <div className="settings-page">

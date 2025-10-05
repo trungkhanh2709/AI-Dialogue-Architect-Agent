@@ -5,14 +5,14 @@ export default function SaveConfirmPopup({ onConfirm, onCancel }) {
   return (
     <div className="popup-overlay">
       <div className="popup-box">
-        <h3>Bạn có muốn lưu dữ liệu cuộc họp này không?</h3>
+        <h3>Do you want to save this meeting's data?</h3>
         <p>
-          Dữ liệu cuộc họp sẽ được lưu vào cơ sở dữ liệu của chúng tôi. 
-          Nếu sau này bạn đổi ý và muốn bật/tắt lưu, có thể chỉnh trong phần cài đặt.
+          The meeting data, including the call content, will be saved to our database.
+          If you change your mind later and want to enable/disable saving, you can adjust it in the settings.
         </p>
         <div className="popup-actions">
-          <button className="btn-cancel" onClick={onCancel}>Không</button>
-          <button className="btn-save" onClick={onConfirm}>Lưu</button>
+          <button className="btn-cancel" onClick={onCancel}>Cancel</button>
+          <button className="btn-save" onClick={onConfirm}>Save</button>
         </div>
       </div>
     </div>
