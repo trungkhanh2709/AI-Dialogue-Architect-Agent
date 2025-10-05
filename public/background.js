@@ -135,16 +135,17 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     case "GET_MEETING_PREPARE":
       const { email: meetingEmail } = msg.payload;
-      fetch(
-        `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
-          meetingEmail
-        )}`
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          sendResponse({ data }); // luôn trả response
-        })
-        .catch((err) => sendResponse({ data: null, error: err.message }));
+     fetch(`${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(meetingEmail)}`)
+  .then((res) => res.json())
+  .then((data) => {
+    if (!data || !data.meeting) {
+      sendResponse({ data: { meeting: { meetings: [] } } });
+    } else {
+      sendResponse({ data });
+    }
+  })
+  .catch((err) => sendResponse({ data: { meeting: { meetings: [] } }, error: err.message }));
+
       return true; // giữ sendResponse mở
 
     case "UPDATE_MEETING_PREPARE":

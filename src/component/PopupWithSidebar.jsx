@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from "react";
 // import "../styles/popupSidebar.css";
 import SideBar from "./Sidebar";
-import InboxOutlined from "../assets/InboxOutlined.svg";
+import InboxOutlined from "../assets/InboxOutlined.svg?react";
 import InputField from "./InputField";
 import GoogleCalendar from "./GoogleCalendar";
 import ExpandableTextarea from "./ExpandableTextarea";
@@ -369,8 +369,8 @@ const refreshBlocks = () => {
       <div className="form-wrapper">
         {!formVisible ? (
           <div className="form-placeholder" >
-            <img src={InboxOutlined} alt="Inbox" className="icon-inbox" />
-            <p>Click View from the sidebar item to start the meeting</p>
+<InboxOutlined className="icon-inbox" />
+<p className="form-placeholder-text">Click View from the sidebar item to start the meeting</p>
 
           </div>
 

@@ -10,8 +10,9 @@
 .sidebar-wrapper {
   width:30%;
   padding: 0;
+  height: 80vh;
   transition: width 0.3s ease;
-  
+  max-height: 100%;
 }
 
 .sidebar-wrapper.hidden {
@@ -23,6 +24,7 @@
 .form-wrapper {
   flex: 1;
   padding: 12px;
+  
   overflow-y: auto;
 }
 .sidebar-toggle {
@@ -161,9 +163,19 @@ button:disabled {
 
 
 .icon-inbox {
-  color: #ffffff; /* đổi màu theo ý */
-  width: 48px;
-  height: 48px;
+  width: 80px;       
+  height: 80px;
+  color: #ffffff;    /* trắng */
+  fill: currentColor; /* để màu áp dụng lên SVG */
+  opacity: 1;
+}
+
+.form-placeholder-text {
+  font-size: 14px;
+  color: #ffffff;
+  text-align: center;
+  margin-top: 8px;
+  opacity: 0.9;
 }
 
 .section-divider {
