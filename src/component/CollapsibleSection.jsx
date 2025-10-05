@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import ExpandDownIcon from "../assets/Expand_down.svg";
-import "../styles/collapsibleSection.css";
+// import "../styles/collapsibleSection.css";
 
 export default function CollapsibleSection({
   step,

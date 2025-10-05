@@ -1,6 +1,6 @@
 // PopupWithSidebar.jsx
 import React, { useState, useEffect } from "react";
-import "../styles/popupSidebar.css";
+// import "../styles/popupSidebar.css";
 import SideBar from "./Sidebar";
 import InboxOutlined from "../assets/InboxOutlined.svg";
 import InputField from "./InputField";

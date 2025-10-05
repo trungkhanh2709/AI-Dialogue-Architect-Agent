@@ -1,5 +1,5 @@
 import React from "react";
-import "../styles/upgradePopup.css";
+// import "../styles/upgradePopup.css";
 
 const UpgradePopup = ({ onClose, userEmail }) => {
   const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';

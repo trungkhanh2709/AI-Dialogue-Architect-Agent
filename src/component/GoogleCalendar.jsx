@@ -1,7 +1,7 @@
 // GoogleCalendar.jsx
 import { useRef, useEffect, useState } from "react";
 import InputField from "./InputField";
-import "../styles/GoogleCalendar.css";
+// import "../styles/GoogleCalendar.css";
 import ExpandDownIcon from "../assets/Expand_down.svg";
 import GoogleCalendarIcon from "../assets/google-calendar.svg";
 import EmailInput from "./EmailInput";

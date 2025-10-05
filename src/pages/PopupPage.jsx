@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import "../styles/popup.css";
+// import "../styles/popup.css";
 import axios from "axios";
 import PopupWithSidebar from "../component/PopupWithSidebar.jsx";
 import ExpandableTextarea from "../component/ExpandableTextarea.jsx";
@@ -231,7 +231,7 @@ const renderTextarea = (id, label, rows = 3, placeholder) => {
       </div>
 
 
-      <div className="blue-glow"></div>
+      {/* <div className="blue-glow"></div> */}
       {tab === "instant" && (
         <>
           <div className="step-indicator">

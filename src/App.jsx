@@ -14,7 +14,7 @@ export default function App() {
 
 
   useEffect(() => {
-    const toolbar = document.getElementById("toolbar");
+    const toolbar = document.getElementById("__ai_dialogue_toolbar__");
     if (!toolbar) return;
 
     if (page === "popup") {
@@ -37,7 +37,7 @@ export default function App() {
         right: "auto",
         transform: "translateX(-50%)",
         width: "35%",
-        height: "50%",
+        height: "50vh",
         borderRadius: "24px",
         backgroundColor: "transparent",
         boxShadow: "none",

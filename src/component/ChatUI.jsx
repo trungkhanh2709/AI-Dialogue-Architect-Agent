@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import "../styles/chat.css";
+// import "../styles/chat.css";
 
 export default function ChatUI({ messages, onClose,userEmail,setSessionExpired    }) {
   const chatRef = useRef(null);

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import "../styles/sidebar.css";
+// import "../styles/sidebar.css";
 
 export default function Sidebar({ blocks, onViewBlock, onEditBlock, onDeleteBlock, onCreateNew,setSidebarVisible  }) {
   const [search, setSearch] = useState("");

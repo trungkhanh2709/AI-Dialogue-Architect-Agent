@@ -1,7 +1,7 @@
 //meetingpage.jsx
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import "../styles/meeting.css";
+// import "../styles/meeting.css";
 import ChatUI from "../component/ChatUI";
 import SaveConfirmPopup from "../component/SaveConfirmPopup";
 

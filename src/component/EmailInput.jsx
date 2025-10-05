@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import "../styles/EmailInput.css";
+// import "../styles/EmailInput.css";
 
 export default function EmailInput({ label, emails, setEmails, error, inputRef,clearTrigger }) {
   const [inputValue, setInputValue] = useState("");

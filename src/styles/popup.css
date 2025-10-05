@@ -1,20 +1,28 @@
 /* popup.css */
 .extension-container {
+  position: fixed;
+  top: 0;
+  right: 0;
+  left: auto;
+ 
+  height: 100%;
+  z-index: 9999;
+  width: 50%;
   display: flex;
   flex-direction: column;
   gap: 10px;
-  width: 100%;
   border-radius: 24px;
   background: linear-gradient(145deg, #10121f, #1a2665ff);
-padding: 10px 15px;
+  padding: 10px 15px;
   height: 100vh;
-  margin: 0 auto;
   transition: all 0.3s ease;
-max-height: 100vh; /* full chiều cao màn hình */
-  overflow-y: auto;  /* scroll khi vượt */
+  max-height: 100vh;
+  overflow-y: auto;
   box-sizing: border-box;
+min-width: 450px;
+  
 }
-.blue-glow {
+/* .blue-glow {
   position: absolute;
   top: 50%;
   left: 50%;
@@ -25,8 +33,8 @@ max-height: 100vh; /* full chiều cao màn hình */
   transform: translate(-50%, -50%);
   filter: blur(50px);
   z-index: 0;
-  pointer-events: none; 
-}
+  pointer-events: none;
+} */
 
 .agent_name {
   color: rgb(255, 255, 255);
@@ -77,7 +85,8 @@ max-height: 100vh; /* full chiều cao màn hình */
   border: 1px solid #d1d5db;
   border-radius: 6px;
   box-sizing: border-box;
-  background: rgba(255, 255, 255, 0.05); /* trong suốt nhẹ */
+  background: rgba(255, 255, 255, 0.05);
+  /* trong suốt nhẹ */
   color: #fff;
   z-index: 1000;
 }
@@ -99,7 +108,7 @@ max-height: 100vh; /* full chiều cao màn hình */
   min-height: 140px;
   z-index: 1000;
   color: #fff;
-background: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.05);
 }
 
 .input-group textarea:focus {
@@ -140,7 +149,7 @@ background: rgba(255, 255, 255, 0.05);
 }
 
 .btn.next {
-  background:  #ff7461;
+  background: #ff7461;
   color: white;
   border: none;
 }
@@ -152,7 +161,7 @@ background: rgba(255, 255, 255, 0.05);
 }
 
 .btn.start {
-  background:  #ff7461;
+  background: #ff7461;
   color: white;
   border: none;
 }
@@ -220,9 +229,10 @@ background: rgba(255, 255, 255, 0.05);
 .scrollable-step::-webkit-scrollbar-track {
   background-color: transparent;
 }
+
 .session-remain {
   font-size: 8px;
-  
+
   text-align: center;
 }
 
@@ -233,15 +243,18 @@ background: rgba(255, 255, 255, 0.05);
 .session-remain.danger {
   color: red;
 }
-.divider{
-  border-right:2px solid #ccc;
+
+.divider {
+  border-right: 2px solid #ccc;
   border-radius: 4px;
 }
+
 .tab-container {
   display: flex;
   width: 100%;
   justify-content: center;
-  gap: 1rem; /* khoảng cách giữa 2 tab */
+  gap: 1rem;
+  /* khoảng cách giữa 2 tab */
 }
 
 .tab-item {
@@ -265,9 +278,10 @@ background: rgba(255, 255, 255, 0.05);
   bottom: -1px;
   left: 0;
   width: 100%;
-  height: 3px; 
+  height: 3px;
   border-radius: 4px;
-  background-color: #ffffff; /* màu line active */
+  background-color: #ffffff;
+  /* màu line active */
 }
 
 .extension-container::-webkit-scrollbar {
