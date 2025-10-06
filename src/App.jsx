@@ -48,7 +48,7 @@ export default function App() {
         left: "55%",
         right: "auto",
         transform: "translate(-50%, -50%)", // căn giữa cả ngang + dọc
-        width: "60%",
+        width: "80%",
         height: "fit-content",
         borderRadius: "16px",
 

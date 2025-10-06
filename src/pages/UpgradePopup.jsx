@@ -14,7 +14,7 @@ const UpgradePopup = ({ onClose, userEmail }) => {
   return (
     <div className="upgrade-popup-overlay">
       <div className="upgrade-popup-card">
-        <button className="close-btn" onClick={onClose}>✕</button>
+        <button className="close-btn-upgrade" onClick={onClose}>✕</button>
         <h2 className="headline">
           Limited Time: 10% Off. Smarter Conversations, Faster Closings.
         </h2>

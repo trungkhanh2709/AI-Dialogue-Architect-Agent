@@ -183,19 +183,50 @@ export default function Meeting({ meetingData, onBack, cookieUserName, onExpire 
 
 
 
-  const handleClose = () => {
-    const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
-    const alreadyConfirmed = localStorage.getItem("saveConfirmed") === "true";
+const handleClose = () => {
+  const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
+  const alreadyConfirmed = localStorage.getItem("saveConfirmed") === "true";
 
-    if (autoSaveEnabled) {
+  if (autoSaveEnabled) {
+    if (meetingData._id || meetingData.id) {
       saveMeetingData();
       onBack();
-      return;
-    }
+    } 
+    
+  if (!meetingData._id && !meetingData.id) {
+  // Hiển thị ngay trạng thái đóng popup / quay lại
+  onBack();
 
-    // autoSave disabled và chưa confirm -> hiện popup
-    setShowSavePopup(true);
+  // Tạo block mới bất đồng bộ
+  const newBlockPayload = {
+    ...meetingData,
+    blockName: meetingData.title || "Untitled Meeting",
+    meeting_transcript: meetingLog.join("\n"),
+    createdAt: new Date().toISOString(),
   };
+
+  chrome.runtime.sendMessage(
+    {
+      type: "CREATE_MEETING_PREPARE",
+      payload: { email: decodedCookieEmail, payload: newBlockPayload },
+    },
+    (res) => {
+      if (res?.error) console.error("Create block failed:", res.error);
+      else console.log("Created new block with transcript:", res.data);
+    }
+  );
+
+  return;
+}
+
+    return;
+  }
+
+  // autoSave disabled và chưa confirm -> hiện popup
+  setShowSavePopup(true);
+};
+
+
 
 
   const saveMeetingData = () => {

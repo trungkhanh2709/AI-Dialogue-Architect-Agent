@@ -28,23 +28,30 @@
   overflow-y: auto;
   position: relative;
 }
-
-.close-btn {
+.close-btn-upgrade {
   position: absolute;
   top: 16px;
   right: 16px;
-  background: transparent;
+  background: rgba(255, 255, 255, 0.1); /* hoặc transparent nếu muốn trong suốt */
   border: none;
   font-size: 20px;
   cursor: pointer;
   color: #888;
   transition: all 0.2s;
+  border-radius: 50%; /* làm tròn hoàn toàn */
+  width: 36px;         /* chiều rộng */
+  height: 36px;        /* chiều cao */
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.close-btn:hover {
+.close-btn-upgrade:hover {
   color: #000;
   transform: scale(1.1);
+  background: rgba(255, 255, 255, 0.2); /* hover sáng hơn */
 }
+
 
 .headline {
   font-size: 2rem;
@@ -275,4 +282,29 @@
     width: 100%;
     padding: 14px 0;
   }
+}
+/* Chrome, Edge, Safari */
+.upgrade-popup-card::-webkit-scrollbar {
+  width: 10px;
+}
+
+.upgrade-popup-card::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+}
+
+.upgrade-popup-card::-webkit-scrollbar-thumb {
+  background: rgba(59, 130, 246, 0.6); /* xanh dương */
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.upgrade-popup-card::-webkit-scrollbar-thumb:hover {
+  background: rgba(59, 130, 246, 0.8);
+}
+
+/* Firefox */
+.upgrade-popup-card {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(59, 130, 246, 0.6) rgba(255, 255, 255, 0.05);
 }

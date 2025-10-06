@@ -83,9 +83,8 @@ input:checked + .slider:before {
 
 .btn.back {
   padding: 10px 20px;
-  background-color: #4caf50;
   border: none;
-  color: white;
+  color: rgb(0, 0, 0);
   border-radius: 8px;
   cursor: pointer;
   font-weight: 600;
