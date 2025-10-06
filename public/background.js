@@ -2,10 +2,10 @@ let latestCaptions = [];
 let sharedCaptions = [];
 let startTime = null;
 let timerInterval = null;
-const timeRemainingThreshold = 0.1 * 60;
+const timeRemainingThreshold = 0.3 * 60;
 const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
-// const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
-const VITE_URL_BACKEND = "http://localhost:4000";
+const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
+// const VITE_URL_BACKEND = "http://localhost:4000";
 
 function resetTimer() {
   startTime = null;

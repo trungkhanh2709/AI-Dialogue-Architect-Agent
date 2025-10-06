@@ -92,6 +92,6 @@ input:checked + .slider:before {
 }
 
 .btn.back:hover {
-  background-color: #43a047;
+  background-color: #d7d7d7;
 }
 

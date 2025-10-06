@@ -47,12 +47,88 @@ export default function Meeting({ meetingData, onBack, cookieUserName, onExpire 
       onExpire(); // báo cho App.jsx đổi sang upgrade
     }
   }, [sessionExpired, onExpire]);
+
+
+const saveOrUpdateMeeting = (logData) => {
+  const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
+  if (!autoSaveEnabled) return;
+
+  const transcriptText = Array.isArray(logData) ? logData.join("\n") : meetingLog.join("\n");
+
+  if (!meetingData._id && !meetingData.id) {
+    // chưa có ID => tạo mới
+    const newBlockPayload = {
+      ...meetingData,
+      blockName: meetingData.title || "Untitled Meeting",
+      meeting_transcript: transcriptText,
+      createdAt: new Date().toISOString(),
+    };
+
+    console.log("[AUTO SAVE] Creating new meeting with transcript:", transcriptText);
+
+    chrome.runtime.sendMessage(
+      {
+        type: "CREATE_MEETING_PREPARE",
+        payload: { email: decodedCookieEmail, payload: newBlockPayload },
+      },
+      (res) => {
+        console.log("[CREATE_MEETING_PREPARE] response:", res);
+        if (res?.error) console.error("Create block failed:", res.error);
+        else console.log("Created new block with transcript:", res.data);
+      }
+    );
+    return;
+  }
+
+  // đã có ID => update
+  const meetingId = meetingData._id || meetingData.id;
+  if (!meetingId) {
+    console.error("meetingId missing even though _id/id exists", meetingData);
+    return;
+  }
+
+  const payloadMeeting = {
+    ...meetingData,
+    meeting_transcript: transcriptText,
+  };
+
+  console.log("[AUTO SAVE UPDATE] meetingId:", meetingId);
+  console.log("[AUTO SAVE UPDATE] payload:", payloadMeeting);
+
+  chrome.runtime.sendMessage(
+    {
+      type: "SAVE_MEETING_TRANSCRIPT",
+      payload: { email: decodedCookieEmail, meetingId, payloadMeeting },
+    },
+    (res) => {
+      console.log("[SAVE_MEETING_TRANSCRIPT] response:", res);
+      if (res?.error) console.error("Save failed:", res.error);
+      else console.log("Meeting updated with transcript", res.data);
+    }
+  );
+};
+
+const meetingLogRef = useRef(meetingLog);
+useEffect(() => {
+  meetingLogRef.current = meetingLog;
+}, [meetingLog]);
+
+
   // Listener chrome message
   useEffect(() => {
     const handleMessage = (message) => {
       if (message.type === "SESSION_EXPIRED") {
+        const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
+
+        if (autoSaveEnabled) {
+          saveOrUpdateMeeting(meetingLogRef.current); // tự động lưu/update
+          onExpire();            // chuyển sang upgrade
+        } else {
+          setShowSavePopup(true); // hiện popup
+        }
+
         setSessionExpired(true);
-        return; // dừng luôn, khỏi chạy tiếp
+        return;
       }
 
       if (message.type !== "LIVE_TRANSCRIPT") return;
@@ -183,48 +259,48 @@ export default function Meeting({ meetingData, onBack, cookieUserName, onExpire 
 
 
 
-const handleClose = () => {
-  const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
-  const alreadyConfirmed = localStorage.getItem("saveConfirmed") === "true";
+  const handleClose = () => {
+    const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
+    const alreadyConfirmed = localStorage.getItem("saveConfirmed") === "true";
 
-  if (autoSaveEnabled) {
-    if (meetingData._id || meetingData.id) {
-      saveMeetingData();
-      onBack();
-    } 
-    
-  if (!meetingData._id && !meetingData.id) {
-  // Hiển thị ngay trạng thái đóng popup / quay lại
-  onBack();
+    if (autoSaveEnabled) {
+      if (meetingData._id || meetingData.id) {
+        saveMeetingData();
+        onBack();
+      }
 
-  // Tạo block mới bất đồng bộ
-  const newBlockPayload = {
-    ...meetingData,
-    blockName: meetingData.title || "Untitled Meeting",
-    meeting_transcript: meetingLog.join("\n"),
-    createdAt: new Date().toISOString(),
-  };
+      if (!meetingData._id && !meetingData.id) {
+        // Hiển thị ngay trạng thái đóng popup / quay lại
+        onBack();
 
-  chrome.runtime.sendMessage(
-    {
-      type: "CREATE_MEETING_PREPARE",
-      payload: { email: decodedCookieEmail, payload: newBlockPayload },
-    },
-    (res) => {
-      if (res?.error) console.error("Create block failed:", res.error);
-      else console.log("Created new block with transcript:", res.data);
+        // Tạo block mới bất đồng bộ
+        const newBlockPayload = {
+          ...meetingData,
+          blockName: meetingData.title || "Untitled Meeting",
+          meeting_transcript: meetingLog.join("\n"),
+          createdAt: new Date().toISOString(),
+        };
+
+        chrome.runtime.sendMessage(
+          {
+            type: "CREATE_MEETING_PREPARE",
+            payload: { email: decodedCookieEmail, payload: newBlockPayload },
+          },
+          (res) => {
+            if (res?.error) console.error("Create block failed:", res.error);
+            else console.log("Created new block with transcript:", res.data);
+          }
+        );
+
+        return;
+      }
+
+      return;
     }
-  );
 
-  return;
-}
-
-    return;
-  }
-
-  // autoSave disabled và chưa confirm -> hiện popup
-  setShowSavePopup(true);
-};
+    // autoSave disabled và chưa confirm -> hiện popup
+    setShowSavePopup(true);
+  };
 
 
 
