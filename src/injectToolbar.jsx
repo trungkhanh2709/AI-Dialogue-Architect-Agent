@@ -14,7 +14,7 @@ import SaveConfirmPopupCss from "../src/styles/SaveConfirmPopup.css?raw";
 import sidebarCss from "../src/styles/sidebar.css?raw";
 import popupSidebarCss from "../src/styles/popupSidebar.css?raw";
 import upgradePopupCss from "../src/styles/upgradePopup.css?raw";
-import settingPageCss from  "../src/styles/settingPage.css?raw";
+import settingPageCss from "../src/styles/settingPage.css?raw";
 
 
 export function initToolbar() {
@@ -47,10 +47,23 @@ export function initToolbar() {
     shadow.appendChild(style);
     // wrapper nội dung React
     const inner = document.createElement("div");
+    ["keydown", "keyup", "keypress"].forEach((type) => {
+  inner.addEventListener(
+    type,
+    (e) => {
+      // chỉ chặn khi focus đang ở trong vùng UI của mình
+      if (inner.contains(e.target)) {
+        e.stopPropagation();
+        // e.preventDefault(); // chỉ dùng nếu cần chặn luôn default (hiếm khi cần)
+      }
+    },
+    true // capture phase
+  );
+});
     Object.assign(inner.style, {
       position: "absolute",
-       top: "10px",
-  right: "10px",      
+      top: "10px",
+      right: "10px",
       minWidth: "500px",
       width: "500px",
       maxHeight: "80vh",

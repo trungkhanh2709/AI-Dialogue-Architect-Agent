@@ -11,6 +11,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [cookieUserName, setCookieUserName] = useState(null);
   const [showUpgrade, setShowUpgrade] = useState(false); // quản lý popup global
+  const stopKey = (e) => e.stopPropagation();
 
 
   useEffect(() => {
@@ -90,6 +91,11 @@ export default function App() {
   }, []);
   return (
     <>
+ <div
+      onKeyDownCapture={stopKey}
+      onKeyUpCapture={stopKey}
+      onKeyPressCapture={stopKey}
+    >
 
       {page === "popup" && (
         <PopupPage
@@ -123,6 +129,7 @@ export default function App() {
           userEmail={cookieUserName}
         />
       )}
+    </div>
 
     </>
   );
