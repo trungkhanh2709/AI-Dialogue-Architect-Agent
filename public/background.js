@@ -4,8 +4,8 @@ let startTime = null;
 let timerInterval = null;
 const timeRemainingThreshold = 30 * 60;
 const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
-const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
-// const VITE_URL_BACKEND = "http://localhost:4000";
+// const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
+const VITE_URL_BACKEND = "http://localhost:4000";
 
 function resetTimer() {
   startTime = null;
@@ -309,40 +309,67 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
 
-case "SAVE_MEETING_TRANSCRIPT":
-  (async function() {
-    try {
-      let { email, meetingId, payloadMeeting } = msg.payload;
-      if (!meetingId) {
-        sendResponse({ error: "Missing meetingId" });
-        return;
-      }
+    case "SAVE_MEETING_TRANSCRIPT":
+      (async function() {
+        try {
+          let { email, meetingId, payloadMeeting } = msg.payload;
+          if (!meetingId) {
+            sendResponse({ error: "Missing meetingId" });
+            return;
+          }
 
-      // Ép _id trong payload về string
-      payloadMeeting = {
-        ...payloadMeeting,
-        _id: meetingId.toString(),
-      };
+          // Ép _id trong payload về string
+          payloadMeeting = {
+            ...payloadMeeting,
+            _id: meetingId.toString(),
+          };
 
-      const res = await fetch(
-        `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(
-          email
-        )}/${meetingId}`,
-        {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ meetings: [payloadMeeting] }),
+          const res = await fetch(
+            `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(
+              email
+            )}/${meetingId}`,
+            {
+              method: "PUT",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ meetings: [payloadMeeting] }),
+            }
+          );
+
+          if (!res.ok) throw new Error("Save meeting failed");
+
+          const data = await res.json();
+          sendResponse({ data });
+        } catch (err) {
+          sendResponse({ error: err.message });
         }
-      );
+      })();
+      return true;
 
-      if (!res.ok) throw new Error("Save meeting failed");
+case "SALE_PROSPECT_REQUEST":
+  (async () => {
+    try {
+      const { payload } = msg;
+      const url = `${VITE_URL_BACKEND}/api/sale/prospect`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(payload?.username ? { username: payload.username } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
 
-      const data = await res.json();
-      sendResponse({ data });
+      const raw = await res.text();
+      let data;
+      try { data = JSON.parse(raw); } catch { data = raw; }
+
+      // ✅ trả thẳng về cho sender (UI) qua callback
+      sendResponse({ ok: res.ok, status: res.status, data });
     } catch (err) {
-      sendResponse({ error: err.message });
+      sendResponse({ ok: false, status: 0, data: `Background fetch error: ${String(err)}` });
     }
   })();
+
   return true;
 
     default:

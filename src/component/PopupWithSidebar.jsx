@@ -7,8 +7,12 @@ import InputField from "./InputField";
 import GoogleCalendar from "./GoogleCalendar";
 import ExpandableTextarea from "./ExpandableTextarea";
 import CollapsibleSection from "./CollapsibleSection";
-
-export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decodedCookieEmail }) {
+import AIPsychAnalyzerStep from "./AIPsychAnalyzerStep";
+export default function PopupWithSidebar({
+  onStartMeeting,
+  onSelectBlock,
+  decodedCookieEmail,
+}) {
   // const VITE_URL_BACKEND = "http://localhost:4000";
 
   const [blocks, setBlocks] = useState([]);
@@ -46,7 +50,6 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
     }
   }, [selectedBlock]);
 
-
   const handleCancel = () => {
     if (selectedBlock) {
       // reset form về dữ liệu ban đầu của block
@@ -73,18 +76,10 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
     setIsEditing(false);
   };
 
-
   const handleChange = (e) => {
-
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
-
-
-
-
-
-
 
   const handleSave = async ({ resetForm = true } = {}) => {
     try {
@@ -108,13 +103,14 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
         meetingLink: formData.meetingLink || "",
         eventId: formData.eventId || "",
         guestEmail: formData.guestEmail || "",
-        createdAt: selectedBlock ? selectedBlock.createdAt : new Date().toISOString(),
+        createdAt: selectedBlock
+          ? selectedBlock.createdAt
+          : new Date().toISOString(),
       };
 
       if (selectedBlock) {
         // update via background
         const meetingId = selectedBlock._id || selectedBlock.id; // chỉ dùng _id
-
 
         chrome.runtime.sendMessage(
           {
@@ -134,12 +130,11 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
             }
           }
         );
-      }
-
-
-
-      else {
-        console.log("Payload sending to server:", JSON.stringify(payloadMeeting, null, 2));
+      } else {
+        console.log(
+          "Payload sending to server:",
+          JSON.stringify(payloadMeeting, null, 2)
+        );
 
         // create new
         chrome.runtime.sendMessage(
@@ -166,18 +161,17 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
     }
   };
 
-
-
   const handleDeleteBlock = (block) => {
-    if (!window.confirm("Are you sure you want to delete this meeting?")) return;
+    if (!window.confirm("Are you sure you want to delete this meeting?"))
+      return;
 
     chrome.runtime.sendMessage(
       {
         type: "DELETE_MEETING_PREPARE",
         payload: {
           email: decodedCookieEmail,
-          meetingId: block._id || block.id
-        }
+          meetingId: block._id || block.id,
+        },
       },
       (res) => {
         if (res?.error) {
@@ -191,7 +185,6 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
       }
     );
   };
-
 
   // Hàm gọi background để refresh danh sách meetings
   const refreshBlocks = () => {
@@ -215,14 +208,11 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
     );
   };
 
-
-
   useEffect(() => {
     if (!decodedCookieEmail) return;
     chrome.runtime.sendMessage(
       { type: "GET_MEETING_PREPARE", payload: { email: decodedCookieEmail } },
       (res) => {
-
         if (res?.data?.meeting?.meetings) {
           const meetings = res.data.meeting.meetings;
           setBlocks(
@@ -257,12 +247,11 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
         meetingDuration: selectedBlock.meetingDuration || "15",
         meetingEnd: selectedBlock.meetingEnd || "",
         guestEmail: selectedBlock.guestEmail || "",
-        meetingLink: selectedBlock.meetingLink || "",   // <<< THÊM VÀO
+        meetingLink: selectedBlock.meetingLink || "", // <<< THÊM VÀO
       });
       setFormVisible(true);
     }
   }, [selectedBlock]);
-
 
   useEffect(() => {
     if (!formData.meetingStart) return;
@@ -273,7 +262,7 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
     const duration = parseInt(formData.meetingDuration, 10) || 30;
     const endDate = new Date(startDate.getTime() + duration * 60000);
 
-    setFormData(prev => ({ ...prev, meetingEnd: endDate.toISOString() }));
+    setFormData((prev) => ({ ...prev, meetingEnd: endDate.toISOString() }));
   }, [formData.meetingStart, formData.meetingDuration]);
 
   const handleCreateNew = () => {
@@ -295,40 +284,34 @@ export default function PopupWithSidebar({ onStartMeeting, onSelectBlock, decode
     setIsEditing(true);
   };
 
-
-const handleStart = () => {
-  chrome.runtime.sendMessage(
-    {
-      type: "USE_ADDON_SESSION",
-      payload: {
-        email: decodedCookieEmail,
-        add_on_type: "ai_dialogue_architect_agent",
+  const handleStart = () => {
+    chrome.runtime.sendMessage(
+      {
+        type: "USE_ADDON_SESSION",
+        payload: {
+          email: decodedCookieEmail,
+          add_on_type: "ai_dialogue_architect_agent",
+        },
       },
-    },
-    (data) => {
-      chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
-        chrome.runtime.sendMessage({ type: "START_TIMER" });
-      });
-
-      if (data?.data?.trial_used === true || data?.data?.status === "200") {
-        onStartMeeting({
-          ...formData,
-          id: selectedBlock?.id,
-          _id: selectedBlock?.id,
+      (data) => {
+        chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
+          chrome.runtime.sendMessage({ type: "START_TIMER" });
         });
-      } else {
-        alert(
-          "You have run out of sessions. Please purchase an add-on to continue."
-        );
+
+        if (data?.data?.trial_used === true || data?.data?.status === "200") {
+          onStartMeeting({
+            ...formData,
+            id: selectedBlock?.id,
+            _id: selectedBlock?.id,
+          });
+        } else {
+          alert(
+            "You have run out of sessions. Please purchase an add-on to continue."
+          );
+        }
       }
-    }
-  );
-};
-
-
-
-
-
+    );
+  };
 
   return (
     <div className="popup-with-sidebar">
@@ -349,13 +332,12 @@ const handleStart = () => {
           onCreateNew={handleCreateNew}
           setSidebarVisible={setSidebarVisible}
         />
-
-
-
       </div>
 
       <button
-        className={`sidebar-toggle ${sidebarVisible ? "expanded" : "collapsed"}`}
+        className={`sidebar-toggle ${
+          sidebarVisible ? "expanded" : "collapsed"
+        }`}
         onClick={() => setSidebarVisible((v) => !v)}
       >
         {sidebarVisible ? "<" : ">"}
@@ -363,33 +345,67 @@ const handleStart = () => {
 
       <div className="form-wrapper">
         {!formVisible ? (
-          <div className="form-placeholder" >
+          <div className="form-placeholder">
             <InboxOutlined className="icon-inbox" />
-            <p className="form-placeholder-text">Click View from the sidebar item to start the meeting</p>
-
+            <p className="form-placeholder-text">
+              Click View from the sidebar item to start the meeting
+            </p>
           </div>
-
         ) : (
           <>
             <div className="section-title"></div>
             {formData.meetingLink && (
               <div className="meeting-link">
-
-                <a href={formData.meetingLink} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={formData.meetingLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   {formData.meetingLink}
                 </a>
               </div>
             )}
+            
             <CollapsibleSection
               step={1}
-              title="Step 1: Meeting Information"
+              title="Step 1: AI Psych Analyzer"
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
-
               openSections={openSections}
               setOpenSections={setOpenSections}
             >
+              <AIPsychAnalyzerStep
+                userEmail={decodedCookieEmail}
+                initialValues={{
+                  fullName: "",
+                  background: "",
+                  urls: [],
+                  language: "English",
+                }}
+                onSubmit={() => {
+                  // Nếu muốn log/track, để trống cũng ok
+                }}
+                onPersonaSaved={() => {
+                  // Khi “Use as Persona” -> chuyển Step 3
+                  setCurrentStep(2);
+                  setOpenSections([2]);
+                }}
+                setGlobalToast={(msg) => {
+                  // nếu bạn có toast global bên ngoài thì show, ở đây giữ simple
+                  console.log(msg);
+                }}
+              />
+            </CollapsibleSection>
 
+            {/* Step 2 */}
+            <CollapsibleSection
+              step={2}
+              title="Step 2: Meeting Information"
+              currentStep={currentStep}
+              setCurrentStep={setCurrentStep}
+              openSections={openSections}
+              setOpenSections={setOpenSections}
+            >
               <InputField
                 id="title"
                 label="Title"
@@ -410,11 +426,10 @@ const handleStart = () => {
                 setCurrentStep={setCurrentStep}
                 setOpenSections={setOpenSections}
               />
-
             </CollapsibleSection>
             <CollapsibleSection
-              step={2}
-              title="Step 2: User A – Your Info"
+              step={3}
+              title="Step 3: User A – Your Info"
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
               openSections={openSections}
@@ -449,21 +464,16 @@ const handleStart = () => {
                 errors={errors}
                 readOnly={!isEditing}
               />
-
             </CollapsibleSection>
 
             <CollapsibleSection
-              step={3}
-              title="Step 3: User B – Prospect Info"
+              step={4}
+              title="Step 4: User B – Prospect Info"
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
-
               openSections={openSections}
               setOpenSections={setOpenSections}
             >
-
-
-
               <InputField
                 id="prospectName"
                 label="Prospect's Name - Role/Title"
@@ -493,20 +503,16 @@ const handleStart = () => {
                 errors={errors}
                 readOnly={!isEditing}
               />
-
             </CollapsibleSection>
 
-
             <CollapsibleSection
-              step={4}
-              title="Step 4: Contextual Information"
+              step={5}
+              title="Step 5: Contextual Information"
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
-
               openSections={openSections}
               setOpenSections={setOpenSections}
             >
-
               <ExpandableTextarea
                 id="meetingGoal"
                 label="Meeting Goal"
@@ -516,7 +522,6 @@ const handleStart = () => {
                 setFormData={setFormData}
                 errors={errors}
                 readOnly={!isEditing}
-
               />
               <ExpandableTextarea
                 id="meetingEmail"
@@ -527,7 +532,6 @@ const handleStart = () => {
                 setFormData={setFormData}
                 errors={errors}
                 readOnly={!isEditing}
-
               />
               <ExpandableTextarea
                 id="meetingMessage"
@@ -538,7 +542,6 @@ const handleStart = () => {
                 setFormData={setFormData}
                 errors={errors}
                 readOnly={!isEditing}
-
               />
               <ExpandableTextarea
                 id="meetingNote"
@@ -551,31 +554,28 @@ const handleStart = () => {
                 readOnly={!isEditing}
               />
             </CollapsibleSection>
-
-
-
-
-
-
           </>
         )}
         {formVisible && (
           <div className="form-actions">
-            <button className="cancel-button" onClick={handleCancel}>Cancel</button>
+            <button className="cancel-button" onClick={handleCancel}>
+              Cancel
+            </button>
             {!selectedBlock ? (
-              <button className="save-button" onClick={handleSave}>Save</button>
+              <button className="save-button" onClick={handleSave}>
+                Save
+              </button>
             ) : isEditing ? (
-              <button className="edit-button" onClick={handleSave}>Update</button>
+              <button className="edit-button" onClick={handleSave}>
+                Update
+              </button>
             ) : (
-              <button className="start-button" onClick={handleStart}>Start</button>
+              <button className="start-button" onClick={handleStart}>
+                Start
+              </button>
             )}
           </div>
         )}
-
-
-
-
-
       </div>
     </div>
   );
