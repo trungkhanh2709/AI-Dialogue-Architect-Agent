@@ -16,18 +16,19 @@ export default function PopupWithSidebar({
   decodedCookieEmail,
 }) {
   const [blocks, setBlocks] = useState([]);
+  const [tempBlocks, setTempBlocks] = useState([]); // <-- NEW: các block tạm từ kết quả agent
   const [selectedBlock, setSelectedBlock] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
     userName: "",
     userCompanyName: "",
     userCompanyServices: "",
-    userCompanyWebsite: "",            // ✅ NEW step 3
-    userKeyCompanyUrls: ["", "", ""],  // ✅ NEW step 3 list
+    userCompanyWebsite: "",
+    userKeyCompanyUrls: ["", "", ""],
     prospectName: "",
     customerCompanyName: "",
     customerCompanyServices: "",
-    prospectCompanyWebsite: "",        // ✅ NEW step 4
+    prospectCompanyWebsite: "",
     meetingGoal: "",
     meetingEmail: "",
     meetingMessage: "",
@@ -37,7 +38,6 @@ export default function PopupWithSidebar({
     meetingEnd: "",
     guestEmail: "",
     meetingLink: "",
-    // merged psych fields for prospect
     psychBackground: "",
     psychUrls: ["", "", ""],
     psychLanguage: "English",
@@ -50,14 +50,17 @@ export default function PopupWithSidebar({
   const [currentStep, setCurrentStep] = useState(1);
   const [openSections, setOpenSections] = useState([1]);
 
-  // checkboxes + generating state
   const [runBusinessDNA, setRunBusinessDNA] = useState(false);
   const [runPsych, setRunPsych] = useState(false);
   const [generating, setGenerating] = useState(false);
 
-  // Modal state
+  // Modal queue
+  const [modalQueue, setModalQueue] = useState([]); // [{ key:'psych'|'bdna', label, text }]
+  const [modalIdx, setModalIdx] = useState(0);
   const [modalOpen, setModalOpen] = useState(false);
-  const [modalText, setModalText] = useState("");
+
+  // Staged results (đợi user bấm Save trong modal, sẽ tạo block tạm và lưu DB khi handleSave)
+  const [stagedResults, setStagedResults] = useState({ psych: "", bdna: "" }); // <-- NEW
 
   useEffect(() => {
     if (selectedBlock) {
@@ -67,7 +70,7 @@ export default function PopupWithSidebar({
         userName: selectedBlock.userNameAndRole || "",
         userCompanyName: selectedBlock.userCompanyName || "",
         userCompanyServices: selectedBlock.userCompanyServices || "",
-        userCompanyWebsite: selectedBlock.userCompanyWebsite || "",          // ✅ hydrate
+        userCompanyWebsite: selectedBlock.userCompanyWebsite || "",
         userKeyCompanyUrls:
           Array.isArray(selectedBlock.userKeyCompanyUrls) && selectedBlock.userKeyCompanyUrls.length
             ? selectedBlock.userKeyCompanyUrls
@@ -75,7 +78,7 @@ export default function PopupWithSidebar({
         prospectName: selectedBlock.prospectName || "",
         customerCompanyName: selectedBlock.customerCompanyName || "",
         customerCompanyServices: selectedBlock.customerCompanyServices || "",
-        prospectCompanyWebsite: selectedBlock.prospectCompanyWebsite || "",  // ✅ hydrate
+        prospectCompanyWebsite: selectedBlock.prospectCompanyWebsite || "",
         meetingGoal: selectedBlock.meetingGoal || "",
         meetingEmail: selectedBlock.meetingEmail || "",
         meetingMessage: selectedBlock.meetingMessage || "",
@@ -138,7 +141,6 @@ export default function PopupWithSidebar({
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
-  // URL list handlers (prospect psych urls)
   const handleUrlChange = (idx, value) => {
     setFormData((prev) => {
       const next = Array.isArray(prev.psychUrls) ? [...prev.psychUrls] : ["", "", ""];
@@ -154,7 +156,6 @@ export default function PopupWithSidebar({
       return { ...prev, psychUrls: next.length ? next : [""] };
     });
 
-  // URL list handlers (user company key urls)
   const handleKeyCompanyUrlChange = (idx, value) => {
     setFormData((prev) => {
       const next = Array.isArray(prev.userKeyCompanyUrls) ? [...prev.userKeyCompanyUrls] : ["", "", ""];
@@ -170,97 +171,6 @@ export default function PopupWithSidebar({
       next.splice(idx, 1);
       return { ...prev, userKeyCompanyUrls: next.length ? next : [""] };
     });
-
-  const handleSave = async () => {
-    try {
-      if (!formData.title) formData.title = "Untitled Meeting";
-
-      const payloadMeeting = {
-        blockName: formData.title,
-        userNameAndRole: formData.userName || "",
-        userCompanyName: formData.userCompanyName || "",
-        userCompanyServices: formData.userCompanyServices || "",
-        userCompanyWebsite: formData.userCompanyWebsite || "",              // ✅ persist
-        userKeyCompanyUrls: (formData.userKeyCompanyUrls || []).map((u) => u.trim()).filter(Boolean), // ✅ persist
-        prospectName: formData.prospectName || "",
-        customerCompanyName: formData.customerCompanyName || "",
-        customerCompanyServices: formData.customerCompanyServices || "",
-        prospectCompanyWebsite: formData.prospectCompanyWebsite || "",      // ✅ persist
-        meetingGoal: formData.meetingGoal || "",
-        meetingEmail: formData.meetingEmail || "",
-        meetingMessage: formData.meetingMessage || "",
-        meetingNote: formData.meetingNote || "",
-        meetingStart: formData.meetingStart || "",
-        meetingDuration: formData.meetingDuration || "15",
-        meetingEnd: formData.meetingEnd || "",
-        meetingLink: formData.meetingLink || "",
-        eventId: formData.eventId || "",
-        guestEmail: formData.guestEmail || "",
-        createdAt: selectedBlock ? selectedBlock.createdAt : new Date().toISOString(),
-        // merged psych data
-        psychBackground: formData.psychBackground || "",
-        psychUrls: (formData.psychUrls || []).map((u) => u.trim()).filter(Boolean),
-        psychLanguage: formData.psychLanguage || "English",
-      };
-
-      if (selectedBlock) {
-        chrome.runtime.sendMessage(
-          {
-            type: "UPDATE_MEETING_PREPARE",
-            payload: {
-              email: decodedCookieEmail,
-              meetingId: selectedBlock._id || selectedBlock.id,
-              payload: payloadMeeting,
-            },
-          },
-          (res) => {
-            if (res?.error) alert("Update failed: " + res.error);
-            else {
-              alert("Update successful");
-              refreshBlocks();
-            }
-          }
-        );
-      } else {
-        chrome.runtime.sendMessage(
-          {
-            type: "CREATE_MEETING_PREPARE",
-            payload: { email: decodedCookieEmail, payload: payloadMeeting },
-          },
-          (response) => {
-            if (response?.error) console.error("Create error:", response.error);
-            else {
-              refreshBlocks();
-              setFormVisible(false);
-              setSelectedBlock(null);
-            }
-          }
-        );
-      }
-    } catch (err) {
-      console.error(err);
-      alert(err.message);
-    }
-  };
-
-  const handleDeleteBlock = (block) => {
-    if (!window.confirm("Are you sure you want to delete this meeting?")) return;
-    chrome.runtime.sendMessage(
-      {
-        type: "DELETE_MEETING_PREPARE",
-        payload: { email: decodedCookieEmail, meetingId: block._id || block.id },
-      },
-      (res) => {
-        if (res?.error) alert("Delete failed: " + res.error);
-        else {
-          alert("Meeting deleted successfully");
-          setSelectedBlock(null);
-          setFormVisible(false);
-          refreshBlocks();
-        }
-      }
-    );
-  };
 
   const refreshBlocks = () => {
     if (!decodedCookieEmail) return;
@@ -316,12 +226,12 @@ export default function PopupWithSidebar({
       userName: "",
       userCompanyName: "",
       userCompanyServices: "",
-      userCompanyWebsite: "",            // ✅ init
-      userKeyCompanyUrls: ["", "", ""],  // ✅ init
+      userCompanyWebsite: "",
+      userKeyCompanyUrls: ["", "", ""],
       prospectName: "",
       customerCompanyName: "",
       customerCompanyServices: "",
-      prospectCompanyWebsite: "",        // ✅ init
+      prospectCompanyWebsite: "",
       meetingGoal: "",
       meetingEmail: "",
       meetingMessage: "",
@@ -389,37 +299,29 @@ export default function PopupWithSidebar({
     };
   };
 
-  // ✅ NEW: Business DNA payload builder (khớp service backend)
   const buildBusinessDnaPayload = () => {
     return {
-      // Conversation flags
       query: { firstChat: false, continue: false, content: "" },
       msg: [],
-      // MY Company info
       nameOfBusiness: formData.userCompanyName?.trim() || "",
       typeOfBusiness: formData.userCompanyServices?.trim() || "",
       companyUrl: formData.userCompanyWebsite?.trim() || "",
-      countryOrRegion: "", // nếu bạn thêm field riêng thì map vào đây
+      countryOrRegion: "",
       socialMediaUrl: (formData.userKeyCompanyUrls || [])
         .map((u) => (u || "").trim())
         .filter(Boolean)
         .map((u) => ({ socialMediaUrl: u })),
-      // Prospect company info
       prospectName: formData.customerCompanyName?.trim() || formData.prospectName?.trim() || "",
       prospectURL: formData.prospectCompanyWebsite?.trim() || "",
       prospectSocialURL: (formData.psychUrls || [])
         .map((u) => (u || "").trim())
         .filter(Boolean)
         .map((u) => ({ prospectSocialURL: u })),
-      // header username
       username: decodedCookieEmail || "",
     };
   };
 
-  // ===== Helpers =====
-  const fmt = (title, body) => `\n[${title}]\n${body}\n`;
-
-  // Generate
+  // Generate -> HIỂN THỊ MODAL THEO QUEUE, KHÔNG GỘP
   const handleGenerate = () => {
     if (!runBusinessDNA && !runPsych) {
       alert("Please select at least one option to generate.");
@@ -427,100 +329,212 @@ export default function PopupWithSidebar({
     }
     setGenerating(true);
 
-    const chunks = [];
+    const results = [];
     const tasks = [];
 
     if (runPsych) {
       const payloadPsych = buildPsychPayload();
-      tasks.push(
-        new Promise((resolve) => {
-          chrome.runtime.sendMessage(
-            { type: "SALE_PROSPECT_REQUEST", payload: payloadPsych },
-            (res) => {
-              if (chrome.runtime.lastError) {
-                chunks.push(fmt("AI Psych Analyzer", `Error: ${chrome.runtime.lastError.message || "Runtime error"}`));
-              } else if (!res?.ok) {
-                const msg =
-                  typeof res?.data === "string" ? res.data : res?.status ? `HTTP ${res.status}` : "Request failed.";
-                chunks.push(fmt("AI Psych Analyzer", `Error: ${msg}`));
-              } else {
-                const data = res.data;
-                const text =
-                  typeof data === "string"
-                    ? data
-                    : data?.content
-                    ? String(data.content)
-                    : JSON.stringify(data, null, 2);
-                chunks.push(fmt("AI Psych Analyzer", text));
-              }
-              resolve();
+      tasks.push(new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          { type: "SALE_PROSPECT_REQUEST", payload: payloadPsych },
+          (res) => {
+            let text;
+            if (chrome.runtime.lastError) {
+              text = `Error: ${chrome.runtime.lastError.message || "Runtime error"}`;
+            } else if (!res?.ok) {
+              const msg = typeof res?.data === "string" ? res.data : res?.status ? `HTTP ${res.status}` : "Request failed.";
+              text = `Error: ${msg}`;
+            } else {
+              const data = res.data;
+              text = typeof data === "string" ? data : (data?.content ? String(data.content) : JSON.stringify(data, null, 2));
             }
-          );
-        })
-      );
+            results.push({ key: "psych", label: "AI Psych Analyzer", text });
+            resolve();
+          }
+        );
+      }));
     }
 
     if (runBusinessDNA) {
       const payloadDNA = buildBusinessDnaPayload();
-      tasks.push(
-        new Promise((resolve) => {
-          chrome.runtime.sendMessage(
-            { type: "BUSINESS_DNA_REQUEST", payload: payloadDNA },
-            (res) => {
-              if (chrome.runtime.lastError) {
-                chunks.push(fmt("AI BusinessDNA", `Error: ${chrome.runtime.lastError.message || "Runtime error"}`));
-              } else if (!res?.ok) {
-                const msg =
-                  typeof res?.data === "string" ? res.data : res?.status ? `HTTP ${res.status}` : "Request failed.";
-                chunks.push(fmt("AI BusinessDNA", `Error: ${msg}`));
-              } else {
-                const data = res.data;
-                const text =
-                  typeof data === "string"
-                    ? data
-                    : data?.content
-                    ? String(data.content)
-                    : JSON.stringify(data, null, 2);
-                chunks.push(fmt("AI BusinessDNA", text));
-              }
-              resolve();
+      tasks.push(new Promise((resolve) => {
+        chrome.runtime.sendMessage(
+          { type: "BUSINESS_DNA_REQUEST", payload: payloadDNA },
+          (res) => {
+            let text;
+            if (chrome.runtime.lastError) {
+              text = `Error: ${chrome.runtime.lastError.message || "Runtime error"}`;
+            } else if (!res?.ok) {
+              const msg = typeof res?.data === "string" ? res.data : res?.status ? `HTTP ${res.status}` : "Request failed.";
+              text = `Error: ${msg}`;
+            } else {
+              const data = res.data;
+              text = typeof data === "string" ? data : (data?.content ? String(data.content) : JSON.stringify(data, null, 2));
             }
-          );
-        })
-      );
+            results.push({ key: "bdna", label: "AI BusinessDNA", text });
+            resolve();
+          }
+        );
+      }));
     }
 
     Promise.all(tasks)
       .then(() => {
-        const combined = (chunks.join("").trim() || "No content returned.");
-        // append vào note
-        setFormData((prev) => ({
-          ...prev,
-          meetingNote: (prev.meetingNote || "") + "\n" + combined,
-        }));
-        // mở modal edit/copy
-        setModalText(combined);
+        if (!results.length) {
+          alert("No content returned.");
+          return;
+        }
+        setModalQueue(results);
+        setModalIdx(0);
         setModalOpen(true);
       })
       .finally(() => setGenerating(false));
   };
 
+  // ===== SAVE MEETING: LƯU THÊM TRƯỜNG psychAnalyzerResult & businessDNAResult =====
+  const handleSave = async () => {
+    try {
+      if (!formData.title) formData.title = "Untitled Meeting";
+
+      const payloadMeeting = {
+        blockName: formData.title,
+        userNameAndRole: formData.userName || "",
+        userCompanyName: formData.userCompanyName || "",
+        userCompanyServices: formData.userCompanyServices || "",
+        userCompanyWebsite: formData.userCompanyWebsite || "",
+        userKeyCompanyUrls: (formData.userKeyCompanyUrls || []).map((u) => u.trim()).filter(Boolean),
+        prospectName: formData.prospectName || "",
+        customerCompanyName: formData.customerCompanyName || "",
+        customerCompanyServices: formData.customerCompanyServices || "",
+        prospectCompanyWebsite: formData.prospectCompanyWebsite || "",
+        meetingGoal: formData.meetingGoal || "",
+        meetingEmail: formData.meetingEmail || "",
+        meetingMessage: formData.meetingMessage || "",
+        meetingNote: formData.meetingNote || "",
+        meetingStart: formData.meetingStart || "",
+        meetingDuration: formData.meetingDuration || "15",
+        meetingEnd: formData.meetingEnd || "",
+        meetingLink: formData.meetingLink || "",
+        eventId: formData.eventId || "",
+        guestEmail: formData.guestEmail || "",
+        createdAt: selectedBlock ? selectedBlock.createdAt : new Date().toISOString(),
+        psychBackground: formData.psychBackground || "",
+        psychUrls: (formData.psychUrls || []).map((u) => u.trim()).filter(Boolean),
+        psychLanguage: formData.psychLanguage || "English",
+
+        // NEW: lưu kết quả vào DB
+        psychAnalyzerResult: stagedResults.psych || "",
+        businessDNAResult: stagedResults.bdna || "",
+      };
+
+      if (selectedBlock) {
+        chrome.runtime.sendMessage(
+          {
+            type: "UPDATE_MEETING_PREPARE",
+            payload: {
+              email: decodedCookieEmail,
+              meetingId: selectedBlock._id || selectedBlock.id,
+              payload: payloadMeeting,
+            },
+          },
+          (res) => {
+            if (res?.error) alert("Update failed: " + res.error);
+            else {
+              alert("Update successful");
+              setTempBlocks([]);         // clear các block tạm sau khi đã lưu DB
+              setStagedResults({ psych: "", bdna: "" });
+              refreshBlocks();
+            }
+          }
+        );
+      } else {
+        chrome.runtime.sendMessage(
+          {
+            type: "CREATE_MEETING_PREPARE",
+            payload: { email: decodedCookieEmail, payload: payloadMeeting },
+          },
+          (response) => {
+            if (response?.error) {
+              console.error("Create error:", response.error);
+            } else {
+              setTempBlocks([]);
+              setStagedResults({ psych: "", bdna: "" });
+              refreshBlocks();
+              setFormVisible(false);
+              setSelectedBlock(null);
+            }
+          }
+        );
+      }
+    } catch (err) {
+      console.error(err);
+      alert(err.message);
+    }
+  };
+
+  // ==== RENDER ====
+  const mergedBlocks = [...blocks, ...tempBlocks]; // hiển thị block thật + block tạm
+
   return (
     <div className="popup-with-sidebar">
       <div className={`sidebar-wrapper ${sidebarVisible ? "" : "hidden"}`}>
         <SideBar
-          blocks={blocks}
+          blocks={mergedBlocks}
           onViewBlock={(block) => {
+            // Nếu là block tạm (temp) => mở modal với nội dung của nó
+            if (block?.tempType === "psych" || block?.tempType === "bdna") {
+              // mở 1-item queue
+              setModalQueue([{ key: block.tempType, label: block.name, text: block.resultText || "" }]);
+              setModalIdx(0);
+              setModalOpen(true);
+              return;
+            }
+            // Ngược lại: block từ DB -> mở form view
             setSelectedBlock(block);
             setIsEditing(false);
             setFormVisible(true);
           }}
           onEditBlock={(block) => {
+            if (block?.tempType === "psych" || block?.tempType === "bdna") {
+              setModalQueue([{ key: block.tempType, label: block.name, text: block.resultText || "" }]);
+              setModalIdx(0);
+              setModalOpen(true);
+              return;
+            }
             setSelectedBlock(block);
             setIsEditing(true);
             setFormVisible(true);
           }}
-          onDeleteBlock={handleDeleteBlock}
+          onDeleteBlock={(block) => {
+            if (block?.tempType) {
+              // xoá block tạm
+              setTempBlocks((prev) => prev.filter((b) => b.id !== block.id));
+              // đồng thời xoá staged result tương ứng
+              if (block.tempType === "psych") {
+                setStagedResults((r) => ({ ...r, psych: "" }));
+              } else if (block.tempType === "bdna") {
+                setStagedResults((r) => ({ ...r, bdna: "" }));
+              }
+              return;
+            }
+            // xoá block từ DB (giữ nguyên như cũ)
+            if (!window.confirm("Are you sure you want to delete this meeting?")) return;
+            chrome.runtime.sendMessage(
+              {
+                type: "DELETE_MEETING_PREPARE",
+                payload: { email: decodedCookieEmail, meetingId: block._id || block.id },
+              },
+              (res) => {
+                if (res?.error) alert("Delete failed: " + res.error);
+                else {
+                  alert("Meeting deleted successfully");
+                  setSelectedBlock(null);
+                  setFormVisible(false);
+                  refreshBlocks();
+                }
+              }
+            );
+          }}
           onCreateNew={handleCreateNew}
           setSidebarVisible={setSidebarVisible}
         />
@@ -621,8 +635,6 @@ export default function PopupWithSidebar({
                 errors={errors}
                 readOnly={!isEditing}
               />
-
-              {/* ✅ NEW: Company Website (User A) */}
               <InputField
                 id="userCompanyWebsite"
                 label="Company Website"
@@ -633,17 +645,12 @@ export default function PopupWithSidebar({
                 error={errors.userCompanyWebsite}
                 readOnly={!isEditing}
               />
-
-              {/* ✅ NEW: Your Key Company URLs list */}
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>
                   Your Key Company URLs
                 </div>
                 {(formData.userKeyCompanyUrls || []).map((u, idx) => (
-                  <div
-                    key={idx}
-                    style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}
-                  >
+                  <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                     <InputField
                       id={`userKeyCompanyUrl_${idx}`}
                       label={null}
@@ -716,8 +723,6 @@ export default function PopupWithSidebar({
                 errors={errors}
                 readOnly={!isEditing}
               />
-
-              {/* ✅ NEW: Company Website (Prospect) */}
               <InputField
                 id="prospectCompanyWebsite"
                 label="Company Website"
@@ -728,8 +733,6 @@ export default function PopupWithSidebar({
                 error={errors.prospectCompanyWebsite}
                 readOnly={!isEditing}
               />
-
-              {/* Background (Prospect) */}
               <InputField
                 id="psychBackground"
                 label="Background (Copy of LinkedIn CV or detailed Bio)"
@@ -740,17 +743,12 @@ export default function PopupWithSidebar({
                 error={errors.psychBackground}
                 readOnly={!isEditing}
               />
-
-              {/* Prospect URLs list (reused for psych + for DNA prospectSocialURL) */}
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>
                   URLs (Website / LinkedIn / Other)
                 </div>
                 {formData.psychUrls.map((u, idx) => (
-                  <div
-                    key={idx}
-                    style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}
-                  >
+                  <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
                     <InputField
                       id={`psychUrl_${idx}`}
                       label={null}
@@ -783,8 +781,6 @@ export default function PopupWithSidebar({
                   </button>
                 )}
               </div>
-
-              {/* Language (optional) */}
               <InputField
                 id="psychLanguage"
                 label="Language"
@@ -795,8 +791,6 @@ export default function PopupWithSidebar({
                 error={errors.psychLanguage}
                 readOnly={!isEditing}
               />
-
-              {/* Checkboxes + Generate */}
               <div style={{ marginTop: 16, display: "flex", gap: 16, alignItems: "center" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <input
@@ -806,7 +800,6 @@ export default function PopupWithSidebar({
                   />
                   <span>AI BusinessDNA</span>
                 </label>
-
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <input
                     type="checkbox"
@@ -815,7 +808,6 @@ export default function PopupWithSidebar({
                   />
                   <span>AI Psych Analyzer</span>
                 </label>
-
                 <button
                   type="button"
                   className="bm-btn bm-btn--primary"
@@ -902,22 +894,70 @@ export default function PopupWithSidebar({
         )}
       </div>
 
-      {/* Result Modal */}
-      <ResultModal
-        open={modalOpen}
-        title="Generated Results (Editable)"
-        value={modalText}
-        setValue={setModalText}
-        onClose={() => setModalOpen(false)}
-        onCopy={() => navigator.clipboard?.writeText(modalText).catch(() => {})}
-        onSaveToNote={() => {
-          setFormData((prev) => ({
-            ...prev,
-            meetingNote: (prev.meetingNote || "") + `\n\n[Edited Results]\n${modalText}`,
-          }));
-          setModalOpen(false);
-        }}
-      />
+      {/* Result Modal (queue by item) */}
+      {modalOpen && modalQueue[modalIdx] && (
+        <ResultModal
+          open={true}
+          title={`${modalQueue[modalIdx].label} (${modalIdx + 1}/${modalQueue.length})`}
+          value={modalQueue[modalIdx].text}
+          setValue={(v) => {
+            setModalQueue((prev) => {
+              const copy = [...prev];
+              copy[modalIdx] = { ...copy[modalIdx], text: v };
+              return copy;
+            });
+          }}
+          onCopy={() => navigator.clipboard?.writeText(modalQueue[modalIdx].text).catch(() => {})}
+          onClose={() => { setModalOpen(false); setModalQueue([]); setModalIdx(0); }}
+          onSave={(content) => {
+            // 1) lưu vào stagedResults
+            if (modalQueue[modalIdx].key === "psych") {
+              setStagedResults((r) => ({ ...r, psych: content }));
+              // 2) tạo/replace block tạm
+              setTempBlocks((prev) => {
+                const others = prev.filter(b => b.tempType !== "psych");
+                return [
+                  ...others,
+                  {
+                    id: "temp-psych",
+                    name: "AI Psych Analyzer",
+                    tempType: "psych",
+                    resultText: content, // hiển thị lại khi click
+                  },
+                ];
+              });
+            } else if (modalQueue[modalIdx].key === "bdna") {
+              setStagedResults((r) => ({ ...r, bdna: content }));
+              setTempBlocks((prev) => {
+                const others = prev.filter(b => b.tempType !== "bdna");
+                return [
+                  ...others,
+                  {
+                    id: "temp-bdna",
+                    name: "AI BusinessDNA",
+                    tempType: "bdna",
+                    resultText: content,
+                  },
+                ];
+              });
+            }
+            // 3) cũng có thể append preview vào meetingNote nếu muốn (bỏ nếu không cần)
+            // setFormData((prev) => ({
+            //   ...prev,
+            //   meetingNote: (prev.meetingNote || "") + `\n\n[${modalQueue[modalIdx].label}]\n${content}`,
+            // }));
+          }}
+          onNext={() => {
+            if (modalIdx < modalQueue.length - 1) {
+              setModalIdx((i) => i + 1);
+            } else {
+              setModalOpen(false);
+              setModalQueue([]);
+              setModalIdx(0);
+            }
+          }}
+        />
+      )}
     </div>
   );
 }
