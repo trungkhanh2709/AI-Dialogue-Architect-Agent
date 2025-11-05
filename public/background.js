@@ -372,6 +372,30 @@ case "SALE_PROSPECT_REQUEST":
 
   return true;
 
+   case "BUSINESS_DNA_REQUEST":
+      (async () => {
+        try {
+          const { payload } = msg;
+          const url = `${VITE_URL_BACKEND}/api/sale/business-dna`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(payload?.username ? { username: payload.username } : {}),
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const raw = await res.text();
+          let data;
+          try { data = JSON.parse(raw); } catch { data = raw; }
+
+          sendResponse({ ok: res.ok, status: res.status, data });
+        } catch (err) {
+          sendResponse({ ok: false, status: 0, data: `Background fetch error: ${String(err)}` });
+        }
+      })();
+      return true;
     default:
       if (msg.action === "pushCaption") {
         sharedCaptions.push(msg.data);

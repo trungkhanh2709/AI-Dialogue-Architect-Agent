@@ -8,7 +8,7 @@ import ExpandableTextarea from "./ExpandableTextarea";
 import CollapsibleSection from "./CollapsibleSection";
 import ResultModal from "./ResultModal";
 
-const LS_PERSONA_KEY = "bm.persona_profile"; // optional, used if available
+const LS_PERSONA_KEY = "bm.persona_profile";
 
 export default function PopupWithSidebar({
   onStartMeeting,
@@ -22,9 +22,12 @@ export default function PopupWithSidebar({
     userName: "",
     userCompanyName: "",
     userCompanyServices: "",
+    userCompanyWebsite: "",            // ✅ NEW step 3
+    userKeyCompanyUrls: ["", "", ""],  // ✅ NEW step 3 list
     prospectName: "",
     customerCompanyName: "",
     customerCompanyServices: "",
+    prospectCompanyWebsite: "",        // ✅ NEW step 4
     meetingGoal: "",
     meetingEmail: "",
     meetingMessage: "",
@@ -34,7 +37,7 @@ export default function PopupWithSidebar({
     meetingEnd: "",
     guestEmail: "",
     meetingLink: "",
-    // merged Step 1 fields
+    // merged psych fields for prospect
     psychBackground: "",
     psychUrls: ["", "", ""],
     psychLanguage: "English",
@@ -64,9 +67,15 @@ export default function PopupWithSidebar({
         userName: selectedBlock.userNameAndRole || "",
         userCompanyName: selectedBlock.userCompanyName || "",
         userCompanyServices: selectedBlock.userCompanyServices || "",
+        userCompanyWebsite: selectedBlock.userCompanyWebsite || "",          // ✅ hydrate
+        userKeyCompanyUrls:
+          Array.isArray(selectedBlock.userKeyCompanyUrls) && selectedBlock.userKeyCompanyUrls.length
+            ? selectedBlock.userKeyCompanyUrls
+            : ["", "", ""],
         prospectName: selectedBlock.prospectName || "",
         customerCompanyName: selectedBlock.customerCompanyName || "",
         customerCompanyServices: selectedBlock.customerCompanyServices || "",
+        prospectCompanyWebsite: selectedBlock.prospectCompanyWebsite || "",  // ✅ hydrate
         meetingGoal: selectedBlock.meetingGoal || "",
         meetingEmail: selectedBlock.meetingEmail || "",
         meetingMessage: selectedBlock.meetingMessage || "",
@@ -95,9 +104,15 @@ export default function PopupWithSidebar({
         userName: selectedBlock.userNameAndRole || "",
         userCompanyName: selectedBlock.userCompanyName || "",
         userCompanyServices: selectedBlock.userCompanyServices || "",
+        userCompanyWebsite: selectedBlock.userCompanyWebsite || "",
+        userKeyCompanyUrls:
+          Array.isArray(selectedBlock.userKeyCompanyUrls) && selectedBlock.userKeyCompanyUrls.length
+            ? selectedBlock.userKeyCompanyUrls
+            : ["", "", ""],
         prospectName: selectedBlock.prospectName || "",
         customerCompanyName: selectedBlock.customerCompanyName || "",
         customerCompanyServices: selectedBlock.customerCompanyServices || "",
+        prospectCompanyWebsite: selectedBlock.prospectCompanyWebsite || "",
         meetingGoal: selectedBlock.meetingGoal || "",
         meetingEmail: selectedBlock.meetingEmail || "",
         meetingMessage: selectedBlock.meetingMessage || "",
@@ -123,7 +138,7 @@ export default function PopupWithSidebar({
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
-  // URL list handlers
+  // URL list handlers (prospect psych urls)
   const handleUrlChange = (idx, value) => {
     setFormData((prev) => {
       const next = Array.isArray(prev.psychUrls) ? [...prev.psychUrls] : ["", "", ""];
@@ -139,6 +154,23 @@ export default function PopupWithSidebar({
       return { ...prev, psychUrls: next.length ? next : [""] };
     });
 
+  // URL list handlers (user company key urls)
+  const handleKeyCompanyUrlChange = (idx, value) => {
+    setFormData((prev) => {
+      const next = Array.isArray(prev.userKeyCompanyUrls) ? [...prev.userKeyCompanyUrls] : ["", "", ""];
+      next[idx] = value;
+      return { ...prev, userKeyCompanyUrls: next };
+    });
+  };
+  const addKeyCompanyUrl = () =>
+    setFormData((prev) => ({ ...prev, userKeyCompanyUrls: [...prev.userKeyCompanyUrls, ""] }));
+  const removeKeyCompanyUrl = (idx) =>
+    setFormData((prev) => {
+      const next = [...prev.userKeyCompanyUrls];
+      next.splice(idx, 1);
+      return { ...prev, userKeyCompanyUrls: next.length ? next : [""] };
+    });
+
   const handleSave = async () => {
     try {
       if (!formData.title) formData.title = "Untitled Meeting";
@@ -148,9 +180,12 @@ export default function PopupWithSidebar({
         userNameAndRole: formData.userName || "",
         userCompanyName: formData.userCompanyName || "",
         userCompanyServices: formData.userCompanyServices || "",
+        userCompanyWebsite: formData.userCompanyWebsite || "",              // ✅ persist
+        userKeyCompanyUrls: (formData.userKeyCompanyUrls || []).map((u) => u.trim()).filter(Boolean), // ✅ persist
         prospectName: formData.prospectName || "",
         customerCompanyName: formData.customerCompanyName || "",
         customerCompanyServices: formData.customerCompanyServices || "",
+        prospectCompanyWebsite: formData.prospectCompanyWebsite || "",      // ✅ persist
         meetingGoal: formData.meetingGoal || "",
         meetingEmail: formData.meetingEmail || "",
         meetingMessage: formData.meetingMessage || "",
@@ -162,7 +197,7 @@ export default function PopupWithSidebar({
         eventId: formData.eventId || "",
         guestEmail: formData.guestEmail || "",
         createdAt: selectedBlock ? selectedBlock.createdAt : new Date().toISOString(),
-        // merged Step 1 data
+        // merged psych data
         psychBackground: formData.psychBackground || "",
         psychUrls: (formData.psychUrls || []).map((u) => u.trim()).filter(Boolean),
         psychLanguage: formData.psychLanguage || "English",
@@ -281,9 +316,12 @@ export default function PopupWithSidebar({
       userName: "",
       userCompanyName: "",
       userCompanyServices: "",
+      userCompanyWebsite: "",            // ✅ init
+      userKeyCompanyUrls: ["", "", ""],  // ✅ init
       prospectName: "",
       customerCompanyName: "",
       customerCompanyServices: "",
+      prospectCompanyWebsite: "",        // ✅ init
       meetingGoal: "",
       meetingEmail: "",
       meetingMessage: "",
@@ -322,8 +360,8 @@ export default function PopupWithSidebar({
     );
   };
 
-  // Build payload for background analyzers
-  const buildAnalyzerPayload = () => {
+  // ===== Payload builders =====
+  const buildPsychPayload = () => {
     let personaProfile = "";
     try {
       personaProfile = localStorage.getItem(LS_PERSONA_KEY) || "";
@@ -351,10 +389,37 @@ export default function PopupWithSidebar({
     };
   };
 
-  // Format helper for modal sections
+  // ✅ NEW: Business DNA payload builder (khớp service backend)
+  const buildBusinessDnaPayload = () => {
+    return {
+      // Conversation flags
+      query: { firstChat: false, continue: false, content: "" },
+      msg: [],
+      // MY Company info
+      nameOfBusiness: formData.userCompanyName?.trim() || "",
+      typeOfBusiness: formData.userCompanyServices?.trim() || "",
+      companyUrl: formData.userCompanyWebsite?.trim() || "",
+      countryOrRegion: "", // nếu bạn thêm field riêng thì map vào đây
+      socialMediaUrl: (formData.userKeyCompanyUrls || [])
+        .map((u) => (u || "").trim())
+        .filter(Boolean)
+        .map((u) => ({ socialMediaUrl: u })),
+      // Prospect company info
+      prospectName: formData.customerCompanyName?.trim() || formData.prospectName?.trim() || "",
+      prospectURL: formData.prospectCompanyWebsite?.trim() || "",
+      prospectSocialURL: (formData.psychUrls || [])
+        .map((u) => (u || "").trim())
+        .filter(Boolean)
+        .map((u) => ({ prospectSocialURL: u })),
+      // header username
+      username: decodedCookieEmail || "",
+    };
+  };
+
+  // ===== Helpers =====
   const fmt = (title, body) => `\n[${title}]\n${body}\n`;
 
-  // Generate → call background APIs based on checkboxes, then show modal with results
+  // Generate
   const handleGenerate = () => {
     if (!runBusinessDNA && !runPsych) {
       alert("Please select at least one option to generate.");
@@ -362,39 +427,32 @@ export default function PopupWithSidebar({
     }
     setGenerating(true);
 
-    const payload = buildAnalyzerPayload();
     const chunks = [];
-
-    const pushFromResponse = (title, res) => {
-      if (chrome.runtime.lastError) {
-        chunks.push(fmt(title, `Error: ${chrome.runtime.lastError.message || "Runtime error"}`));
-        return;
-      }
-      if (!res?.ok) {
-        const msg =
-          typeof res?.data === "string" ? res.data : res?.status ? `HTTP ${res.status}` : "Request failed.";
-        chunks.push(fmt(title, `Error: ${msg}`));
-        return;
-      }
-      const data = res.data;
-      const text =
-        typeof data === "string"
-          ? data
-          : data?.content
-          ? String(data.content)
-          : JSON.stringify(data, null, 2);
-      chunks.push(fmt(title, text));
-    };
-
     const tasks = [];
 
     if (runPsych) {
+      const payloadPsych = buildPsychPayload();
       tasks.push(
         new Promise((resolve) => {
           chrome.runtime.sendMessage(
-            { type: "SALE_PROSPECT_REQUEST", payload },
+            { type: "SALE_PROSPECT_REQUEST", payload: payloadPsych },
             (res) => {
-              pushFromResponse("AI Psych Analyzer", res);
+              if (chrome.runtime.lastError) {
+                chunks.push(fmt("AI Psych Analyzer", `Error: ${chrome.runtime.lastError.message || "Runtime error"}`));
+              } else if (!res?.ok) {
+                const msg =
+                  typeof res?.data === "string" ? res.data : res?.status ? `HTTP ${res.status}` : "Request failed.";
+                chunks.push(fmt("AI Psych Analyzer", `Error: ${msg}`));
+              } else {
+                const data = res.data;
+                const text =
+                  typeof data === "string"
+                    ? data
+                    : data?.content
+                    ? String(data.content)
+                    : JSON.stringify(data, null, 2);
+                chunks.push(fmt("AI Psych Analyzer", text));
+              }
               resolve();
             }
           );
@@ -403,12 +461,28 @@ export default function PopupWithSidebar({
     }
 
     if (runBusinessDNA) {
+      const payloadDNA = buildBusinessDnaPayload();
       tasks.push(
         new Promise((resolve) => {
           chrome.runtime.sendMessage(
-            { type: "BUSINESS_DNA_REQUEST", payload }, // background.js needs to handle this
+            { type: "BUSINESS_DNA_REQUEST", payload: payloadDNA },
             (res) => {
-              pushFromResponse("AI BusinessDNA", res);
+              if (chrome.runtime.lastError) {
+                chunks.push(fmt("AI BusinessDNA", `Error: ${chrome.runtime.lastError.message || "Runtime error"}`));
+              } else if (!res?.ok) {
+                const msg =
+                  typeof res?.data === "string" ? res.data : res?.status ? `HTTP ${res.status}` : "Request failed.";
+                chunks.push(fmt("AI BusinessDNA", `Error: ${msg}`));
+              } else {
+                const data = res.data;
+                const text =
+                  typeof data === "string"
+                    ? data
+                    : data?.content
+                    ? String(data.content)
+                    : JSON.stringify(data, null, 2);
+                chunks.push(fmt("AI BusinessDNA", text));
+              }
               resolve();
             }
           );
@@ -418,13 +492,13 @@ export default function PopupWithSidebar({
 
     Promise.all(tasks)
       .then(() => {
-        const combined = chunks.join("").trim() || "No content returned.";
-        // save into note as well
+        const combined = (chunks.join("").trim() || "No content returned.");
+        // append vào note
         setFormData((prev) => ({
           ...prev,
           meetingNote: (prev.meetingNote || "") + "\n" + combined,
         }));
-        // open modal with editable content
+        // mở modal edit/copy
         setModalText(combined);
         setModalOpen(true);
       })
@@ -509,7 +583,7 @@ export default function PopupWithSidebar({
               />
             </CollapsibleSection>
 
-            {/* Step 3 */}
+            {/* Step 3: User A */}
             <CollapsibleSection
               step={3}
               title="Step 3: User A – Your Info"
@@ -547,9 +621,64 @@ export default function PopupWithSidebar({
                 errors={errors}
                 readOnly={!isEditing}
               />
+
+              {/* ✅ NEW: Company Website (User A) */}
+              <InputField
+                id="userCompanyWebsite"
+                label="Company Website"
+                type="url"
+                value={formData.userCompanyWebsite}
+                onChange={handleChange}
+                placeholder="https://your-company.com"
+                error={errors.userCompanyWebsite}
+                readOnly={!isEditing}
+              />
+
+              {/* ✅ NEW: Your Key Company URLs list */}
+              <div style={{ marginTop: 12 }}>
+                <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                  Your Key Company URLs
+                </div>
+                {(formData.userKeyCompanyUrls || []).map((u, idx) => (
+                  <div
+                    key={idx}
+                    style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}
+                  >
+                    <InputField
+                      id={`userKeyCompanyUrl_${idx}`}
+                      label={null}
+                      type="url"
+                      value={u}
+                      onChange={(e) => handleKeyCompanyUrlChange(idx, e.target.value)}
+                      placeholder="https://..."
+                      readOnly={!isEditing}
+                    />
+                    {isEditing && (
+                      <button
+                        type="button"
+                        className="bm-btn bm-btn--ghost"
+                        onClick={() => removeKeyCompanyUrl(idx)}
+                        style={{ height: 36 }}
+                      >
+                        −
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {isEditing && (
+                  <button
+                    type="button"
+                    className="bm-btn bm-btn--ghost"
+                    onClick={addKeyCompanyUrl}
+                    style={{ marginTop: 6 }}
+                  >
+                    + Add URL
+                  </button>
+                )}
+              </div>
             </CollapsibleSection>
 
-            {/* Step 4 */}
+            {/* Step 4: Prospect */}
             <CollapsibleSection
               step={4}
               title="Step 4: User B – Prospect Info"
@@ -588,7 +717,19 @@ export default function PopupWithSidebar({
                 readOnly={!isEditing}
               />
 
-              {/* Background */}
+              {/* ✅ NEW: Company Website (Prospect) */}
+              <InputField
+                id="prospectCompanyWebsite"
+                label="Company Website"
+                type="url"
+                value={formData.prospectCompanyWebsite}
+                onChange={handleChange}
+                placeholder="https://prospect-company.com"
+                error={errors.prospectCompanyWebsite}
+                readOnly={!isEditing}
+              />
+
+              {/* Background (Prospect) */}
               <InputField
                 id="psychBackground"
                 label="Background (Copy of LinkedIn CV or detailed Bio)"
@@ -600,7 +741,7 @@ export default function PopupWithSidebar({
                 readOnly={!isEditing}
               />
 
-              {/* URLs list */}
+              {/* Prospect URLs list (reused for psych + for DNA prospectSocialURL) */}
               <div style={{ marginTop: 12 }}>
                 <div style={{ fontWeight: 600, marginBottom: 6 }}>
                   URLs (Website / LinkedIn / Other)
@@ -655,7 +796,7 @@ export default function PopupWithSidebar({
                 readOnly={!isEditing}
               />
 
-              {/* Checkboxes + Generate button */}
+              {/* Checkboxes + Generate */}
               <div style={{ marginTop: 16, display: "flex", gap: 16, alignItems: "center" }}>
                 <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
                   <input
@@ -687,6 +828,7 @@ export default function PopupWithSidebar({
               </div>
             </CollapsibleSection>
 
+            {/* Step 5 */}
             <CollapsibleSection
               step={5}
               title="Step 5: Contextual Information"
