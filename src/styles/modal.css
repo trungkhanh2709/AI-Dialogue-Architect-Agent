@@ -1,0 +1,96 @@
+/* src/styles/result-modal.css */
+.bm-modal__backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2147483647;
+}
+
+.bm-modal {
+  width: min(880px, 92vw);
+  max-height: 88vh;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(2, 6, 23, 0.25);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bm-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+  border-bottom: 1px solid rgba(2, 6, 23, 0.08);
+  background: #f8fafc;
+}
+
+.bm-modal__title {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.bm-modal__close {
+  border: none;
+  background: transparent;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.bm-modal__body {
+  padding: 12px 16px;
+  overflow: auto;
+}
+
+.bm-modal__textarea {
+  width: 100%;
+  min-height: 400px;
+  border-radius: 8px;
+  border: 1px solid rgba(2, 6, 23, 0.12);
+  outline: none;
+  padding: 10px 12px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono",
+    "Courier New", monospace;
+  font-size: 13px;
+  resize: vertical;
+}
+
+.bm-modal__footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(2, 6, 23, 0.08);
+  background: #f8fafc;
+}
+
+.bm-btn {
+  height: 36px;
+  border-radius: 8px;
+  padding: 0 12px;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: #e2e8f0;
+}
+
+.bm-btn--ghost {
+  background: #ffffff;
+  border-color: rgba(2, 6, 23, 0.12);
+}
+
+.bm-btn--primary {
+  background: #0ea5e9;
+  color: #ffffff;
+}
+
+.bm-btn:disabled,
+.bm-btn[disabled] {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
