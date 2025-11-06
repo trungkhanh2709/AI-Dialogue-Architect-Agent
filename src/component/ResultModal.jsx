@@ -1,12 +1,6 @@
 // src/components/ResultModal.jsx
 import React from "react";
 
-/**
- * Props:
- * - open, title, value, setValue, onClose, onCopy
- * - onSave: (value: string) => void   // <-- NEW: lưu giá trị hiện tại của modal
- * - onNext: () => void                // chuyển sang modal tiếp theo
- */
 export default function ResultModal({
   open,
   title = "Generated Results",
@@ -14,13 +8,13 @@ export default function ResultModal({
   setValue,
   onClose,
   onCopy,
-  onSave,   // <-- NEW
-  onNext,   // <-- NEW
+  onSave,
+  onNext,
 }) {
   if (!open) return null;
 
   const handleSaveAndNext = () => {
-    onSave?.(value); // giao cho cha xử lý (tạo block / lưu tạm / v.v.)
+    onSave?.(value);
     onNext?.();
   };
 
@@ -53,4 +47,3 @@ export default function ResultModal({
     </div>
   );
 }
-

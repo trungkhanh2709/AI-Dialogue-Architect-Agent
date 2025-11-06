@@ -7,6 +7,7 @@ import GoogleCalendar from "./GoogleCalendar";
 import ExpandableTextarea from "./ExpandableTextarea";
 import CollapsibleSection from "./CollapsibleSection";
 import ResultModal from "./ResultModal";
+import ResultBlock from "./ResultBlock";
 
 const LS_PERSONA_KEY = "bm.persona_profile";
 
@@ -60,7 +61,21 @@ export default function PopupWithSidebar({
   const [modalOpen, setModalOpen] = useState(false);
 
   // Staged results (đợi user bấm Save trong modal, sẽ tạo block tạm và lưu DB khi handleSave)
-  const [stagedResults, setStagedResults] = useState({ psych: "", bdna: "" }); // <-- NEW
+const [stagedResults, setStagedResults] = useState({ psych: "", bdna: "" });
+useEffect(() => {
+  if (!selectedBlock) return;
+  setStagedResults({
+    psych: selectedBlock?.psychAnalyzerResult || "",
+    bdna:  selectedBlock?.businessDNAResult || "",
+  });
+}, [selectedBlock]);
+const openModalFor = (key) => {
+  const label = key === "psych" ? "AI Psych Analyzer" : "AI BusinessDNA";
+  const text  = key === "psych" ? stagedResults.psych : stagedResults.bdna;
+  setModalQueue([{ key, label, text }]);
+  setModalIdx(0);
+  setModalOpen(true);
+};
 
   useEffect(() => {
     if (selectedBlock) {
@@ -818,6 +833,29 @@ export default function PopupWithSidebar({
                   {generating ? "Generating..." : "Generate"}
                 </button>
               </div>
+              {/* ===== Generated Blocks Preview (Step 4 bottom) ===== */}
+{(stagedResults.psych || stagedResults.bdna) && (
+  <div className="rb-wrap">
+    {stagedResults.psych && (
+      <ResultBlock
+        label="AI Psych Analyzer"
+        content={stagedResults.psych}
+        onOpen={() => openModalFor("psych")}
+        // onRemove: nếu muốn cho xóa block tạm trước khi save DB
+        onRemove={isEditing ? () => setStagedResults((r) => ({ ...r, psych: "" })) : undefined}
+      />
+    )}
+    {stagedResults.bdna && (
+      <ResultBlock
+        label="AI BusinessDNA"
+        content={stagedResults.bdna}
+        onOpen={() => openModalFor("bdna")}
+        onRemove={isEditing ? () => setStagedResults((r) => ({ ...r, bdna: "" })) : undefined}
+      />
+    )}
+  </div>
+)}
+
             </CollapsibleSection>
 
             {/* Step 5 */}
@@ -941,11 +979,7 @@ export default function PopupWithSidebar({
                 ];
               });
             }
-            // 3) cũng có thể append preview vào meetingNote nếu muốn (bỏ nếu không cần)
-            // setFormData((prev) => ({
-            //   ...prev,
-            //   meetingNote: (prev.meetingNote || "") + `\n\n[${modalQueue[modalIdx].label}]\n${content}`,
-            // }));
+          
           }}
           onNext={() => {
             if (modalIdx < modalQueue.length - 1) {

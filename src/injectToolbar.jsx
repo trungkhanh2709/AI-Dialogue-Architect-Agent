@@ -17,7 +17,7 @@ import upgradePopupCss from "../src/styles/upgradePopup.css?raw";
 import settingPageCss from "../src/styles/settingPage.css?raw";
 import AIPsychAnalyzerStep from "../src/styles/AIPsychAnalyzerStep.css?raw";
 import ResponseModal from "../src/styles/modal.css?raw"
-
+import ResultBlock from "../src/styles/ResultBlock.css?raw";
 export function initToolbar() {
   let toolbarHost = document.getElementById("__ai_dialogue_toolbar__");
 
@@ -43,7 +43,7 @@ export function initToolbar() {
       + "\n" + sidebarCss + "\n"
       + collapsibleSectionCss
       + blockListCss + "\n" + chatCss + "\n" + emailInputCss + expandTextareaCss
-      + "\n" + GoogleCalendarCss + "\n" + InputFieldCss + SaveConfirmPopupCss + settingPageCss + AIPsychAnalyzerStep+ ResponseModal;
+      + "\n" + GoogleCalendarCss + "\n" + InputFieldCss + SaveConfirmPopupCss + settingPageCss + AIPsychAnalyzerStep+ ResponseModal + ResultBlock;
 
     shadow.appendChild(style);
     // wrapper nội dung React
