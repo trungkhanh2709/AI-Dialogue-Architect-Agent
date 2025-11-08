@@ -271,20 +271,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
               const { meetingData, chatHistory, log } = msg.payload;
 
-              const payload = {
-                userName: meetingData.userName,
-                userCompanyName: meetingData.userCompanyName,
-                userCompanyServices: meetingData.userCompanyServices,
-                prospectName: meetingData.prospectName,
-                customerCompanyName: meetingData.customerCompanyName,
-                customerCompanyServices: meetingData.customerCompanyServices,
-                meetingGoal: meetingData.meetingGoal,
-                meetingEmail: meetingData.meetingEmail,
-                meetingMessage: meetingData.meetingMessage,
-                meetingNote: meetingData.meetingNote,
-                meetingLog: log.join("\n"),
-                msg: chatHistory,
-              };
+const payload = {
+            ...meetingData,                     // toàn bộ fields từ handleSave
+            meetingLog: Array.isArray(log) ? log.join("\n") : String(log || ""),
+            msg: Array.isArray(chatHistory) ? chatHistory : [],
+          };
 
               try {
                 const response = await fetch(

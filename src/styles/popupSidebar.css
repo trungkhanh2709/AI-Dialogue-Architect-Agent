@@ -53,6 +53,7 @@
 .input-group label {
   color: #fff;
   font-size: 12px;
+  margin: 8px 0;
 }
 
 .input-group input,
@@ -211,4 +212,12 @@ button:disabled {
 
 .meeting-link a:hover {
   background-color: #3367d6;
+}
+.text_label{
+  font-weight: 600; 
+  margin-bottom: 6px;
+  color:#ffffff ;
+}
+.bm-btn--add_url{
+  width: 100%;
 }

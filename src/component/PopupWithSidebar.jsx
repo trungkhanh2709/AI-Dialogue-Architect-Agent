@@ -42,6 +42,8 @@ export default function PopupWithSidebar({
     psychBackground: "",
     psychUrls: ["", "", ""],
     psychLanguage: "English",
+    psychAnalyzerResult: "",
+    businessDNAResult: "",
   });
   const [errors, setErrors] = useState({});
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -61,21 +63,23 @@ export default function PopupWithSidebar({
   const [modalOpen, setModalOpen] = useState(false);
 
   // Staged results (đợi user bấm Save trong modal, sẽ tạo block tạm và lưu DB khi handleSave)
-const [stagedResults, setStagedResults] = useState({ psych: "", bdna: "" });
-useEffect(() => {
-  if (!selectedBlock) return;
-  setStagedResults({
-    psych: selectedBlock?.psychAnalyzerResult || "",
-    bdna:  selectedBlock?.businessDNAResult || "",
-  });
-}, [selectedBlock]);
-const openModalFor = (key) => {
-  const label = key === "psych" ? "AI Psych Analyzer" : "AI BusinessDNA";
-  const text  = key === "psych" ? stagedResults.psych : stagedResults.bdna;
-  setModalQueue([{ key, label, text }]);
-  setModalIdx(0);
-  setModalOpen(true);
-};
+  const [stagedResults, setStagedResults] = useState({ psych: "", bdna: "" });
+
+  useEffect(() => {
+    if (!selectedBlock) return;
+    setStagedResults({
+      psych: selectedBlock?.psychAnalyzerResult || "",
+      bdna: selectedBlock?.businessDNAResult || "",
+    });
+  }, [selectedBlock]);
+
+  const openModalFor = (key) => {
+    const label = key === "psych" ? "AI Psych Analyzer" : "AI BusinessDNA";
+    const text = key === "psych" ? stagedResults.psych : stagedResults.bdna;
+    setModalQueue([{ key, label, text }]);
+    setModalIdx(0);
+    setModalOpen(true);
+  };
 
   useEffect(() => {
     if (selectedBlock) {
@@ -109,6 +113,8 @@ const openModalFor = (key) => {
             ? selectedBlock.psychUrls
             : ["", "", ""]),
         psychLanguage: selectedBlock.psychLanguage || "English",
+        psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
+        businessDNAResult: selectedBlock.businessDNAResult || "",
       }));
       setFormVisible(true);
     }
@@ -146,6 +152,8 @@ const openModalFor = (key) => {
             ? selectedBlock.psychUrls
             : ["", "", ""]),
         psychLanguage: selectedBlock.psychLanguage || "English",
+        psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
+        businessDNAResult: selectedBlock.businessDNAResult || "",
       }));
     }
     setIsEditing(false);
@@ -254,6 +262,8 @@ const openModalFor = (key) => {
       psychBackground: "",
       psychUrls: ["", "", ""],
       psychLanguage: "English",
+      psychAnalyzerResult: "",
+      businessDNAResult: "",
     });
     setFormVisible(true);
     setIsEditing(true);
@@ -290,7 +300,7 @@ const openModalFor = (key) => {
     let personaProfile = "";
     try {
       personaProfile = localStorage.getItem(LS_PERSONA_KEY) || "";
-    } catch {}
+    } catch { }
     return {
       username: decodedCookieEmail || "",
       name: formData.prospectName?.trim() || "",
@@ -438,8 +448,8 @@ const openModalFor = (key) => {
         psychLanguage: formData.psychLanguage || "English",
 
         // NEW: lưu kết quả vào DB
-        psychAnalyzerResult: stagedResults.psych || "",
-        businessDNAResult: stagedResults.bdna || "",
+        psychAnalyzerResult: (formData.psychAnalyzerResult || stagedResults.psych || ""),
+        businessDNAResult: (formData.businessDNAResult || stagedResults.bdna || ""),
       };
 
       if (selectedBlock) {
@@ -581,10 +591,10 @@ const openModalFor = (key) => {
               </div>
             )}
 
-            {/* Step 2 */}
+            {/* Step 1 */}
             <CollapsibleSection
-              step={2}
-              title="Step 2: Meeting Information"
+              step={1}
+              title="Step 1: Meeting Information"
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
               openSections={openSections}
@@ -612,10 +622,10 @@ const openModalFor = (key) => {
               />
             </CollapsibleSection>
 
-            {/* Step 3: User A */}
+            {/* Step 2: User A */}
             <CollapsibleSection
-              step={3}
-              title="Step 3: User A – Your Info"
+              step={2}
+              title="Step 2: User A – Your Info"
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
               openSections={openSections}
@@ -661,19 +671,34 @@ const openModalFor = (key) => {
                 readOnly={!isEditing}
               />
               <div style={{ marginTop: 12 }}>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>
-                  Your Key Company URLs
-                </div>
+                <div className="text_label">Your Key Company URLs</div>
                 {(formData.userKeyCompanyUrls || []).map((u, idx) => (
-                  <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                    <InputField
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "center",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <input
                       id={`userKeyCompanyUrl_${idx}`}
-                      label={null}
                       type="url"
                       value={u}
                       onChange={(e) => handleKeyCompanyUrlChange(idx, e.target.value)}
                       placeholder="https://..."
                       readOnly={!isEditing}
+                      style={{
+                        flex: 1,
+                        height: 36,
+                        background: "rgba(255, 255, 255, 0.05)",
+                        color: "#fff",
+                        border: "1px solid #d1d5db",
+                        borderRadius: 6,
+                        padding: "8px 12px",
+                        outline: "none",
+                      }}
                     />
                     {isEditing && (
                       <button
@@ -690,20 +715,22 @@ const openModalFor = (key) => {
                 {isEditing && (
                   <button
                     type="button"
-                    className="bm-btn bm-btn--ghost"
+                    className="bm-btn bm-btn--add_url"
                     onClick={addKeyCompanyUrl}
                     style={{ marginTop: 6 }}
                   >
                     + Add URL
                   </button>
                 )}
+
               </div>
+
             </CollapsibleSection>
 
-            {/* Step 4: Prospect */}
+            {/* Step 3: Prospect */}
             <CollapsibleSection
-              step={4}
-              title="Step 4: User B – Prospect Info"
+              step={3}
+              title="Step 3: User B – Prospect Info"
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
               openSections={openSections}
@@ -759,42 +786,60 @@ const openModalFor = (key) => {
                 readOnly={!isEditing}
               />
               <div style={{ marginTop: 12 }}>
-                <div style={{ fontWeight: 600, marginBottom: 6 }}>
+                <div className="text_label">
                   URLs (Website / LinkedIn / Other)
                 </div>
-                {formData.psychUrls.map((u, idx) => (
-                  <div key={idx} style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 6 }}>
-                    <InputField
-                      id={`psychUrl_${idx}`}
-                      label={null}
-                      type="url"
-                      value={u}
-                      onChange={(e) => handleUrlChange(idx, e.target.value)}
-                      placeholder="https://..."
-                      readOnly={!isEditing}
-                    />
-                    {isEditing && (
-                      <button
-                        type="button"
-                        className="bm-btn bm-btn--ghost"
-                        onClick={() => removeUrl(idx)}
-                        style={{ height: 36 }}
-                      >
-                        −
-                      </button>
-                    )}
-                  </div>
-                ))}
-                {isEditing && (
-                  <button
-                    type="button"
-                    className="bm-btn bm-btn--ghost"
-                    onClick={addUrl}
-                    style={{ marginTop: 6 }}
-                  >
-                    + Add URL
-                  </button>
-                )}
+             {formData.psychUrls.map((u, idx) => (
+  <div
+    key={idx}
+    style={{
+      display: "flex",
+      gap: 8,
+      alignItems: "center",
+      marginBottom: 6,
+    }}
+  >
+    <input
+      id={`psychUrl_${idx}`}
+      type="url"
+      value={u}
+      onChange={(e) => handleUrlChange(idx, e.target.value)}
+      placeholder="https://..."
+      readOnly={!isEditing}
+      style={{
+        flex: 1,
+        height: 36,
+        background: "rgba(255, 255, 255, 0.05)",
+        color: "#fff",
+        border: "1px solid #d1d5db",
+        borderRadius: 6,
+        padding: "8px 12px",
+        outline: "none",
+      }}
+    />
+    {isEditing && (
+      <button
+        type="button"
+        className="bm-btn bm-btn--ghost"
+        onClick={() => removeUrl(idx)}
+        style={{ height: 36 }}
+      >
+        −
+      </button>
+    )}
+  </div>
+))}
+{isEditing && (
+  <button
+    type="button"
+    className="bm-btn bm-btn--add_url"
+    onClick={addUrl}
+    style={{ marginTop: 6 }}
+  >
+    + Add URL
+  </button>
+)}
+
               </div>
               <InputField
                 id="psychLanguage"
@@ -834,34 +879,34 @@ const openModalFor = (key) => {
                 </button>
               </div>
               {/* ===== Generated Blocks Preview (Step 4 bottom) ===== */}
-{(stagedResults.psych || stagedResults.bdna) && (
-  <div className="rb-wrap">
-    {stagedResults.psych && (
-      <ResultBlock
-        label="AI Psych Analyzer"
-        content={stagedResults.psych}
-        onOpen={() => openModalFor("psych")}
-        // onRemove: nếu muốn cho xóa block tạm trước khi save DB
-        onRemove={isEditing ? () => setStagedResults((r) => ({ ...r, psych: "" })) : undefined}
-      />
-    )}
-    {stagedResults.bdna && (
-      <ResultBlock
-        label="AI BusinessDNA"
-        content={stagedResults.bdna}
-        onOpen={() => openModalFor("bdna")}
-        onRemove={isEditing ? () => setStagedResults((r) => ({ ...r, bdna: "" })) : undefined}
-      />
-    )}
-  </div>
-)}
+              {(stagedResults.psych || stagedResults.bdna) && (
+                <div className="rb-wrap">
+                  {stagedResults.psych && (
+                    <ResultBlock
+                      label="AI Psych Analyzer"
+                      content={stagedResults.psych}
+                      onOpen={() => openModalFor("psych")}
+                      // onRemove: nếu muốn cho xóa block tạm trước khi save DB
+                      onRemove={isEditing ? () => setStagedResults((r) => ({ ...r, psych: "" })) : undefined}
+                    />
+                  )}
+                  {stagedResults.bdna && (
+                    <ResultBlock
+                      label="AI BusinessDNA"
+                      content={stagedResults.bdna}
+                      onOpen={() => openModalFor("bdna")}
+                      onRemove={isEditing ? () => setStagedResults((r) => ({ ...r, bdna: "" })) : undefined}
+                    />
+                  )}
+                </div>
+              )}
 
             </CollapsibleSection>
 
-            {/* Step 5 */}
+            {/* Step 4 */}
             <CollapsibleSection
-              step={5}
-              title="Step 5: Contextual Information"
+              step={4}
+              title="Step 4: Contextual Information"
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
               openSections={openSections}
@@ -945,12 +990,13 @@ const openModalFor = (key) => {
               return copy;
             });
           }}
-          onCopy={() => navigator.clipboard?.writeText(modalQueue[modalIdx].text).catch(() => {})}
+          onCopy={() => navigator.clipboard?.writeText(modalQueue[modalIdx].text).catch(() => { })}
           onClose={() => { setModalOpen(false); setModalQueue([]); setModalIdx(0); }}
           onSave={(content) => {
             // 1) lưu vào stagedResults
             if (modalQueue[modalIdx].key === "psych") {
               setStagedResults((r) => ({ ...r, psych: content }));
+              setFormData((prev) => ({ ...prev, psychAnalyzerResult: content }));
               // 2) tạo/replace block tạm
               setTempBlocks((prev) => {
                 const others = prev.filter(b => b.tempType !== "psych");
@@ -966,6 +1012,7 @@ const openModalFor = (key) => {
               });
             } else if (modalQueue[modalIdx].key === "bdna") {
               setStagedResults((r) => ({ ...r, bdna: content }));
+              setFormData((prev) => ({ ...prev, businessDNAResult: content }));
               setTempBlocks((prev) => {
                 const others = prev.filter(b => b.tempType !== "bdna");
                 return [
@@ -979,7 +1026,7 @@ const openModalFor = (key) => {
                 ];
               });
             }
-          
+
           }}
           onNext={() => {
             if (modalIdx < modalQueue.length - 1) {
