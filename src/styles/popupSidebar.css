@@ -180,9 +180,10 @@ button:disabled {
 }
 
 .section-divider {
-  height: 1px;
-  background-color: #dfdfdf;
+  /* height: 2px;
+  background-color: #dfdfdf; */
   margin: 16px 0;
+  border-bottom: 2px solid white;
 }
 
 .meeting-link {
@@ -214,10 +215,20 @@ button:disabled {
   background-color: #3367d6;
 }
 .text_label{
-  font-weight: 600; 
   margin-bottom: 6px;
   color:#ffffff ;
+  font-size: 12px;
 }
 .bm-btn--add_url{
   width: 100%;
+}
+.label-input{
+    color: #fff;
+  font-size: 12px;
+}
+input[readonly],
+textarea[readonly] {
+  background-color: transparent; /* nền xám nhẹ */
+  cursor: not-allowed;           /* đổi con trỏ */
+  opacity: 0.7;                  /* hiệu ứng mờ nhẹ */
 }

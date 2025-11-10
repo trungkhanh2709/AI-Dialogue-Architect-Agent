@@ -1,5 +1,5 @@
 .collapsible-section {
-margin-top: 16px;
+  margin-top: 16px;
   border-radius: 12px;
   margin: 12px 0;
   overflow: hidden;
@@ -36,25 +36,32 @@ margin-top: 16px;
   overflow: hidden;
   opacity: 0;
   transform: translateY(-6px);
-  transition: 
+  transition:
     max-height 0.35s ease,
     opacity 0.25s ease,
     transform 0.25s ease,
     padding 0.25s ease;
+  padding: 0 8px 0 8px; /* base để tránh giật layout */
 }
 
 .collapsible-body.active {
-   max-height: 1000px; 
-  padding: 12px 8px 0 8px;
   opacity: 1;
   transform: translateY(0);
+  padding-top: 12px;
 }
+
+.collapsible-content {
+  /* nội dung thực, height sẽ dựa vào scrollHeight */
+}
+
 .continue-container {
   display: flex;
-  justify-content: flex-end; /* đẩy nút qua phải */
+  justify-content: flex-end;
   margin-top: 10px;
 }
-.continue-button, .finish-button {
+
+.continue-button,
+.finish-button {
   margin-top: 4px;
   background: #007bff;
   border: none;
@@ -65,15 +72,18 @@ margin-top: 16px;
   font-weight: 600;
   transition: background 0.2s ease;
 }
-.continue-button:hover, .finish-button:hover {
+
+.continue-button:hover,
+.finish-button:hover {
   background: #0056b3;
 }
+
 .collapsible-header.active-step {
   font-weight: 600;
-  color: #ffffff; /* rõ */
+  color: #ffffff;
 }
 
 .collapsible-header.inactive-step {
   font-weight: 400;
-  color: #cdcdcd; /* mờ đi */
+  color: #cdcdcd;
 }

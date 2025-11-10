@@ -8,7 +8,7 @@ import ExpandableTextarea from "./ExpandableTextarea";
 import CollapsibleSection from "./CollapsibleSection";
 import ResultModal from "./ResultModal";
 import ResultBlock from "./ResultBlock";
-
+import AIPsychAnalyzerStep from "./AIPsychAnalyzerStep";
 const LS_PERSONA_KEY = "bm.persona_profile";
 
 export default function PopupWithSidebar({
@@ -64,6 +64,9 @@ export default function PopupWithSidebar({
 
   // Staged results (đợi user bấm Save trong modal, sẽ tạo block tạm và lưu DB khi handleSave)
   const [stagedResults, setStagedResults] = useState({ psych: "", bdna: "" });
+
+  const imgUrlPsychAnalyzer = chrome.runtime.getURL("images/prospect.jpg");
+  const imgUrlBussinessDNA = chrome.runtime.getURL("images/business_dna.jpg");
 
   useEffect(() => {
     if (!selectedBlock) return;
@@ -789,56 +792,56 @@ export default function PopupWithSidebar({
                 <div className="text_label">
                   URLs (Website / LinkedIn / Other)
                 </div>
-             {formData.psychUrls.map((u, idx) => (
-  <div
-    key={idx}
-    style={{
-      display: "flex",
-      gap: 8,
-      alignItems: "center",
-      marginBottom: 6,
-    }}
-  >
-    <input
-      id={`psychUrl_${idx}`}
-      type="url"
-      value={u}
-      onChange={(e) => handleUrlChange(idx, e.target.value)}
-      placeholder="https://..."
-      readOnly={!isEditing}
-      style={{
-        flex: 1,
-        height: 36,
-        background: "rgba(255, 255, 255, 0.05)",
-        color: "#fff",
-        border: "1px solid #d1d5db",
-        borderRadius: 6,
-        padding: "8px 12px",
-        outline: "none",
-      }}
-    />
-    {isEditing && (
-      <button
-        type="button"
-        className="bm-btn bm-btn--ghost"
-        onClick={() => removeUrl(idx)}
-        style={{ height: 36 }}
-      >
-        −
-      </button>
-    )}
-  </div>
-))}
-{isEditing && (
-  <button
-    type="button"
-    className="bm-btn bm-btn--add_url"
-    onClick={addUrl}
-    style={{ marginTop: 6 }}
-  >
-    + Add URL
-  </button>
-)}
+                {formData.psychUrls.map((u, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      alignItems: "center",
+                      marginBottom: 6,
+                    }}
+                  >
+                    <input
+                      id={` psychUrl_${idx}`}
+                      type="url"
+                      value={u}
+                      onChange={(e) => handleUrlChange(idx, e.target.value)}
+                      placeholder="https://..."
+                      readOnly={!isEditing}
+                      style={{
+                        flex: 1,
+                        height: 36,
+                        background: "rgba(255, 255, 255, 0.05)",
+                        color: "#fff",
+                        border: "1px solid #d1d5db",
+                        borderRadius: 6,
+                        padding: "8px 12px",
+                        outline: "none",
+                      }}
+                    />
+                    {isEditing && (
+                      <button
+                        type="button"
+                        className="bm-btn bm-btn--ghost"
+                        onClick={() => removeUrl(idx)}
+                        style={{ height: 36 }}
+                      >
+                        −
+                      </button>
+                    )}
+                  </div>
+                ))}
+                {isEditing && (
+                  <button
+                    type="button"
+                    className="bm-btn bm-btn--add_url"
+                    onClick={addUrl}
+                    style={{ marginTop: 6 }}
+                  >
+                    + Add URL
+                  </button>
+                )}
 
               </div>
               <InputField
@@ -851,36 +854,10 @@ export default function PopupWithSidebar({
                 error={errors.psychLanguage}
                 readOnly={!isEditing}
               />
-              <div style={{ marginTop: 16, display: "flex", gap: 16, alignItems: "center" }}>
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={runBusinessDNA}
-                    onChange={(e) => setRunBusinessDNA(e.target.checked)}
-                  />
-                  <span>AI BusinessDNA</span>
-                </label>
-                <label style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <input
-                    type="checkbox"
-                    checked={runPsych}
-                    onChange={(e) => setRunPsych(e.target.checked)}
-                  />
-                  <span>AI Psych Analyzer</span>
-                </label>
-                <button
-                  type="button"
-                  className="bm-btn bm-btn--primary"
-                  onClick={handleGenerate}
-                  disabled={generating}
-                  style={{ marginLeft: "auto" }}
-                >
-                  {generating ? "Generating..." : "Generate"}
-                </button>
-              </div>
-              {/* ===== Generated Blocks Preview (Step 4 bottom) ===== */}
+               {/* ===== Generated Blocks Preview (Step 4 bottom) ===== */}
               {(stagedResults.psych || stagedResults.bdna) && (
                 <div className="rb-wrap">
+                  <p className="label-input">Result</p>
                   {stagedResults.psych && (
                     <ResultBlock
                       label="AI Psych Analyzer"
@@ -900,6 +877,44 @@ export default function PopupWithSidebar({
                   )}
                 </div>
               )}
+              <AIPsychAnalyzerStep
+                className=""
+                heroImageSrc={imgUrlPsychAnalyzer}
+                heroTitle="AI Psych Analyzer"
+                heroDescription="Trained on advanced behavioral models, the AI Psych Analyzer decodes personality traits, motivations, and communication styles—then simulates their mindset."
+                checked={runPsych}
+                onToggle={(val) => setRunPsych(val)}
+              />
+
+              <AIPsychAnalyzerStep
+                className=""
+                heroImageSrc={imgUrlBussinessDNA}
+                heroTitle="AI BusinessDNA"
+                heroDescription="AI BusinessDNA analyzes your business model, positioning, and digital footprint to generate a structured, investor-ready and buyer-ready narrative."
+                checked={runBusinessDNA}
+                onToggle={(val) => setRunBusinessDNA(val)}
+              />
+
+              <div
+                style={{
+                  marginTop: 16,
+                  display: "flex",
+                  gap: 16,
+                  alignItems: "center",
+                }}
+              >
+                <button
+                  type="button"
+                  className="bm-btn bm-btn--primary"
+                  onClick={handleGenerate}
+                  disabled={generating}
+                  style={{ marginLeft: "auto" }}
+                >
+                  {generating ? "Generating..." : "Generate"}
+                </button>
+              </div>
+
+             
 
             </CollapsibleSection>
 
