@@ -1,17 +1,20 @@
-// src/component/CalendarAuthButton.jsx
+// src/component/GoogleCalendarLoginButton.jsx
+
+/// <reference types="chrome" />
 import React, { useEffect, useRef, useState } from "react";
 import {
-  isCalendarSignedIn,
-  signInCalendarAndGetAppToken,
-  signOutCalendar,
-  getCalendarUser,
-} from "../api/aiDialogueCalendarAuth";
+  getAiDialogueGoogleUser,
+  isSignedInCalendar,
+  signInAndGetCalendarToken,
+  signOutCalendarApp,
+} from "../api/authGoogleCalendar.js";
 
-export default function CalendarAuthButton({ label, onAuthChanged }) {
+const GoogleCalendarLoginButton = ({ onAuthChanged, label }) => {
   const [loading, setLoading] = useState(false);
-  const [signedIn, setSignedIn] = useState(false);
   const [user, setUser] = useState(null);
+  const [signedIn, setSignedIn] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
   const menuRef = useRef(null);
   const refreshingRef = useRef(false);
 
@@ -21,21 +24,21 @@ export default function CalendarAuthButton({ label, onAuthChanged }) {
     setLoading(true);
 
     try {
-      const ok = await isCalendarSignedIn();
+      const ok = await isSignedInCalendar();
       setSignedIn(ok);
 
       if (ok) {
-        const u = await getCalendarUser();
+        const u = await getAiDialogueGoogleUser();
         setUser(u);
-        onAuthChanged && onAuthChanged(true, u);
+        onAuthChanged && onAuthChanged(true, u || null);
       } else {
         setUser(null);
         onAuthChanged && onAuthChanged(false, null);
       }
     } catch (e) {
-      console.warn("[CalendarAuth] refresh error:", e);
-      setSignedIn(false);
+      console.warn("[ai-dialogue calendar] refresh error:", e);
       setUser(null);
+      setSignedIn(false);
       onAuthChanged && onAuthChanged(false, null);
     } finally {
       setLoading(false);
@@ -43,31 +46,46 @@ export default function CalendarAuthButton({ label, onAuthChanged }) {
     }
   };
 
+  // Lắng message từ popup
   useEffect(() => {
     const handler = (ev) => {
-      if (
-        ev.data &&
-        (ev.data.type === "OAUTH_DONE" || ev.data.source === "rsai-oauth")
-      ) {
+      const data = ev.data;
+      if (!data) return;
+
+      // Từ callback BE: { source: "rsai-oauth", data: { app, ... } }
+      if (data.source === "rsai-oauth" && data.data?.app === "ai_dialogue_calendar") {
+        refresh();
+        return;
+      }
+
+      // Từ FE (nếu signInAndGetCalendarToken postMessage "OAUTH_DONE_AI_DIALOGUE")
+      if (data.type === "OAUTH_DONE_AI_DIALOGUE") {
         refresh();
       }
     };
+
     window.addEventListener("message", handler);
     return () => window.removeEventListener("message", handler);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Load state lần đầu
   useEffect(() => {
     refresh();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Click outside để đóng menu
   useEffect(() => {
     if (!menuOpen) return;
+
     const onDocClick = (e) => {
       const t = e.target;
       if (menuRef.current && !menuRef.current.contains(t)) {
         setMenuOpen(false);
       }
     };
+
     document.addEventListener("mousedown", onDocClick);
     return () => document.removeEventListener("mousedown", onDocClick);
   }, [menuOpen]);
@@ -75,12 +93,10 @@ export default function CalendarAuthButton({ label, onAuthChanged }) {
   const handleLogin = async () => {
     setLoading(true);
     try {
-      await signInCalendarAndGetAppToken();
+      await signInAndGetCalendarToken();
       await refresh();
     } catch (e) {
-      alert(
-        "Sign-in failed: " + (e && e.message ? e.message : String(e || ""))
-      );
+      alert(`Sign-in failed: ${e?.message || e}`);
     } finally {
       setLoading(false);
     }
@@ -89,7 +105,7 @@ export default function CalendarAuthButton({ label, onAuthChanged }) {
   const handleLogout = async () => {
     setLoading(true);
     try {
-      await signOutCalendar();
+      await signOutCalendarApp();
       await refresh();
     } finally {
       setLoading(false);
@@ -97,32 +113,29 @@ export default function CalendarAuthButton({ label, onAuthChanged }) {
     }
   };
 
-  // Chưa đăng nhập
+  // ================== Signed out ==================
   if (!signedIn) {
     return (
       <button
-        type="button"
         onClick={handleLogin}
         disabled={loading}
         className="glb-outer glb-btn glb-btn--detail"
       >
         <img
-          src="https://www.gstatic.com/images/branding/product/1x/calendar_512dp.png"
+          src="https://www.gstatic.com/images/branding/product/1x/calendar_48dp.png"
           alt="Google Calendar"
           className="glb-google-icon"
         />
         <div className="glb-text">
           <div className="glb-title">
-            {loading
-              ? "Connecting…"
-              : label || "Connect Google Calendar"}
+            {loading ? "Connecting…" : label || "Connect Google Calendar"}
           </div>
         </div>
       </button>
     );
   }
 
-  // Đã đăng nhập -> hiện tên + menu Sign out
+  // ================== Signed in ==================
   return (
     <div className="glb-outer glb-card" ref={menuRef}>
       <div className="glb-card-row">
@@ -136,14 +149,11 @@ export default function CalendarAuthButton({ label, onAuthChanged }) {
           <div className="glb-avatar glb-avatar-fallback">G</div>
         )}
 
-        <div className="glb-info">
-          <strong className="glb-name">
-            {user && (user.name || user.email) || "Calendar Connected"}
-          </strong>
-          {user && user.email && (
-            <small className="glb-email">{user.email}</small>
-          )}
-        </div>
+       <strong className="glb-name">
+  {(user && user.name) || "Connected to Google Calendar"}
+</strong>
+<small className="glb-email">{(user && user.email) || ""}</small>
+
 
         <button
           type="button"
@@ -165,10 +175,12 @@ export default function CalendarAuthButton({ label, onAuthChanged }) {
             role="menuitem"
             className="glb-menu-item"
           >
-            Sign out
+            Disconnect
           </button>
         </div>
       )}
     </div>
   );
-}
+};
+
+export default GoogleCalendarLoginButton;

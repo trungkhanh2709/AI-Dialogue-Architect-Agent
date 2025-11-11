@@ -271,11 +271,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
               const { meetingData, chatHistory, log } = msg.payload;
 
-const payload = {
-            ...meetingData,                     // toàn bộ fields từ handleSave
-            meetingLog: Array.isArray(log) ? log.join("\n") : String(log || ""),
-            msg: Array.isArray(chatHistory) ? chatHistory : [],
-          };
+              const payload = {
+                ...meetingData, // toàn bộ fields từ handleSave
+                meetingLog: Array.isArray(log)
+                  ? log.join("\n")
+                  : String(log || ""),
+                msg: Array.isArray(chatHistory) ? chatHistory : [],
+              };
 
               try {
                 const response = await fetch(
@@ -336,34 +338,42 @@ const payload = {
       })();
       return true;
 
-case "SALE_PROSPECT_REQUEST":
-  (async () => {
-    try {
-      const { payload } = msg;
-      const url = `${VITE_URL_BACKEND}/api/sale/prospect`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(payload?.username ? { username: payload.username } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
+    case "SALE_PROSPECT_REQUEST":
+      (async () => {
+        try {
+          const { payload } = msg;
+          const url = `${VITE_URL_BACKEND}/api/sale/prospect`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(payload?.username ? { username: payload.username } : {}),
+            },
+            body: JSON.stringify(payload),
+          });
 
-      const raw = await res.text();
-      let data;
-      try { data = JSON.parse(raw); } catch { data = raw; }
+          const raw = await res.text();
+          let data;
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = raw;
+          }
 
-      // ✅ trả thẳng về cho sender (UI) qua callback
-      sendResponse({ ok: res.ok, status: res.status, data });
-    } catch (err) {
-      sendResponse({ ok: false, status: 0, data: `Background fetch error: ${String(err)}` });
-    }
-  })();
+          // ✅ trả thẳng về cho sender (UI) qua callback
+          sendResponse({ ok: res.ok, status: res.status, data });
+        } catch (err) {
+          sendResponse({
+            ok: false,
+            status: 0,
+            data: `Background fetch error: ${String(err)}`,
+          });
+        }
+      })();
 
-  return true;
+      return true;
 
-   case "BUSINESS_DNA_REQUEST":
+    case "BUSINESS_DNA_REQUEST":
       (async () => {
         try {
           const { payload } = msg;
@@ -379,15 +389,91 @@ case "SALE_PROSPECT_REQUEST":
 
           const raw = await res.text();
           let data;
-          try { data = JSON.parse(raw); } catch { data = raw; }
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = raw;
+          }
 
           sendResponse({ ok: res.ok, status: res.status, data });
         } catch (err) {
-          sendResponse({ ok: false, status: 0, data: `Background fetch error: ${String(err)}` });
+          sendResponse({
+            ok: false,
+            status: 0,
+            data: `Background fetch error: ${String(err)}`,
+          });
         }
       })();
       return true;
-    default:
+    
+       case "AI_DIALOGUE_ME":
+      (async () => {
+        try {
+          const { app_token } = msg;
+          if (!app_token) {
+            sendResponse({ ok: false, status: 401, error: "Missing app_token" });
+            return;
+          }
+
+          // 1) Lấy Google access_token cho app ai_dialogue_calendar
+          const tokRes = await fetch(
+            `${VITE_URL_BACKEND}/api/oauth2/google/token?app=ai_dialogue_calendar`,
+            {
+              headers: {
+                Authorization: `Bearer ${app_token}`,
+              },
+            }
+          );
+
+          if (!tokRes.ok) {
+            const t = await tokRes.text().catch(() => "");
+            console.warn("[AI_DIALOGUE_ME] /token failed:", tokRes.status, t);
+            sendResponse({ ok: false, status: tokRes.status, error: t });
+            return;
+          }
+
+          const tok = await tokRes.json().catch(() => ({}));
+          const access_token = tok.access_token;
+          if (!access_token) {
+            console.warn("[AI_DIALOGUE_ME] /token no access_token:", tok);
+            sendResponse({
+              ok: false,
+              status: 500,
+              error: "No access_token from /token",
+            });
+            return;
+          }
+
+          // 2) Gọi Google UserInfo để lấy profile (name/email/picture)
+          const uiRes = await fetch(
+            "https://www.googleapis.com/oauth2/v3/userinfo",
+            {
+              headers: { Authorization: `Bearer ${access_token}` },
+            }
+          );
+
+          if (!uiRes.ok) {
+            const t = await uiRes.text().catch(() => "");
+            console.warn("[AI_DIALOGUE_ME] userinfo failed:", uiRes.status, t);
+            sendResponse({ ok: false, status: uiRes.status, error: t });
+            return;
+          }
+
+          const user = await uiRes.json();
+
+          sendResponse({
+            ok: true,
+            status: 200,
+            user,
+          });
+        } catch (err) {
+          console.warn("[AI_DIALOGUE_ME] exception:", err);
+          sendResponse({ ok: false, status: 0, error: String(err) });
+        }
+      })();
+      return true;
+
+      default:
       if (msg.action === "pushCaption") {
         sharedCaptions.push(msg.data);
       } else if (msg.action === "getCaptions") {
