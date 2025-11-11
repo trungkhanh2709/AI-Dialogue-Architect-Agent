@@ -1,6 +1,5 @@
 import React, { useState } from "react";
-// import "../styles/sidebar.css";
-
+import GoogleCalendarLoginButton from "./GoogleCalendarLoginButton";
 export default function Sidebar({ blocks, onViewBlock, onEditBlock, onDeleteBlock, onCreateNew,setSidebarVisible  }) {
   const [search, setSearch] = useState("");
   const [expandedBlockId, setExpandedBlockId] = useState(null);
@@ -22,6 +21,13 @@ export default function Sidebar({ blocks, onViewBlock, onEditBlock, onDeleteBloc
 
   return (
     <div className="sidebar-container">
+      
+       <div style={{ marginBottom: 12 }}>
+         <div style={{ marginBottom: 12 }}>
+        <GoogleCalendarLoginButton label="Connect Google Calendar" />
+      </div>
+      </div>
+
       <input
         type="text"
         placeholder="Search blocks..."

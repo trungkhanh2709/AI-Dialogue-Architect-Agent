@@ -18,6 +18,8 @@ import settingPageCss from "../src/styles/settingPage.css?raw";
 import AIPsychAnalyzerStep from "../src/styles/AIPsychAnalyzerStep.css?raw";
 import ResponseModal from "../src/styles/modal.css?raw"
 import ResultBlock from "../src/styles/ResultBlock.css?raw";
+import GoogleLoginButton from "../src/styles/GoogleLoginButton.css?raw";
+
 export function initToolbar() {
   let toolbarHost = document.getElementById("__ai_dialogue_toolbar__");
 
@@ -39,11 +41,14 @@ export function initToolbar() {
     // tạo Shadow DOM
     const shadow = toolbarHost.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = popupCss + "\n" + meetingCss + "\n" + upgradePopupCss + "\n" + popupSidebarCss
-      + "\n" + sidebarCss + "\n"
+    style.textContent = popupCss + "\n" + meetingCss + "\n" + upgradePopupCss 
+      + popupSidebarCss
+      + sidebarCss 
       + collapsibleSectionCss
-      + blockListCss + "\n" + chatCss + "\n" + emailInputCss + expandTextareaCss
-      + "\n" + GoogleCalendarCss + "\n" + InputFieldCss + SaveConfirmPopupCss + settingPageCss + AIPsychAnalyzerStep+ ResponseModal + ResultBlock;
+      + blockListCss 
+      + chatCss + "\n" + emailInputCss + expandTextareaCss
+      + "\n" + GoogleCalendarCss + "\n" + InputFieldCss 
+      + SaveConfirmPopupCss + settingPageCss + AIPsychAnalyzerStep+ ResponseModal + ResultBlock +GoogleLoginButton;
 
     shadow.appendChild(style);
     // wrapper nội dung React

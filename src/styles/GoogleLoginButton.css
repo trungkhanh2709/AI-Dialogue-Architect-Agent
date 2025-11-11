@@ -1,0 +1,159 @@
+/* ../../styles/GoogleLoginButton.css */
+
+.glb-outer {
+  width: 100%;
+  max-width: 560px;
+}
+
+/* Signed-out button */
+.glb-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  background: #fff;
+  cursor: pointer;
+}
+
+.glb-btn:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.glb-google-icon {
+  width: 20px;
+  height: 20px;
+}
+
+/* Signed-in card */
+.glb-card {
+  position: relative;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+}
+
+.glb-card-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+}
+
+.glb-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+.glb-avatar-fallback {
+  background: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 600;
+}
+
+/* Info */
+.glb-info {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.glb-name {
+  font-size: 14px;
+  line-height: 1.1;
+  white-space: nowrap;
+  overflow: hidden;
+  color: #555;
+  text-overflow: ellipsis;
+}
+
+.glb-email {
+  color: #555;
+  font-size: 12px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Ellipsis */
+.glb-ellipsis {
+  margin-left: auto;
+  opacity: 0.6;
+}
+
+/* Ellipsis button (signed-in) */
+.glb-ellipsis-btn {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+}
+
+.glb-menu {
+  position: absolute;
+  right: 6px;
+  bottom: 100%;
+  margin-top: 6px;
+  min-width: 140px;
+  background: #fff;
+  border: 1px solid #dadce0;
+  border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,.08);
+  z-index: 9999;
+}
+
+.glb-menu-item {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  padding: 10px 12px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.glb-menu-item:hover {
+  background: #f6f6f6;
+}
+/* Biến thể hiển thị chi tiết, không có dấu ... */
+.glb-btn--detail {
+  align-items: center;     /* canh icon + khối text đẹp hơn */
+  gap: 10px;
+}
+
+/* Khối 2 dòng text trong nút */
+.glb-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.glb-title {
+  font-size: 14px;
+  line-height: 1.2;
+  font-weight: 600;
+  color: #202124;
+  white-space: normal;         /* cho phép xuống dòng */
+  word-break: break-word;
+}
+
+.glb-sub {
+  margin-top: 2px;
+  font-size: 12px;
+  line-height: 1.2;
+  color: #5f6368;
+  white-space: normal;         /* cho phép xuống dòng */
+  word-break: break-word;
+}
+
+/* Ẩn dấu ... nếu còn class cũ ở nơi khác */
+.glb-btn .glb-ellipsis { display: none; }

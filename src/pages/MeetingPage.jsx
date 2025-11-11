@@ -7,10 +7,7 @@ import SaveConfirmPopup from "../component/SaveConfirmPopup";
 
 
 export default function Meeting({ meetingData, onBack, cookieUserName, onExpire }) {
-  const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com'
-  // const VITE_URL_BACKEND = 'http://localhost:4000'
-
-
+ 
   const [currentSpeech, setCurrentSpeech] = useState({});
   const [meetingLog, setMeetingLog] = useState([]);
   const [lastFinalizedWords, setLastFinalizedWords] = useState({});

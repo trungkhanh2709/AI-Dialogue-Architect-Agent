@@ -9,6 +9,7 @@ import CollapsibleSection from "./CollapsibleSection";
 import ResultModal from "./ResultModal";
 import ResultBlock from "./ResultBlock";
 import AIPsychAnalyzerStep from "./AIPsychAnalyzerStep";
+
 const LS_PERSONA_KEY = "bm.persona_profile";
 
 export default function PopupWithSidebar({
