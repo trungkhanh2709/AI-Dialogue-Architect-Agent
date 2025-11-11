@@ -220,8 +220,31 @@ export async function isSignedInCalendar() {
 }
 
 export async function signOutCalendarApp() {
-  await clearAppToken();
+  try {
+    const stored = await loadAppToken();
+
+    // Gọi BE xoá token Google (optional, lỗi cũng bỏ qua)
+    if (stored && stored.app_token) {
+      try {
+        await fetch(
+          `${API_BASE}/api/oauth2/google/logout?app=ai_dialogue_calendar`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${stored.app_token}`,
+            },
+          }
+        );
+      } catch (e) {
+        console.warn("[ai-dialogue] logout backend failed (ignored):", e);
+      }
+    }
+  } finally {
+    console.log("[ai-dialogue] clearing local app token for calendar");
+    await clearAppToken();
+  }
 }
+
 
 function canUseChromeRuntime() {
   try {

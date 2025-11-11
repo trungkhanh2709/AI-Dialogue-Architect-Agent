@@ -1,7 +1,5 @@
-// src/component/GoogleCalendarLoginButton.jsx
-
 /// <reference types="chrome" />
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import {
   getAiDialogueGoogleUser,
   isSignedInCalendar,
@@ -15,20 +13,19 @@ const GoogleCalendarLoginButton = ({ onAuthChanged, label }) => {
   const [signedIn, setSignedIn] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
-  const menuRef = useRef(null);
-  const refreshingRef = useRef(false);
+  const cardRef = useRef(null);
 
   const refresh = async () => {
-    if (refreshingRef.current) return;
-    refreshingRef.current = true;
+    console.log("[ai-dialogue] refresh() called");
     setLoading(true);
-
     try {
       const ok = await isSignedInCalendar();
+      console.log("[ai-dialogue] isSignedInCalendar =", ok);
       setSignedIn(ok);
 
       if (ok) {
         const u = await getAiDialogueGoogleUser();
+        console.log("[ai-dialogue] getAiDialogueGoogleUser ->", u);
         setUser(u);
         onAuthChanged && onAuthChanged(true, u || null);
       } else {
@@ -36,30 +33,28 @@ const GoogleCalendarLoginButton = ({ onAuthChanged, label }) => {
         onAuthChanged && onAuthChanged(false, null);
       }
     } catch (e) {
-      console.warn("[ai-dialogue calendar] refresh error:", e);
+      console.warn("[ai-dialogue] refresh error:", e);
       setUser(null);
       setSignedIn(false);
       onAuthChanged && onAuthChanged(false, null);
     } finally {
       setLoading(false);
-      refreshingRef.current = false;
     }
   };
 
-  // Lắng message từ popup
+  // Listen OAuth done
   useEffect(() => {
     const handler = (ev) => {
       const data = ev.data;
       if (!data) return;
 
-      // Từ callback BE: { source: "rsai-oauth", data: { app, ... } }
       if (data.source === "rsai-oauth" && data.data?.app === "ai_dialogue_calendar") {
+        console.log("[ai-dialogue] message from oauth popup (rsai-oauth)");
         refresh();
-        return;
       }
 
-      // Từ FE (nếu signInAndGetCalendarToken postMessage "OAUTH_DONE_AI_DIALOGUE")
       if (data.type === "OAUTH_DONE_AI_DIALOGUE") {
+        console.log("[ai-dialogue] OAUTH_DONE_AI_DIALOGUE message");
         refresh();
       }
     };
@@ -69,33 +64,39 @@ const GoogleCalendarLoginButton = ({ onAuthChanged, label }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Load state lần đầu
+  // First load
   useEffect(() => {
     refresh();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Click outside để đóng menu
+  // Close menu on click outside (kể cả đang ở shadow DOM)
   useEffect(() => {
     if (!menuOpen) return;
 
-    const onDocClick = (e) => {
-      const t = e.target;
-      if (menuRef.current && !menuRef.current.contains(t)) {
+    const onClick = (e) => {
+      const cardEl = cardRef.current;
+      if (!cardEl) return;
+
+      const path = e.composedPath ? e.composedPath() : [];
+      if (!path.includes(cardEl)) {
         setMenuOpen(false);
       }
     };
 
-    document.addEventListener("mousedown", onDocClick);
-    return () => document.removeEventListener("mousedown", onDocClick);
+    // capture = true để bắt cả sự kiện trong shadow DOM
+    window.addEventListener("click", onClick, true);
+    return () => window.removeEventListener("click", onClick, true);
   }, [menuOpen]);
 
   const handleLogin = async () => {
+    console.log("[ai-dialogue] Login clicked");
     setLoading(true);
     try {
       await signInAndGetCalendarToken();
       await refresh();
     } catch (e) {
+      console.warn("[ai-dialogue] Sign-in failed:", e);
       alert(`Sign-in failed: ${e?.message || e}`);
     } finally {
       setLoading(false);
@@ -103,17 +104,21 @@ const GoogleCalendarLoginButton = ({ onAuthChanged, label }) => {
   };
 
   const handleLogout = async () => {
+    console.log("[ai-dialogue] Logout clicked");
     setLoading(true);
     try {
       await signOutCalendarApp();
+      console.log("[ai-dialogue] signOutCalendarApp done, calling refresh");
       await refresh();
+    } catch (e) {
+      console.warn("[ai-dialogue] Logout error:", e);
     } finally {
       setLoading(false);
       setMenuOpen(false);
     }
   };
 
-  // ================== Signed out ==================
+  // ============ Signed out ============
   if (!signedIn) {
     return (
       <button
@@ -135,9 +140,9 @@ const GoogleCalendarLoginButton = ({ onAuthChanged, label }) => {
     );
   }
 
-  // ================== Signed in ==================
+  // ============ Signed in ============
   return (
-    <div className="glb-outer glb-card" ref={menuRef}>
+    <div className="glb-outer glb-card" ref={cardRef}>
       <div className="glb-card-row">
         {user && user.picture ? (
           <img
@@ -149,33 +154,45 @@ const GoogleCalendarLoginButton = ({ onAuthChanged, label }) => {
           <div className="glb-avatar glb-avatar-fallback">G</div>
         )}
 
-       <strong className="glb-name">
-  {(user && user.name) || "Connected to Google Calendar"}
-</strong>
-<small className="glb-email">{(user && user.email) || ""}</small>
-
+        <div className="glb-info">
+          <strong className="glb-name">
+            {(user && user.name) || "Connected to Google Calendar"}
+          </strong>
+          <small className="glb-email">{(user && user.email) || ""}</small>
+        </div>
 
         <button
           type="button"
-          onClick={() => setMenuOpen((v) => !v)}
+          className="glb-ellipsis-btn"
           aria-haspopup="menu"
           aria-expanded={menuOpen}
-          title="More"
-          className="glb-ellipsis-btn"
+          onClick={(e) => {
+            e.stopPropagation();
+            setMenuOpen((v) => !v);
+          }}
+          disabled={loading}
         >
           ⋯
         </button>
       </div>
 
       {menuOpen && (
-        <div role="menu" className="glb-menu">
+        <div
+          role="menu"
+          className="glb-menu"
+          onClick={(e) => e.stopPropagation()}
+        >
           <button
             type="button"
-            onClick={handleLogout}
             role="menuitem"
             className="glb-menu-item"
+            onClick={(e) => {
+              e.stopPropagation();
+              handleLogout();
+            }}
+            disabled={loading}
           >
-            Disconnect
+            {loading ? "Disconnecting..." : "Logout"}
           </button>
         </div>
       )}

@@ -3,7 +3,7 @@ import React, { useState, useEffect } from "react";
 import SideBar from "./Sidebar";
 import InboxOutlined from "../assets/InboxOutlined.svg?react";
 import InputField from "./InputField";
-// import GoogleCalendar from "./GoogleCalendar";
+import GoogleCalendar from "./GoogleCalendar";
 import ExpandableTextarea from "./ExpandableTextarea";
 import CollapsibleSection from "./CollapsibleSection";
 import ResultModal from "./ResultModal";
