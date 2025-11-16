@@ -302,7 +302,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
 
-        case "SEND_MESSAGE_TO_AGENT_STREAM":
+    case "SEND_MESSAGE_TO_AGENT_STREAM":
       (async () => {
         try {
           chrome.tabs.query(
@@ -318,11 +318,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               }
 
               const activeTabId = tabs[0].id;
-              const { meetingData, chatHistory, log } = msg.payload;
+              const { meetingData, chatHistory, log, requestId } = msg.payload;
 
               const payload = {
                 ...meetingData,
-                meetingLog: Array.isArray(log) ? log.join("\n") : String(log || ""),
+                meetingLog: Array.isArray(log)
+                  ? log.join("\n")
+                  : String(log || ""),
                 msg: Array.isArray(chatHistory) ? chatHistory : [],
               };
 
@@ -340,6 +342,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 chrome.tabs.sendMessage(activeTabId, {
                   type: "AGENT_STREAM_ERROR",
                   payload: text || `HTTP ${res.status}`,
+                  requestId,
                 });
                 sendResponse({ ok: false, error: text });
                 return;
@@ -348,26 +351,27 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               // báo cho FE là stream đã start (optional)
               chrome.tabs.sendMessage(activeTabId, {
                 type: "AGENT_STREAM_START",
+                payload: { requestId },
               });
 
-           const reader = res.body.getReader();
-const decoder = new TextDecoder("utf-8");
+              const reader = res.body.getReader();
+              const decoder = new TextDecoder("utf-8");
 
-while (true) {
-  const { value, done } = await reader.read();
-  if (done) break;
-  const chunk = decoder.decode(value, { stream: true });
+              while (true) {
+                const { value, done } = await reader.read();
+                if (done) break;
+                const chunk = decoder.decode(value, { stream: true });
 
-  chrome.tabs.sendMessage(activeTabId, {
-    type: "AGENT_STREAM_CHUNK",
-    payload: { delta: chunk },
-  });
-}
-
+                chrome.tabs.sendMessage(activeTabId, {
+                  type: "AGENT_STREAM_CHUNK",
+                  payload: { delta: chunk, requestId },
+                });
+              }
 
               // báo end
               chrome.tabs.sendMessage(activeTabId, {
                 type: "AGENT_STREAM_DONE",
+                payload: { requestId },
               });
 
               sendResponse({ ok: true });
@@ -379,7 +383,6 @@ while (true) {
         }
       })();
       return true;
-  
 
     case "SAVE_MEETING_TRANSCRIPT":
       (async function() {
@@ -484,13 +487,17 @@ while (true) {
         }
       })();
       return true;
-    
-       case "AI_DIALOGUE_ME":
+
+    case "AI_DIALOGUE_ME":
       (async () => {
         try {
           const { app_token } = msg;
           if (!app_token) {
-            sendResponse({ ok: false, status: 401, error: "Missing app_token" });
+            sendResponse({
+              ok: false,
+              status: 401,
+              error: "Missing app_token",
+            });
             return;
           }
 
@@ -552,7 +559,7 @@ while (true) {
       })();
       return true;
 
-      default:
+    default:
       if (msg.action === "pushCaption") {
         sharedCaptions.push(msg.data);
       } else if (msg.action === "getCaptions") {

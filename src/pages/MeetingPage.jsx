@@ -28,7 +28,7 @@ export default function Meeting({ meetingData, onBack, cookieUserName, onExpire 
   const decodedCookieEmail = decodeURIComponent(cookieUserName);
   const [showSavePopup, setShowSavePopup] = useState(false);
 
-
+const reqIdRef = useRef(0); 
   function isMySpeech(speaker) {
     return speaker === "You" || speaker === "Bạn";
   }
@@ -133,59 +133,65 @@ useEffect(() => {
       return;
     }
 
-  if (message.type === "AGENT_STREAM_CHUNK") {
-  const { delta } = message.payload;
+if (message.type === "AGENT_STREAM_CHUNK") {
+  const { delta, requestId } = message.payload || {};
+  if (!delta) return;
 
-  setChatMessages(prev => {
+  setChatMessages((prev) => {
     const m = [...prev];
     for (let i = m.length - 1; i >= 0; i--) {
-      if (m[i].isAgent && m[i].isTemp) {
-        m[i].text = (m[i].text || "") + delta;
+      if (m[i].isAgent && m[i].isTemp && m[i].requestId === requestId) {
+        m[i] = {
+          ...m[i],
+          text: (m[i].text || "") + delta,
+        };
         break;
       }
     }
     return m;
   });
+  return;
+}
+if (message.type === "AGENT_STREAM_DONE") {
+  const { requestId } = message.payload || {};
+  setAgentTyping(false);
+  setChatMessages((prev) => {
+    const newArr = [...prev];
+    for (let i = newArr.length - 1; i >= 0; i--) {
+      if (newArr[i].isAgent && newArr[i].isTemp && newArr[i].requestId === requestId) {
+        newArr[i] = {
+          ...newArr[i],
+          isTemp: false,
+        };
+        break;
+      }
+    }
+    return newArr;
+  });
+  return;
 }
 
-
-    if (message.type === "AGENT_STREAM_DONE") {
-      setAgentTyping(false);
-      setChatMessages(prev => {
-        const newArr = [...prev];
-        for (let i = newArr.length - 1; i >= 0; i--) {
-          if (newArr[i].isAgent && newArr[i].isTemp) {
-            newArr[i] = {
-              ...newArr[i],
-              isTemp: false,
-            };
-            break;
-          }
-        }
-        return newArr;
-      });
-      return;
+if (message.type === "AGENT_STREAM_ERROR") {
+  const { error, requestId } = message.payload || {};
+  console.error("Agent stream error:", error);
+  setAgentTyping(false);
+  setChatMessages((prev) => {
+    const newArr = [...prev];
+    for (let i = newArr.length - 1; i >= 0; i--) {
+      if (newArr[i].isAgent && newArr[i].isTemp && newArr[i].requestId === requestId) {
+        newArr[i] = {
+          ...newArr[i],
+          text: "Agent is unable to respond 😢",
+          isTemp: false,
+        };
+        break;
+      }
     }
+    return newArr;
+  });
+  return;
+}
 
-    if (message.type === "AGENT_STREAM_ERROR") {
-      console.error("Agent stream error:", message.payload);
-      setAgentTyping(false);
-      setChatMessages(prev => {
-        const newArr = [...prev];
-        for (let i = newArr.length - 1; i >= 0; i--) {
-          if (newArr[i].isAgent && newArr[i].isTemp) {
-            newArr[i] = {
-              ...newArr[i],
-              text: "Agent is unable to respond 😢",
-              isTemp: false,
-            };
-            break;
-          }
-        }
-        return newArr;
-      });
-      return;
-    }
     // ====== END STREAM ======
 
       if (message.type !== "LIVE_TRANSCRIPT") return;
@@ -210,6 +216,7 @@ useEffect(() => {
 
       // --- Handle finalize ---
       if (action === "finalize" && finalized) {
+
         setMeetingLog((prev) => {
           const newLogEntry = `${speaker}: "${finalized}"`;
           if (prev.includes(newLogEntry)) return prev;
@@ -271,18 +278,21 @@ useEffect(() => {
   }, [currentSpeech, meetingLog]);
 
 
-
 const sendMessageToAgent = (newMessage, log) => {
   if (sessionExpired) return;
 
-  // thêm message agent rỗng, isTemp = true
-  setChatMessages(prev => [
+  // Tạo ID duy nhất cho mỗi request
+  const requestId = ++reqIdRef.current;
+
+  // thêm message agent rỗng, isTemp = true, kèm requestId
+  setChatMessages((prev) => [
     ...prev,
     {
       speaker: "Agent",
       text: "", // sẽ được fill dần từ stream
       isAgent: true,
       isTemp: true,
+      requestId, // 👈 quan trọng
     },
   ]);
 
@@ -295,15 +305,16 @@ const sendMessageToAgent = (newMessage, log) => {
         meetingData,
         chatHistory,
         log,
+        requestId, // 👈 gửi luôn sang background
       },
     },
     (res) => {
       // res chỉ báo ok/error tổng thể, stream đi qua onMessage bên dưới
       if (res?.error || res?.ok === false) {
         console.error("Agent stream start failed:", res.error);
-        setChatMessages(prev =>
-          prev.map(msg =>
-            msg.isTemp && msg.isAgent
+        setChatMessages((prev) =>
+          prev.map((msg) =>
+            msg.isTemp && msg.isAgent && msg.requestId === requestId
               ? { ...msg, text: "Agent is unable to respond 😢", isTemp: false }
               : msg
           )
@@ -313,8 +324,6 @@ const sendMessageToAgent = (newMessage, log) => {
     }
   );
 };
-
-
 
 
   const handleClose = () => {
