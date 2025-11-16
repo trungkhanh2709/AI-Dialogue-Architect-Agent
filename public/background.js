@@ -302,6 +302,85 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
 
+        case "SEND_MESSAGE_TO_AGENT_STREAM":
+      (async () => {
+        try {
+          chrome.tabs.query(
+            {
+              url: "https://meet.google.com/*",
+              active: true,
+              currentWindow: true,
+            },
+            async (tabs) => {
+              if (!tabs.length) {
+                sendResponse({ error: "Not on a Google Meet tab" });
+                return;
+              }
+
+              const activeTabId = tabs[0].id;
+              const { meetingData, chatHistory, log } = msg.payload;
+
+              const payload = {
+                ...meetingData,
+                meetingLog: Array.isArray(log) ? log.join("\n") : String(log || ""),
+                msg: Array.isArray(chatHistory) ? chatHistory : [],
+              };
+
+              const res = await fetch(
+                `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent_stream`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
+                }
+              );
+
+              if (!res.ok || !res.body) {
+                const text = await res.text().catch(() => "");
+                chrome.tabs.sendMessage(activeTabId, {
+                  type: "AGENT_STREAM_ERROR",
+                  payload: text || `HTTP ${res.status}`,
+                });
+                sendResponse({ ok: false, error: text });
+                return;
+              }
+
+              // báo cho FE là stream đã start (optional)
+              chrome.tabs.sendMessage(activeTabId, {
+                type: "AGENT_STREAM_START",
+              });
+
+           const reader = res.body.getReader();
+const decoder = new TextDecoder("utf-8");
+
+while (true) {
+  const { value, done } = await reader.read();
+  if (done) break;
+  const chunk = decoder.decode(value, { stream: true });
+
+  chrome.tabs.sendMessage(activeTabId, {
+    type: "AGENT_STREAM_CHUNK",
+    payload: { delta: chunk },
+  });
+}
+
+
+              // báo end
+              chrome.tabs.sendMessage(activeTabId, {
+                type: "AGENT_STREAM_DONE",
+              });
+
+              sendResponse({ ok: true });
+            }
+          );
+        } catch (err) {
+          console.error("[SEND_MESSAGE_TO_AGENT_STREAM] error:", err);
+          sendResponse({ ok: false, error: String(err) });
+        }
+      })();
+      return true;
+  
+
     case "SAVE_MEETING_TRANSCRIPT":
       (async function() {
         try {

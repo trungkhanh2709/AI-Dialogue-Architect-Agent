@@ -1,23 +1,24 @@
 import React, { useEffect, useRef, useState } from "react";
 // import "../styles/chat.css";
 
-export default function ChatUI({ messages, onClose,userEmail,setSessionExpired    }) {
+export default function ChatUI({ messages, onClose, userEmail, setSessionExpired }) {
   const chatRef = useRef(null);
   const [timer, setTimer] = useState({ minutes: 0, seconds: 0 });
 
-
   useEffect(() => {
     if (chatRef.current) {
+      // luôn keep view tại message agent cuối (đang stream)
       const lastAgent = chatRef.current.querySelector(".chat-message.agent:last-child");
       if (lastAgent) {
         const timerHeight = document.querySelector(".timer-container")?.offsetHeight || 0;
         const margin = 10;
         chatRef.current.scrollTop = lastAgent.offsetTop - timerHeight - margin;
+      } else {
+        // fallback: scroll xuống cuối
+        chatRef.current.scrollTop = chatRef.current.scrollHeight;
       }
     }
   }, [messages]);
-
-
 
   useEffect(() => {
     // Bật timer khi component mount
@@ -27,12 +28,11 @@ export default function ChatUI({ messages, onClose,userEmail,setSessionExpired  
     const listener = (msg) => {
       if (msg.type === "TIMER_UPDATE") {
         setTimer(msg.payload);
-         if (msg.payload.minutes === 0 && msg.payload.seconds === 0) {
-      setSessionExpired(true); // cái này sẽ trigger onExpire ở MeetingPage
-      chrome.runtime.sendMessage({ type: "SESSION_EXPIRED" });
-    }
+        if (msg.payload.minutes === 0 && msg.payload.seconds === 0) {
+          setSessionExpired(true); // cái này sẽ trigger onExpire ở MeetingPage
+          chrome.runtime.sendMessage({ type: "SESSION_EXPIRED" });
+        }
       }
-
     };
     chrome.runtime.onMessage.addListener(listener);
 
@@ -42,7 +42,8 @@ export default function ChatUI({ messages, onClose,userEmail,setSessionExpired  
     });
 
     return () => chrome.runtime.onMessage.removeListener(listener);
-  }, []);
+  }, [setSessionExpired]);
+
   return (
     <div className="chat-ui">
       <div className="timer-container">
@@ -53,9 +54,15 @@ export default function ChatUI({ messages, onClose,userEmail,setSessionExpired  
             <div className="inner-circle"></div>
           </div>
           <div className="digital-timer">
-            <span className="mm">{timer.minutes.toString().padStart(2, "0")}</span>
-            <span className={`colon ${timer.seconds % 2 === 0 ? "" : "off"}`}>:</span>
-            <span className="ss">{timer.seconds.toString().padStart(2, "0")}</span>
+            <span className="mm">
+              {timer.minutes.toString().padStart(2, "0")}
+            </span>
+            <span className={`colon ${timer.seconds % 2 === 0 ? "" : "off"}`}>
+              :
+            </span>
+            <span className="ss">
+              {timer.seconds.toString().padStart(2, "0")}
+            </span>
           </div>
         </div>
 
@@ -68,15 +75,13 @@ export default function ChatUI({ messages, onClose,userEmail,setSessionExpired  
           <span className="line line2"></span>
         </button>
       </div>
+
       <div className="chat-container" ref={chatRef}>
-
-
-
-
-
         {messages.map((msg, i) => (
           <div
-            className={`chat-message ${msg.isAgent ? "agent" : "user"} ${msg.isTemp ? "typing" : ""}`}
+            className={`chat-message ${msg.isAgent ? "agent" : "user"} ${
+              msg.isTemp ? "typing" : ""
+            }`}
             key={i}
           >
             {!msg.isAgent && <b>{msg.speaker}:</b>}{" "}
@@ -84,14 +89,23 @@ export default function ChatUI({ messages, onClose,userEmail,setSessionExpired  
               <span className="typing-container">
                 <span className="typing-text">speaking</span>
                 <span className="typing-dots">
-                  <span></span><span></span><span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
                 </span>
               </span>
             ) : msg.isTemp ? (
+              // STREAM MODE: vừa show text đang stream, vừa show typing dots
               <span className="typing-container">
-                <span className="typing-text">Agent is responding </span>
+                <span className="typing-text">
+                  {msg.text && msg.text.trim().length
+                    ? msg.text
+                    : "Agent is responding"}
+                </span>
                 <span className="typing-dots">
-                  <span></span><span></span><span></span>
+                  <span></span>
+                  <span></span>
+                  <span></span>
                 </span>
               </span>
             ) : (
@@ -100,8 +114,6 @@ export default function ChatUI({ messages, onClose,userEmail,setSessionExpired  
           </div>
         ))}
       </div>
-
-
     </div>
   );
 }

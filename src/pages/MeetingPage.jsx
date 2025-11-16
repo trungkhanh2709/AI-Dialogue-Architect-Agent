@@ -128,6 +128,66 @@ useEffect(() => {
         return;
       }
 
+        if (message.type === "AGENT_STREAM_START") {
+      // optional: có thể set trạng thái gì đó
+      return;
+    }
+
+  if (message.type === "AGENT_STREAM_CHUNK") {
+  const { delta } = message.payload;
+
+  setChatMessages(prev => {
+    const m = [...prev];
+    for (let i = m.length - 1; i >= 0; i--) {
+      if (m[i].isAgent && m[i].isTemp) {
+        m[i].text = (m[i].text || "") + delta;
+        break;
+      }
+    }
+    return m;
+  });
+}
+
+
+    if (message.type === "AGENT_STREAM_DONE") {
+      setAgentTyping(false);
+      setChatMessages(prev => {
+        const newArr = [...prev];
+        for (let i = newArr.length - 1; i >= 0; i--) {
+          if (newArr[i].isAgent && newArr[i].isTemp) {
+            newArr[i] = {
+              ...newArr[i],
+              isTemp: false,
+            };
+            break;
+          }
+        }
+        return newArr;
+      });
+      return;
+    }
+
+    if (message.type === "AGENT_STREAM_ERROR") {
+      console.error("Agent stream error:", message.payload);
+      setAgentTyping(false);
+      setChatMessages(prev => {
+        const newArr = [...prev];
+        for (let i = newArr.length - 1; i >= 0; i--) {
+          if (newArr[i].isAgent && newArr[i].isTemp) {
+            newArr[i] = {
+              ...newArr[i],
+              text: "Agent is unable to respond 😢",
+              isTemp: false,
+            };
+            break;
+          }
+        }
+        return newArr;
+      });
+      return;
+    }
+    // ====== END STREAM ======
+
       if (message.type !== "LIVE_TRANSCRIPT") return;
 
       const { action, speaker, finalized, currentSpeech: liveSpeech } = message.payload;
@@ -212,46 +272,47 @@ useEffect(() => {
 
 
 
-  const sendMessageToAgent = (newMessage, log) => {
-    if (sessionExpired) return;
+const sendMessageToAgent = (newMessage, log) => {
+  if (sessionExpired) return;
 
-    setAgentTyping(true);
+  // thêm message agent rỗng, isTemp = true
+  setChatMessages(prev => [
+    ...prev,
+    {
+      speaker: "Agent",
+      text: "", // sẽ được fill dần từ stream
+      isAgent: true,
+      isTemp: true,
+    },
+  ]);
 
-    setChatMessages(prev => [
-      ...prev,
-      { speaker: "Agent", text: "The agent is responding...", isAgent: true, isTemp: true },
-    ]);
+  setAgentTyping(true);
 
-    chrome.runtime.sendMessage(
-      {
-        type: "SEND_MESSAGE_TO_AGENT",
-        payload: {
-          meetingData,
-          chatHistory,
-          log,
-        },
+  chrome.runtime.sendMessage(
+    {
+      type: "SEND_MESSAGE_TO_AGENT_STREAM",
+      payload: {
+        meetingData,
+        chatHistory,
+        log,
       },
-      (res) => {
-        if (res?.error) {
-          console.error("Agent failed:", res.error);
-          setChatMessages(prev =>
-            prev.map(msg =>
-              msg.isTemp ? { ...msg, text: "Agent is unable to respond 😢", isTemp: false } : msg
-            )
-          );
-        } else if (res?.data?.status === 200) {
-          const agentText = res.data.content;
-          setChatMessages(prev =>
-            prev.map(msg =>
-              msg.isTemp ? { ...msg, text: agentText, isTemp: false } : msg
-            )
-          );
-          setChatHistory(res.data.msg);
-        }
+    },
+    (res) => {
+      // res chỉ báo ok/error tổng thể, stream đi qua onMessage bên dưới
+      if (res?.error || res?.ok === false) {
+        console.error("Agent stream start failed:", res.error);
+        setChatMessages(prev =>
+          prev.map(msg =>
+            msg.isTemp && msg.isAgent
+              ? { ...msg, text: "Agent is unable to respond 😢", isTemp: false }
+              : msg
+          )
+        );
         setAgentTyping(false);
       }
-    );
-  };
+    }
+  );
+};
 
 
 
