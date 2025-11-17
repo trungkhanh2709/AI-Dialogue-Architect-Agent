@@ -559,7 +559,140 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
 
-    default:
+    case "AI_DIALOGUE_CALENDAR_CREATE":
+  (async () => {
+    try {
+      const { app_token, payload } = msg;
+      if (!app_token) {
+        sendResponse({ ok: false, status: 401, error: "Missing app_token" });
+        return;
+      }
+
+      const url = `${VITE_URL_BACKEND}/api/calendar/create`;
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${app_token}`,   // 👈 chính là app_token
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = raw;
+      }
+
+      sendResponse({ ok: res.ok, status: res.status, data });
+    } catch (err) {
+      console.error("[AI_DIALOGUE_CALENDAR_CREATE] error:", err);
+      sendResponse({
+        ok: false,
+        status: 0,
+        data: `Background fetch error: ${String(err)}`,
+      });
+    }
+  })();
+  return true;
+
+
+    case "AI_DIALOGUE_CALENDAR_UPDATE":
+      (async () => {
+        try {
+          const { app_token, payload } = msg;
+          if (!app_token) {
+            sendResponse({ ok: false, status: 401, error: "Missing app_token" });
+            return;
+          }
+
+          const url = `${VITE_URL_BACKEND}/api/calendar/update`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${app_token}`,
+            },
+            body: JSON.stringify(payload),
+          });
+
+          const raw = await res.text();
+          let data;
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = raw;
+          }
+
+          sendResponse({ ok: res.ok, status: res.status, data });
+        } catch (err) {
+          console.error("[AI_DIALOGUE_CALENDAR_UPDATE] error:", err);
+          sendResponse({
+            ok: false,
+            status: 0,
+            data: `Background fetch error: ${String(err)}`,
+          });
+        }
+      })();
+      return true;
+    
+         case "AI_DIALOGUE_CALENDAR_DELETE":
+      (async () => {
+        try {
+          const { app_token, event_id } = msg;
+          if (!app_token) {
+            sendResponse({
+              ok: false,
+              status: 401,
+              error: "Missing app_token",
+            });
+            return;
+          }
+          if (!event_id) {
+            sendResponse({
+              ok: false,
+              status: 400,
+              error: "Missing event_id",
+            });
+            return;
+          }
+
+          const url = `${VITE_URL_BACKEND}/api/google/calendar/event/${encodeURIComponent(
+            event_id
+          )}`;
+
+          const res = await fetch(url, {
+            method: "DELETE",
+            headers: {
+              Authorization: `Bearer ${app_token}`,
+            },
+          });
+
+          const raw = await res.text();
+          let data;
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = raw;
+          }
+
+          console.log("[AI_DIALOGUE_CALENDAR_DELETE] BE response:", data);
+          sendResponse({ ok: res.ok, status: res.status, data });
+        } catch (err) {
+          console.error("[AI_DIALOGUE_CALENDAR_DELETE] error:", err);
+          sendResponse({
+            ok: false,
+            status: 0,
+            data: `Background fetch error: ${String(err)}`,
+          });
+        }
+      })();
+      return true;
+ 
+
+      default:
       if (msg.action === "pushCaption") {
         sharedCaptions.push(msg.data);
       } else if (msg.action === "getCaptions") {
