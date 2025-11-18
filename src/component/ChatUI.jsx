@@ -5,20 +5,35 @@ export default function ChatUI({ messages, onClose, userEmail, setSessionExpired
   const chatRef = useRef(null);
   const [timer, setTimer] = useState({ minutes: 0, seconds: 0 });
 
-  useEffect(() => {
-    if (chatRef.current) {
-      // luôn keep view tại message agent cuối (đang stream)
-      const lastAgent = chatRef.current.querySelector(".chat-message.agent:last-child");
-      if (lastAgent) {
-        const timerHeight = document.querySelector(".timer-container")?.offsetHeight || 0;
-        const margin = 10;
-        chatRef.current.scrollTop = lastAgent.offsetTop - timerHeight - margin;
-      } else {
-        // fallback: scroll xuống cuối
-        chatRef.current.scrollTop = chatRef.current.scrollHeight;
-      }
-    }
-  }, [messages]);
+ useEffect(() => {
+  if (!chatRef.current) return;
+
+  // ƯU TIÊN: bubble agent đang stream (isTemp = true)
+  let target = chatRef.current.querySelector(
+    ".chat-message.agent.typing:last-child"
+  );
+
+  // Nếu không có bubble đang stream -> fallback về agent cuối cùng
+  if (!target) {
+    target = chatRef.current.querySelector(".chat-message.agent:last-child");
+  }
+
+  if (target) {
+    const timerHeight =
+      document.querySelector(".timer-container")?.offsetHeight || 0;
+    const margin = 10;
+
+    const targetTop = target.offsetTop;
+    chatRef.current.scrollTop = Math.max(
+      targetTop - timerHeight - margin,
+      0
+    );
+  } else {
+    // Không tìm được message => fallback scroll xuống cuối
+    chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  }
+}, [messages]);
+
 
   useEffect(() => {
     // Bật timer khi component mount
