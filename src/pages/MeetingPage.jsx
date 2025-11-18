@@ -215,41 +215,45 @@ if (message.type === "AGENT_STREAM_ERROR") {
       }
 
       // --- Handle finalize ---
-      if (action === "finalize" && finalized) {
+     if (action === "finalize" && finalized) {
+  setMeetingLog((prev) => {
+    const newLogEntry = `${speaker}: "${finalized}"`;
+    if (prev.includes(newLogEntry)) return prev;
 
-        setMeetingLog((prev) => {
-          const newLogEntry = `${speaker}: "${finalized}"`;
-          if (prev.includes(newLogEntry)) return prev;
+    const updatedLog = [...prev, newLogEntry];
 
-          const updatedLog = [...prev, newLogEntry];
+    // 🔥 1) MỖI LẦN FINALIZE -> AUTO SAVE FULL TRANSCRIPT
+    const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
+    if (autoSaveEnabled) {
+      // dùng helper đã viết sẵn: sẽ tự biết tạo mới hay update
+      saveOrUpdateMeeting(updatedLog);
+    }
 
-          // chỉ gửi agent nếu session chưa hết hạn
-          if (!sessionExpired && !isMySpeech(speaker)) {
-            setChatMessages((prevMsgs) => [...prevMsgs, { speaker, text: finalized }]);
-            setSpeakingUsers(prev => ({ ...prev, [speaker]: false }));
-            sendMessageToAgent({ speaker, text: finalized }, updatedLog);
-            const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
+    // 🔥 2) Gửi cho agent nếu session chưa hết hạn & speaker không phải "You/Bạn"
+    if (!sessionExpired && !isMySpeech(speaker)) {
+      setChatMessages((prevMsgs) => [
+        ...prevMsgs,
+        { speaker, text: finalized },
+      ]);
+      setSpeakingUsers((prev) => ({ ...prev, [speaker]: false }));
+      sendMessageToAgent({ speaker, text: finalized }, updatedLog);
+    }
 
-            // chỉ lưu nếu autoSave bật
-            if (autoSaveEnabled) {
-              saveMeetingData();
-            }
-          }
+    return updatedLog;
+  });
 
-          return updatedLog;
-        });
+  setCurrentSpeech((prev) => {
+    const updated = { ...prev };
+    delete updated[speaker];
+    return updated;
+  });
 
-        setCurrentSpeech((prev) => {
-          const updated = { ...prev };
-          delete updated[speaker];
-          return updated;
-        });
+  setLastFinalizedWords((prev) => ({
+    ...prev,
+    [speaker]: [...(prev[speaker] || []), ...finalized.split(/\s+/)],
+  }));
+}
 
-        setLastFinalizedWords((prev) => ({
-          ...prev,
-          [speaker]: [...(prev[speaker] || []), ...finalized.split(/\s+/)],
-        }));
-      }
     };
 
     chrome.runtime.onMessage.addListener(handleMessage);
