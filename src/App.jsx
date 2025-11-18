@@ -12,7 +12,7 @@ export default function App() {
   const [cookieUserName, setCookieUserName] = useState(null);
   const [showUpgrade, setShowUpgrade] = useState(false); // quản lý popup global
   const stopKey = (e) => e.stopPropagation();
-
+const [meetingVersion, setMeetingVersion] = useState(0);
 
   useEffect(() => {
     const toolbar = document.getElementById("__ai_dialogue_toolbar__");
@@ -28,7 +28,6 @@ export default function App() {
         height: "100vh",
 
         borderRadius: "24px",
-        boxShadow: "0 0 10px rgba(0,0,0,0.3)",
       });
     } else if (page === "meeting") {
       // top-center auto height
@@ -41,7 +40,6 @@ export default function App() {
         height: "50vh",
         borderRadius: "24px",
         backgroundColor: "transparent",
-        boxShadow: "none",
       });
     } else if (page === "upgrade") {
       Object.assign(toolbar.style, {
@@ -53,7 +51,6 @@ export default function App() {
         height: "fit-content",
         borderRadius: "16px",
 
-        boxShadow: "0 4px 20px rgba(0,0,0,0.2)",
       });
     }
   }, [page]);
@@ -124,10 +121,18 @@ export default function App() {
         />
       )}
       {page === "upgrade" && (
-        <UpgradePopup
-          onClose={() => setPage("popup")}
-          userEmail={cookieUserName}
-        />
+       <UpgradePopup
+  onClose={() => { 
+    setShowUpgrade(false);
+    setPage("popup");
+  }}
+  onContinue={() => {
+    setShowUpgrade(false);
+    setPage("meeting");
+  }}
+  userEmail={cookieUserName}
+/>
+
       )}
     </div>
 

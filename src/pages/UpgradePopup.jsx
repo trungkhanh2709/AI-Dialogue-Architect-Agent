@@ -1,15 +1,63 @@
 import React from "react";
 // import "../styles/upgradePopup.css";
 
-const UpgradePopup = ({ onClose, userEmail }) => {
+const UpgradePopup = ({ onClose, userEmail, onContinue }) => {
   const VITE_URL_BACKEND = 'https://api-as.reelsightsai.com';
   const VITE_URL_BACKEND_RBAI = 'https://api.reelsightsai.com';
+   const decodedCookieEmail = decodeURIComponent(userEmail);
+
+  console.log("UpgradePopup userEmail:", decodedCookieEmail);
   const handleCheckout = (plan) => {
     const url = `${VITE_URL_BACKEND_RBAI}/pay/create-checkout-session?email=${encodeURIComponent(
       userEmail
     )}&env=rsai&plan=${plan}`;
     window.open(url, "_blank");
   };
+    const handleContinue = () => {
+    if (!decodedCookieEmail) {
+      alert("Missing user email");
+      return;
+    }
+
+    // 1) Trừ thêm 1 session trên server
+    chrome.runtime.sendMessage(
+      {
+        type: "USE_ADDON_SESSION",
+        payload: {
+          email: decodedCookieEmail,
+          add_on_type: "ai_dialogue_architect_agent",
+        },
+      },
+      (res) => {
+        if (!res || res.error || !res.data) {
+          console.error("USE_ADDON_SESSION error:", res?.error);
+          alert("An error occurred while calling the API");
+          return;
+        }
+
+        const data = res.data;
+        const ok = data?.trial_used === true || data?.status === "200";
+
+        if (!ok) {
+          alert(
+            "You have run out of sessions. Please purchase an add-on to continue."
+          );
+          return;
+        }
+
+        // 2) Reset & start lại timer (giống như lúc bấm Start lần đầu)
+        chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
+          chrome.runtime.sendMessage({ type: "START_TIMER" });
+        });
+
+        // 3) Gọi callback từ App để quay lại màn Meeting
+        if (typeof onContinue === "function") {
+          onContinue();
+        }
+      }
+    );
+  };
+
 
   return (
     <div className="upgrade-popup-overlay">
@@ -31,7 +79,12 @@ const UpgradePopup = ({ onClose, userEmail }) => {
           Upgrade now and let your agent do the heavy lifting while you stay in control.
           Use code <span className="code">ARCHITECT10</span> at checkout for 10% off your first purchase.
         </p>
-
+  <button
+    className="upgrade-btn single"
+    onClick={handleContinue}
+  >
+    Continue this meeting (use 1 session)
+  </button>
         <div className="pricing">
           <h3 className="pricing-title">Pricing</h3>
           <table className="pricing-table">
@@ -60,6 +113,7 @@ const UpgradePopup = ({ onClose, userEmail }) => {
 
           </table>
         </div>
+ 
 <div className="upgrade-actions">
   <button className="upgrade-btn single"
     onClick={() =>
