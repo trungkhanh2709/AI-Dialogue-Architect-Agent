@@ -9,6 +9,7 @@ import CollapsibleSection from "./CollapsibleSection";
 import ResultModal from "./ResultModal";
 import ResultBlock from "./ResultBlock";
 import AIPsychAnalyzerStep from "./AIPsychAnalyzerStep";
+import { signInAndGetCalendarToken } from "../api/authGoogleCalendar"; // 👈 thêm
 
 const LS_PERSONA_KEY = "bm.persona_profile";
 
@@ -18,7 +19,7 @@ export default function PopupWithSidebar({
   decodedCookieEmail,
 }) {
   const [blocks, setBlocks] = useState([]);
-  const [tempBlocks, setTempBlocks] = useState([]); // <-- NEW: các block tạm từ kết quả agent
+  const [tempBlocks, setTempBlocks] = useState([]); // các block tạm từ kết quả agent
   const [selectedBlock, setSelectedBlock] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
@@ -95,7 +96,8 @@ export default function PopupWithSidebar({
         userCompanyServices: selectedBlock.userCompanyServices || "",
         userCompanyWebsite: selectedBlock.userCompanyWebsite || "",
         userKeyCompanyUrls:
-          Array.isArray(selectedBlock.userKeyCompanyUrls) && selectedBlock.userKeyCompanyUrls.length
+          Array.isArray(selectedBlock.userKeyCompanyUrls) &&
+          selectedBlock.userKeyCompanyUrls.length
             ? selectedBlock.userKeyCompanyUrls
             : ["", "", ""],
         prospectName: selectedBlock.prospectName || "",
@@ -113,12 +115,13 @@ export default function PopupWithSidebar({
         meetingLink: selectedBlock.meetingLink || "",
         psychBackground: selectedBlock.psychBackground || "",
         psychUrls:
-          (Array.isArray(selectedBlock.psychUrls) && selectedBlock.psychUrls.length
+          Array.isArray(selectedBlock.psychUrls) && selectedBlock.psychUrls.length
             ? selectedBlock.psychUrls
-            : ["", "", ""]),
+            : ["", "", ""],
         psychLanguage: selectedBlock.psychLanguage || "English",
         psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
         businessDNAResult: selectedBlock.businessDNAResult || "",
+        eventId: selectedBlock.eventId || "",
       }));
       setFormVisible(true);
     }
@@ -134,7 +137,8 @@ export default function PopupWithSidebar({
         userCompanyServices: selectedBlock.userCompanyServices || "",
         userCompanyWebsite: selectedBlock.userCompanyWebsite || "",
         userKeyCompanyUrls:
-          Array.isArray(selectedBlock.userKeyCompanyUrls) && selectedBlock.userKeyCompanyUrls.length
+          Array.isArray(selectedBlock.userKeyCompanyUrls) &&
+          selectedBlock.userKeyCompanyUrls.length
             ? selectedBlock.userKeyCompanyUrls
             : ["", "", ""],
         prospectName: selectedBlock.prospectName || "",
@@ -152,12 +156,13 @@ export default function PopupWithSidebar({
         meetingLink: "",
         psychBackground: selectedBlock.psychBackground || "",
         psychUrls:
-          (Array.isArray(selectedBlock.psychUrls) && selectedBlock.psychUrls.length
+          Array.isArray(selectedBlock.psychUrls) && selectedBlock.psychUrls.length
             ? selectedBlock.psychUrls
-            : ["", "", ""]),
+            : ["", "", ""],
         psychLanguage: selectedBlock.psychLanguage || "English",
         psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
         businessDNAResult: selectedBlock.businessDNAResult || "",
+        eventId: selectedBlock.eventId || "",
       }));
     }
     setIsEditing(false);
@@ -170,12 +175,18 @@ export default function PopupWithSidebar({
 
   const handleUrlChange = (idx, value) => {
     setFormData((prev) => {
-      const next = Array.isArray(prev.psychUrls) ? [...prev.psychUrls] : ["", "", ""];
+      const next = Array.isArray(prev.psychUrls)
+        ? [...prev.psychUrls]
+        : ["", "", ""];
       next[idx] = value;
       return { ...prev, psychUrls: next };
     });
   };
-  const addUrl = () => setFormData((prev) => ({ ...prev, psychUrls: [...prev.psychUrls, ""] }));
+  const addUrl = () =>
+    setFormData((prev) => ({
+      ...prev,
+      psychUrls: [...prev.psychUrls, ""],
+    }));
   const removeUrl = (idx) =>
     setFormData((prev) => {
       const next = [...prev.psychUrls];
@@ -185,13 +196,18 @@ export default function PopupWithSidebar({
 
   const handleKeyCompanyUrlChange = (idx, value) => {
     setFormData((prev) => {
-      const next = Array.isArray(prev.userKeyCompanyUrls) ? [...prev.userKeyCompanyUrls] : ["", "", ""];
+      const next = Array.isArray(prev.userKeyCompanyUrls)
+        ? [...prev.userKeyCompanyUrls]
+        : ["", "", ""];
       next[idx] = value;
       return { ...prev, userKeyCompanyUrls: next };
     });
   };
   const addKeyCompanyUrl = () =>
-    setFormData((prev) => ({ ...prev, userKeyCompanyUrls: [...prev.userKeyCompanyUrls, ""] }));
+    setFormData((prev) => ({
+      ...prev,
+      userKeyCompanyUrls: [...prev.userKeyCompanyUrls, ""],
+    }));
   const removeKeyCompanyUrl = (idx) =>
     setFormData((prev) => {
       const next = [...prev.userKeyCompanyUrls];
@@ -263,11 +279,17 @@ export default function PopupWithSidebar({
       meetingEmail: "",
       meetingMessage: "",
       meetingNote: "",
+      meetingStart: "",
+      meetingDuration: "15",
+      meetingEnd: "",
+      guestEmail: "",
+      meetingLink: "",
       psychBackground: "",
       psychUrls: ["", "", ""],
       psychLanguage: "English",
       psychAnalyzerResult: "",
       businessDNAResult: "",
+      eventId: "",
     });
     setFormVisible(true);
     setIsEditing(true);
@@ -286,14 +308,19 @@ export default function PopupWithSidebar({
         chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
           chrome.runtime.sendMessage({ type: "START_TIMER" });
         });
-        if (data?.data?.trial_used === true || data?.data?.status === "200") {
+        if (
+          data?.data?.trial_used === true ||
+          data?.data?.status === "200"
+        ) {
           onStartMeeting({
             ...formData,
             id: selectedBlock?.id,
             _id: selectedBlock?.id,
           });
         } else {
-          alert("You have run out of sessions. Please purchase an add-on to continue.");
+          alert(
+            "You have run out of sessions. Please purchase an add-on to continue."
+          );
         }
       }
     );
@@ -304,7 +331,7 @@ export default function PopupWithSidebar({
     let personaProfile = "";
     try {
       personaProfile = localStorage.getItem(LS_PERSONA_KEY) || "";
-    } catch { }
+    } catch {}
     return {
       username: decodedCookieEmail || "",
       name: formData.prospectName?.trim() || "",
@@ -340,7 +367,10 @@ export default function PopupWithSidebar({
         .map((u) => (u || "").trim())
         .filter(Boolean)
         .map((u) => ({ socialMediaUrl: u })),
-      prospectName: formData.customerCompanyName?.trim() || formData.prospectName?.trim() || "",
+      prospectName:
+        formData.customerCompanyName?.trim() ||
+        formData.prospectName?.trim() ||
+        "",
       prospectURL: formData.prospectCompanyWebsite?.trim() || "",
       prospectSocialURL: (formData.psychUrls || [])
         .map((u) => (u || "").trim())
@@ -363,48 +393,76 @@ export default function PopupWithSidebar({
 
     if (runPsych) {
       const payloadPsych = buildPsychPayload();
-      tasks.push(new Promise((resolve) => {
-        chrome.runtime.sendMessage(
-          { type: "SALE_PROSPECT_REQUEST", payload: payloadPsych },
-          (res) => {
-            let text;
-            if (chrome.runtime.lastError) {
-              text = `Error: ${chrome.runtime.lastError.message || "Runtime error"}`;
-            } else if (!res?.ok) {
-              const msg = typeof res?.data === "string" ? res.data : res?.status ? `HTTP ${res.status}` : "Request failed.";
-              text = `Error: ${msg}`;
-            } else {
-              const data = res.data;
-              text = typeof data === "string" ? data : (data?.content ? String(data.content) : JSON.stringify(data, null, 2));
+      tasks.push(
+        new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            { type: "SALE_PROSPECT_REQUEST", payload: payloadPsych },
+            (res) => {
+              let text;
+              if (chrome.runtime.lastError) {
+                text = `Error: ${
+                  chrome.runtime.lastError.message || "Runtime error"
+                }`;
+              } else if (!res?.ok) {
+                const msg =
+                  typeof res?.data === "string"
+                    ? res.data
+                    : res?.status
+                    ? `HTTP ${res.status}`
+                    : "Request failed.";
+                text = `Error: ${msg}`;
+              } else {
+                const data = res.data;
+                text =
+                  typeof data === "string"
+                    ? data
+                    : data?.content
+                    ? String(data.content)
+                    : JSON.stringify(data, null, 2);
+              }
+              results.push({ key: "psych", label: "AI Psych Analyzer", text });
+              resolve();
             }
-            results.push({ key: "psych", label: "AI Psych Analyzer", text });
-            resolve();
-          }
-        );
-      }));
+          );
+        })
+      );
     }
 
     if (runBusinessDNA) {
       const payloadDNA = buildBusinessDnaPayload();
-      tasks.push(new Promise((resolve) => {
-        chrome.runtime.sendMessage(
-          { type: "BUSINESS_DNA_REQUEST", payload: payloadDNA },
-          (res) => {
-            let text;
-            if (chrome.runtime.lastError) {
-              text = `Error: ${chrome.runtime.lastError.message || "Runtime error"}`;
-            } else if (!res?.ok) {
-              const msg = typeof res?.data === "string" ? res.data : res?.status ? `HTTP ${res.status}` : "Request failed.";
-              text = `Error: ${msg}`;
-            } else {
-              const data = res.data;
-              text = typeof data === "string" ? data : (data?.content ? String(data.content) : JSON.stringify(data, null, 2));
+      tasks.push(
+        new Promise((resolve) => {
+          chrome.runtime.sendMessage(
+            { type: "BUSINESS_DNA_REQUEST", payload: payloadDNA },
+            (res) => {
+              let text;
+              if (chrome.runtime.lastError) {
+                text = `Error: ${
+                  chrome.runtime.lastError.message || "Runtime error"
+                }`;
+              } else if (!res?.ok) {
+                const msg =
+                  typeof res?.data === "string"
+                    ? res.data
+                    : res?.status
+                    ? `HTTP ${res.status}`
+                    : "Request failed.";
+                text = `Error: ${msg}`;
+              } else {
+                const data = res.data;
+                text =
+                  typeof data === "string"
+                    ? data
+                    : data?.content
+                    ? String(data.content)
+                    : JSON.stringify(data, null, 2);
+              }
+              results.push({ key: "bdna", label: "AI BusinessDNA", text });
+              resolve();
             }
-            results.push({ key: "bdna", label: "AI BusinessDNA", text });
-            resolve();
-          }
-        );
-      }));
+          );
+        })
+      );
     }
 
     Promise.all(tasks)
@@ -431,7 +489,9 @@ export default function PopupWithSidebar({
         userCompanyName: formData.userCompanyName || "",
         userCompanyServices: formData.userCompanyServices || "",
         userCompanyWebsite: formData.userCompanyWebsite || "",
-        userKeyCompanyUrls: (formData.userKeyCompanyUrls || []).map((u) => u.trim()).filter(Boolean),
+        userKeyCompanyUrls: (formData.userKeyCompanyUrls || [])
+          .map((u) => u.trim())
+          .filter(Boolean),
         prospectName: formData.prospectName || "",
         customerCompanyName: formData.customerCompanyName || "",
         customerCompanyServices: formData.customerCompanyServices || "",
@@ -446,14 +506,18 @@ export default function PopupWithSidebar({
         meetingLink: formData.meetingLink || "",
         eventId: formData.eventId || "",
         guestEmail: formData.guestEmail || "",
-        createdAt: selectedBlock ? selectedBlock.createdAt : new Date().toISOString(),
+        createdAt: selectedBlock
+          ? selectedBlock.createdAt
+          : new Date().toISOString(),
         psychBackground: formData.psychBackground || "",
-        psychUrls: (formData.psychUrls || []).map((u) => u.trim()).filter(Boolean),
+        psychUrls: (formData.psychUrls || [])
+          .map((u) => u.trim())
+          .filter(Boolean),
         psychLanguage: formData.psychLanguage || "English",
-
-        // NEW: lưu kết quả vào DB
-        psychAnalyzerResult: (formData.psychAnalyzerResult || stagedResults.psych || ""),
-        businessDNAResult: (formData.businessDNAResult || stagedResults.bdna || ""),
+        psychAnalyzerResult:
+          formData.psychAnalyzerResult || stagedResults.psych || "",
+        businessDNAResult:
+          formData.businessDNAResult || stagedResults.bdna || "",
       };
 
       if (selectedBlock) {
@@ -470,7 +534,7 @@ export default function PopupWithSidebar({
             if (res?.error) alert("Update failed: " + res.error);
             else {
               alert("Update successful");
-              setTempBlocks([]);         // clear các block tạm sau khi đã lưu DB
+              setTempBlocks([]); // clear block tạm
               setStagedResults({ psych: "", bdna: "" });
               refreshBlocks();
             }
@@ -510,22 +574,31 @@ export default function PopupWithSidebar({
         <SideBar
           blocks={mergedBlocks}
           onViewBlock={(block) => {
-            // Nếu là block tạm (temp) => mở modal với nội dung của nó
             if (block?.tempType === "psych" || block?.tempType === "bdna") {
-              // mở 1-item queue
-              setModalQueue([{ key: block.tempType, label: block.name, text: block.resultText || "" }]);
+              setModalQueue([
+                {
+                  key: block.tempType,
+                  label: block.name,
+                  text: block.resultText || "",
+                },
+              ]);
               setModalIdx(0);
               setModalOpen(true);
               return;
             }
-            // Ngược lại: block từ DB -> mở form view
             setSelectedBlock(block);
             setIsEditing(false);
             setFormVisible(true);
           }}
           onEditBlock={(block) => {
             if (block?.tempType === "psych" || block?.tempType === "bdna") {
-              setModalQueue([{ key: block.tempType, label: block.name, text: block.resultText || "" }]);
+              setModalQueue([
+                {
+                  key: block.tempType,
+                  label: block.name,
+                  text: block.resultText || "",
+                },
+              ]);
               setModalIdx(0);
               setModalOpen(true);
               return;
@@ -534,11 +607,10 @@ export default function PopupWithSidebar({
             setIsEditing(true);
             setFormVisible(true);
           }}
-          onDeleteBlock={(block) => {
+          onDeleteBlock={async (block) => {
+            // 1) Block tạm (psych / bdna) -> chỉ xoá local
             if (block?.tempType) {
-              // xoá block tạm
               setTempBlocks((prev) => prev.filter((b) => b.id !== block.id));
-              // đồng thời xoá staged result tương ứng
               if (block.tempType === "psych") {
                 setStagedResults((r) => ({ ...r, psych: "" }));
               } else if (block.tempType === "bdna") {
@@ -546,12 +618,62 @@ export default function PopupWithSidebar({
               }
               return;
             }
-            // xoá block từ DB (giữ nguyên như cũ)
-            if (!window.confirm("Are you sure you want to delete this meeting?")) return;
+
+            // 2) Block thật (meeting_prepare) -> hỏi confirm
+            if (
+              !window.confirm(
+                "Are you sure you want to delete this meeting (and its Google Calendar event if exists)?"
+              )
+            )
+              return;
+
+            // 2.1 Xoá event trên Google Calendar nếu có eventId
+            if (block.eventId) {
+              try {
+                const appToken = await signInAndGetCalendarToken();
+                if (!appToken) {
+                  console.warn(
+                    "[PopupWithSidebar] Cannot get app token for calendar, skip calendar delete"
+                  );
+                } else if (
+                  typeof chrome !== "undefined" &&
+                  chrome.runtime &&
+                  typeof chrome.runtime.sendMessage === "function"
+                ) {
+                  const resDel = await new Promise((resolve) => {
+                    chrome.runtime.sendMessage(
+                      {
+                        type: "AI_DIALOGUE_CALENDAR_DELETE",
+                        app_token: appToken,
+                        event_id: block.eventId,
+                      },
+                      (resp) => {
+                        resolve(resp);
+                      }
+                    );
+                  });
+                  console.log(
+                    "[PopupWithSidebar] calendar delete result:",
+                    resDel
+                  );
+                }
+              } catch (err) {
+                console.error(
+                  "[PopupWithSidebar] delete calendar event failed:",
+                  err
+                );
+                // không chặn xoá meeting_prepare nếu xoá calendar fail
+              }
+            }
+
+            // 2.2 Xoá meeting_prepare trong DB
             chrome.runtime.sendMessage(
               {
                 type: "DELETE_MEETING_PREPARE",
-                payload: { email: decodedCookieEmail, meetingId: block._id || block.id },
+                payload: {
+                  email: decodedCookieEmail,
+                  meetingId: block._id || block.id,
+                },
               },
               (res) => {
                 if (res?.error) alert("Delete failed: " + res.error);
@@ -570,7 +692,9 @@ export default function PopupWithSidebar({
       </div>
 
       <button
-        className={`sidebar-toggle ${sidebarVisible ? "expanded" : "collapsed"}`}
+        className={`sidebar-toggle ${
+          sidebarVisible ? "expanded" : "collapsed"
+        }`}
         onClick={() => setSidebarVisible((v) => !v)}
       >
         {sidebarVisible ? "<" : ">"}
@@ -589,7 +713,11 @@ export default function PopupWithSidebar({
             <div className="section-title"></div>
             {formData.meetingLink && (
               <div className="meeting-link">
-                <a href={formData.meetingLink} target="_blank" rel="noopener noreferrer">
+                <a
+                  href={formData.meetingLink}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
                   {formData.meetingLink}
                 </a>
               </div>
@@ -690,7 +818,9 @@ export default function PopupWithSidebar({
                       id={`userKeyCompanyUrl_${idx}`}
                       type="url"
                       value={u}
-                      onChange={(e) => handleKeyCompanyUrlChange(idx, e.target.value)}
+                      onChange={(e) =>
+                        handleKeyCompanyUrlChange(idx, e.target.value)
+                      }
                       placeholder="https://..."
                       readOnly={!isEditing}
                       style={{
@@ -726,9 +856,7 @@ export default function PopupWithSidebar({
                     + Add URL
                   </button>
                 )}
-
               </div>
-
             </CollapsibleSection>
 
             {/* Step 3: Prospect */}
@@ -843,7 +971,6 @@ export default function PopupWithSidebar({
                     + Add URL
                   </button>
                 )}
-
               </div>
               <InputField
                 id="psychLanguage"
@@ -855,7 +982,7 @@ export default function PopupWithSidebar({
                 error={errors.psychLanguage}
                 readOnly={!isEditing}
               />
-               {/* ===== Generated Blocks Preview (Step 4 bottom) ===== */}
+
               {(stagedResults.psych || stagedResults.bdna) && (
                 <div className="rb-wrap">
                   <p className="label-input">Result</p>
@@ -864,8 +991,12 @@ export default function PopupWithSidebar({
                       label="AI Psych Analyzer"
                       content={stagedResults.psych}
                       onOpen={() => openModalFor("psych")}
-                      // onRemove: nếu muốn cho xóa block tạm trước khi save DB
-                      onRemove={isEditing ? () => setStagedResults((r) => ({ ...r, psych: "" })) : undefined}
+                      onRemove={
+                        isEditing
+                          ? () =>
+                              setStagedResults((r) => ({ ...r, psych: "" }))
+                          : undefined
+                      }
                     />
                   )}
                   {stagedResults.bdna && (
@@ -873,11 +1004,17 @@ export default function PopupWithSidebar({
                       label="AI BusinessDNA"
                       content={stagedResults.bdna}
                       onOpen={() => openModalFor("bdna")}
-                      onRemove={isEditing ? () => setStagedResults((r) => ({ ...r, bdna: "" })) : undefined}
+                      onRemove={
+                        isEditing
+                          ? () =>
+                              setStagedResults((r) => ({ ...r, bdna: "" }))
+                          : undefined
+                      }
                     />
                   )}
                 </div>
               )}
+
               <AIPsychAnalyzerStep
                 className=""
                 heroImageSrc={imgUrlPsychAnalyzer}
@@ -914,9 +1051,6 @@ export default function PopupWithSidebar({
                   {generating ? "Generating..." : "Generate"}
                 </button>
               </div>
-
-             
-
             </CollapsibleSection>
 
             {/* Step 4 */}
@@ -997,7 +1131,9 @@ export default function PopupWithSidebar({
       {modalOpen && modalQueue[modalIdx] && (
         <ResultModal
           open={true}
-          title={`${modalQueue[modalIdx].label} (${modalIdx + 1}/${modalQueue.length})`}
+          title={`${modalQueue[modalIdx].label} (${
+            modalIdx + 1
+          }/${modalQueue.length})`}
           value={modalQueue[modalIdx].text}
           setValue={(v) => {
             setModalQueue((prev) => {
@@ -1006,31 +1142,43 @@ export default function PopupWithSidebar({
               return copy;
             });
           }}
-          onCopy={() => navigator.clipboard?.writeText(modalQueue[modalIdx].text).catch(() => { })}
-          onClose={() => { setModalOpen(false); setModalQueue([]); setModalIdx(0); }}
+          onCopy={() =>
+            navigator.clipboard
+              ?.writeText(modalQueue[modalIdx].text)
+              .catch(() => {})
+          }
+          onClose={() => {
+            setModalOpen(false);
+            setModalQueue([]);
+            setModalIdx(0);
+          }}
           onSave={(content) => {
-            // 1) lưu vào stagedResults
             if (modalQueue[modalIdx].key === "psych") {
               setStagedResults((r) => ({ ...r, psych: content }));
-              setFormData((prev) => ({ ...prev, psychAnalyzerResult: content }));
-              // 2) tạo/replace block tạm
+              setFormData((prev) => ({
+                ...prev,
+                psychAnalyzerResult: content,
+              }));
               setTempBlocks((prev) => {
-                const others = prev.filter(b => b.tempType !== "psych");
+                const others = prev.filter((b) => b.tempType !== "psych");
                 return [
                   ...others,
                   {
                     id: "temp-psych",
                     name: "AI Psych Analyzer",
                     tempType: "psych",
-                    resultText: content, // hiển thị lại khi click
+                    resultText: content,
                   },
                 ];
               });
             } else if (modalQueue[modalIdx].key === "bdna") {
               setStagedResults((r) => ({ ...r, bdna: content }));
-              setFormData((prev) => ({ ...prev, businessDNAResult: content }));
+              setFormData((prev) => ({
+                ...prev,
+                businessDNAResult: content,
+              }));
               setTempBlocks((prev) => {
-                const others = prev.filter(b => b.tempType !== "bdna");
+                const others = prev.filter((b) => b.tempType !== "bdna");
                 return [
                   ...others,
                   {
@@ -1042,7 +1190,6 @@ export default function PopupWithSidebar({
                 ];
               });
             }
-
           }}
           onNext={() => {
             if (modalIdx < modalQueue.length - 1) {
