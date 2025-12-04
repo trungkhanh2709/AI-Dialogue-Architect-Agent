@@ -14,7 +14,6 @@ const GoogleCalendar = ({ formData, handleChange, error, onSaveWithCalendar, rea
 
   const [clearInput, setClearInput] = useState(false);
 
-  const API_BASE = "localhost:4000"; 
   // Sync guestEmails từ formData.guestEmail khi formData thay đổi
   useEffect(() => {
     if (formData.guestEmail) {

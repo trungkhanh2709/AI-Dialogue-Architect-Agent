@@ -1,6 +1,7 @@
 // Không dùng TS ở đây để tránh lỗi build
 
-const API_BASE = "http://localhost:4000"; // hoặc domain BE của bạn
+// const API_BASE = "http://localhost:4000"; // hoặc domain BE của bạn
+const API_BASE = "https://api-as.reelsightsai.com";
 const STORAGE_KEY = "rsai_ai_dialogue_calendar_token_v1";
 
 let loginInFlight = null;
