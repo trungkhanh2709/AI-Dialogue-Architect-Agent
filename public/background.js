@@ -4,8 +4,8 @@ let startTime = null;
 let timerInterval = null;
 const timeRemainingThreshold = 30 * 60;
 const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
-const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
-// const VITE_URL_BACKEND = "http://localhost:4000";
+// const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
+const VITE_URL_BACKEND = "http://localhost:4000";
 
 function resetTimer() {
   startTime = null;
@@ -384,6 +384,69 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
 
+    case "SEND_FILLER_REQUEST":
+      (async () => {
+        try {
+          // đảm bảo đang ở tab Meet
+          chrome.tabs.query(
+            {
+              url: "https://meet.google.com/*",
+              active: true,
+              currentWindow: true,
+            },
+            async (tabs) => {
+              if (!tabs.length) {
+                sendResponse({ ok: false, error: "Not on a Google Meet tab" });
+                return;
+              }
+
+              const activeTabId = tabs[0].id;
+              const { meetingData, log } = msg.payload;
+
+              const payload = {
+                ...meetingData,
+                meetingLog: Array.isArray(log)
+                  ? log.join("\n")
+                  : String(log || ""),
+              };
+
+              const res = await fetch(
+                `${VITE_URL_BACKEND}/api/ai_dialogue_architect_agent/filler`,
+                {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
+                }
+              );
+
+              const raw = await res.text();
+              let data;
+              try {
+                data = JSON.parse(raw);
+              } catch {
+                data = raw;
+              }
+
+              // tuỳ BE trả về field nào, chỉnh lại cho đúng
+              const fillerText =
+                data?.filler || data?.text || data?.content || data;
+
+              // bắn về content script (MeetingPage) để show lên ChatUI
+              chrome.tabs.sendMessage(activeTabId, {
+                type: "AGENT_FILLER",
+                payload: { text: fillerText },
+              });
+
+              sendResponse({ ok: true, data });
+            }
+          );
+        } catch (err) {
+          console.error("[SEND_FILLER_REQUEST] error:", err);
+          sendResponse({ ok: false, error: String(err) });
+        }
+      })();
+      return true;
+
     case "SAVE_MEETING_TRANSCRIPT":
       (async function() {
         try {
@@ -560,51 +623,58 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
 
     case "AI_DIALOGUE_CALENDAR_CREATE":
-  (async () => {
-    try {
-      const { app_token, payload } = msg;
-      if (!app_token) {
-        sendResponse({ ok: false, status: 401, error: "Missing app_token" });
-        return;
-      }
+      (async () => {
+        try {
+          const { app_token, payload } = msg;
+          if (!app_token) {
+            sendResponse({
+              ok: false,
+              status: 401,
+              error: "Missing app_token",
+            });
+            return;
+          }
 
-      const url = `${VITE_URL_BACKEND}/api/calendar/create`;
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${app_token}`,   // 👈 chính là app_token
-        },
-        body: JSON.stringify(payload),
-      });
+          const url = `${VITE_URL_BACKEND}/api/calendar/create`;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${app_token}`, // 👈 chính là app_token
+            },
+            body: JSON.stringify(payload),
+          });
 
-      const raw = await res.text();
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        data = raw;
-      }
+          const raw = await res.text();
+          let data;
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = raw;
+          }
 
-      sendResponse({ ok: res.ok, status: res.status, data });
-    } catch (err) {
-      console.error("[AI_DIALOGUE_CALENDAR_CREATE] error:", err);
-      sendResponse({
-        ok: false,
-        status: 0,
-        data: `Background fetch error: ${String(err)}`,
-      });
-    }
-  })();
-  return true;
-
+          sendResponse({ ok: res.ok, status: res.status, data });
+        } catch (err) {
+          console.error("[AI_DIALOGUE_CALENDAR_CREATE] error:", err);
+          sendResponse({
+            ok: false,
+            status: 0,
+            data: `Background fetch error: ${String(err)}`,
+          });
+        }
+      })();
+      return true;
 
     case "AI_DIALOGUE_CALENDAR_UPDATE":
       (async () => {
         try {
           const { app_token, payload } = msg;
           if (!app_token) {
-            sendResponse({ ok: false, status: 401, error: "Missing app_token" });
+            sendResponse({
+              ok: false,
+              status: 401,
+              error: "Missing app_token",
+            });
             return;
           }
 
@@ -637,8 +707,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
       })();
       return true;
-    
-         case "AI_DIALOGUE_CALENDAR_DELETE":
+
+    case "AI_DIALOGUE_CALENDAR_DELETE":
       (async () => {
         try {
           const { app_token, event_id } = msg;
@@ -690,9 +760,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
       })();
       return true;
- 
 
-      default:
+    default:
       if (msg.action === "pushCaption") {
         sharedCaptions.push(msg.data);
       } else if (msg.action === "getCaptions") {
