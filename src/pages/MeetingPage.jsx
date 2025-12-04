@@ -275,38 +275,38 @@ if (message.type === "AGENT_FILLER") {
       }
 
       // --- Handle finalize ---
-      if (action === "finalize" && finalized) {
-        setMeetingLog((prev) => {
-          const newLogEntry = `${speaker}: "${finalized}"`;
-          if (prev.includes(newLogEntry)) return prev;
+ if (action === "finalize" && finalized) {
+  setMeetingLog((prev) => {
+    const newLogEntry = `${speaker}: "${finalized}"`;
+    if (prev.includes(newLogEntry)) return prev;
 
-          const updatedLog = [...prev, newLogEntry];
+    const updatedLog = [...prev, newLogEntry];
 
-          // 🔥 1) MỖI LẦN FINALIZE -> AUTO SAVE FULL TRANSCRIPT
-          const autoSaveEnabled =
-            localStorage.getItem("autoSaveEnabled") === "true";
-          if (autoSaveEnabled) {
-            // dùng helper đã viết sẵn: sẽ tự biết tạo mới hay update
-            saveOrUpdateMeeting(updatedLog);
-          }
+    const autoSaveEnabled =
+      localStorage.getItem("autoSaveEnabled") === "true";
+    if (autoSaveEnabled) {
+      saveOrUpdateMeeting(updatedLog);
+    }
 
-    // 🔥 2) Nếu là khách (không phải "You/Bạn") -> gửi filler + agent
-          if (!sessionExpired && !isMySpeech(speaker)) {
-      // 2a) Gửi toàn bộ transcript để tạo filler
+    if (!sessionExpired && !isMySpeech(speaker)) {
+      // UI: show user message ngay lập tức
+      setChatMessages((prevMsgs) => [
+        ...prevMsgs,
+        { speaker, text: finalized },
+      ]);
+      setSpeakingUsers((prev) => ({ ...prev, [speaker]: false }));
 
-                  sendFillerRequest(updatedLog);
-      // 2b) Gửi /ai_dialogue_architect_agent 
+      // 🔥 GỌI SONG SONG 2 API
+      const p1 = sendFillerRequest(updatedLog);
+      const p2 = sendMessageToAgent({ speaker, text: finalized }, updatedLog);
 
-            setChatMessages((prevMsgs) => [
-              ...prevMsgs,
-              { speaker, text: finalized },
-            ]);
-            setSpeakingUsers((prev) => ({ ...prev, [speaker]: false }));
-            sendMessageToAgent({ speaker, text: finalized }, updatedLog);
-          }
+      Promise.allSettled([p1, p2]).then((results) => {
+        console.log("Filler + Agent done:", results);
+      });
+    }
 
-          return updatedLog;
-        });
+    return updatedLog;
+  });
 
         setCurrentSpeech((prev) => {
           const updated = { ...prev };
@@ -344,9 +344,10 @@ if (message.type === "AGENT_FILLER") {
     }
   }, [currentSpeech, meetingLog]);
 
-  const sendFillerRequest = (log) => {
-    if (sessionExpired) return;
+const sendFillerRequest = (log) => {
+  if (sessionExpired) return Promise.resolve(null);
 
+  return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
       {
         type: "SEND_FILLER_REQUEST",
@@ -356,35 +357,44 @@ if (message.type === "AGENT_FILLER") {
         },
       },
       (res) => {
+        if (chrome.runtime.lastError) {
+          console.error("Filler runtime error:", chrome.runtime.lastError);
+          reject(chrome.runtime.lastError);
+          return;
+        }
+
         if (res?.error) {
           console.error("Filler request failed:", res.error);
+          reject(res.error);
         } else {
           console.log("Filler request ok:", res);
+          resolve(res);
         }
       }
     );
-  };
+  });
+};
 
-  const sendMessageToAgent = (newMessage, log) => {
-    if (sessionExpired) return;
 
-    // Tạo ID duy nhất cho mỗi request
-    const requestId = ++reqIdRef.current;
+const sendMessageToAgent = (newMessage, log) => {
+  if (sessionExpired) return Promise.resolve(null);
 
-    // thêm message agent rỗng, isTemp = true, kèm requestId
-    setChatMessages((prev) => [
-      ...prev,
-      {
-        speaker: "Agent",
-        text: "", // sẽ được fill dần từ stream
-        isAgent: true,
-        isTemp: true,
-        requestId, // 👈 quan trọng
-      },
-    ]);
+  const requestId = ++reqIdRef.current;
 
-    setAgentTyping(true);
+  setChatMessages((prev) => [
+    ...prev,
+    {
+      speaker: "Agent",
+      text: "",
+      isAgent: true,
+      isTemp: true,
+      requestId,
+    },
+  ]);
 
+  setAgentTyping(true);
+
+  return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
       {
         type: "SEND_MESSAGE_TO_AGENT_STREAM",
@@ -392,13 +402,15 @@ if (message.type === "AGENT_FILLER") {
           meetingData,
           chatHistory,
           log,
-          requestId, // 👈 gửi luôn sang background
+          requestId,
         },
       },
       (res) => {
-        // res chỉ báo ok/error tổng thể, stream đi qua onMessage bên dưới
-        if (res?.error || res?.ok === false) {
-          console.error("Agent stream start failed:", res.error);
+        if (chrome.runtime.lastError) {
+          console.error(
+            "Agent stream start runtime error:",
+            chrome.runtime.lastError
+          );
           setChatMessages((prev) =>
             prev.map((msg) =>
               msg.isTemp && msg.isAgent && msg.requestId === requestId
@@ -411,10 +423,33 @@ if (message.type === "AGENT_FILLER") {
             )
           );
           setAgentTyping(false);
+          reject(chrome.runtime.lastError);
+          return;
+        }
+
+        if (res?.error || res?.ok === false) {
+          console.error("Agent stream start failed:", res?.error);
+          setChatMessages((prev) =>
+            prev.map((msg) =>
+              msg.isTemp && msg.isAgent && msg.requestId === requestId
+                ? {
+                    ...msg,
+                    text: "Agent is unable to respond 😢",
+                    isTemp: false,
+                  }
+                : msg
+            )
+          );
+          setAgentTyping(false);
+          reject(res?.error || "Agent stream start failed");
+        } else {
+          resolve(res);
         }
       }
     );
-  };
+  });
+};
+
 
   const handleClose = () => {
     const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
