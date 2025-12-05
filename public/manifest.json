@@ -3,7 +3,7 @@
   "name": "AI Dialogue Architect Agent by ReelSights AI",
   "description": "AI Dialogue Architect – Hyper-Personalized Sales for Everyone",
 
-  "version": "1.0.6",
+  "version": "1.0.7",
   "permissions": [
     "scripting",
     "activeTab",
