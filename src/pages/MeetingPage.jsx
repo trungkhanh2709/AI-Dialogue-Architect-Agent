@@ -28,9 +28,15 @@ export default function Meeting({
     },
   ]);
   const [agentTyping, setAgentTyping] = useState(false);
+  const transcriptIdRef = useRef(null);
 
   const decodedCookieEmail = decodeURIComponent(cookieUserName);
   const [showSavePopup, setShowSavePopup] = useState(false);
+  const [currentTranscriptId, setCurrentTranscriptId] = useState(
+    // nếu meetingData đã có transcript – ví dụ bạn cho phép chọn session cũ thì gắn vào đây
+    null
+  );
+
 
   const reqIdRef = useRef(0);
   function isMySpeech(speaker) {
@@ -49,69 +55,53 @@ export default function Meeting({
     }
   }, [sessionExpired, onExpire]);
 
-  const saveOrUpdateMeeting = (logData) => {
-    const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
-    if (!autoSaveEnabled) return;
+const saveOrUpdateMeeting = (logData) => {
+  const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
+  if (!autoSaveEnabled) return;
 
-    const transcriptText = Array.isArray(logData)
-      ? logData.join("\n")
-      : meetingLog.join("\n");
+  const transcriptText = Array.isArray(logData)
+    ? logData.join("\n")
+    : meetingLog.join("\n");
 
-    if (!meetingData._id && !meetingData.id) {
-      // chưa có ID => tạo mới
-      const newBlockPayload = {
-        ...meetingData,
-        blockName: meetingData.title || "Untitled Meeting",
-        meeting_transcript: transcriptText,
-        createdAt: new Date().toISOString(),
-      };
+  // 🔐 nếu transcript đang rỗng thì khỏi tạo cái mới cho đỡ rác
+  if (!transcriptText || transcriptText.trim().length === 0) {
+    return;
+  }
 
-      console.log(
-        "[AUTO SAVE] Creating new meeting with transcript:",
-        transcriptText
-      );
+  const meetingId = meetingData._id || meetingData.id;
+  if (!meetingId) {
+    console.error("Missing meetingId (need meeting to exist before transcript)");
+    return;
+  }
 
-      chrome.runtime.sendMessage(
-        {
-          type: "CREATE_MEETING_PREPARE",
-          payload: { email: decodedCookieEmail, payload: newBlockPayload },
-        },
-        (res) => {
-          console.log("[CREATE_MEETING_PREPARE] response:", res);
-          if (res?.error) console.error("Create block failed:", res.error);
-          else console.log("Created new block with transcript:", res.data);
-        }
-      );
-      return;
-    }
-
-    // đã có ID => update
-    const meetingId = meetingData._id || meetingData.id;
-    if (!meetingId) {
-      console.error("meetingId missing even though _id/id exists", meetingData);
-      return;
-    }
-
-    const payloadMeeting = {
-      ...meetingData,
-      meeting_transcript: transcriptText,
-    };
-
-    console.log("[AUTO SAVE UPDATE] meetingId:", meetingId);
-    console.log("[AUTO SAVE UPDATE] payload:", payloadMeeting);
-
-    chrome.runtime.sendMessage(
-      {
-        type: "SAVE_MEETING_TRANSCRIPT",
-        payload: { email: decodedCookieEmail, meetingId, payloadMeeting },
+  chrome.runtime.sendMessage(
+    {
+      type: "SAVE_MEETING_TRANSCRIPT",
+      payload: {
+        email: decodedCookieEmail,
+        meetingId,
+        transcriptText,
+        // 🔥 truyền đúng transcriptId hiện tại (nếu đã có)
+        transcriptId: transcriptIdRef.current,
       },
-      (res) => {
-        console.log("[SAVE_MEETING_TRANSCRIPT] response:", res);
-        if (res?.error) console.error("Save failed:", res.error);
-        else console.log("Meeting updated with transcript", res.data);
+    },
+    (res) => {
+      console.log("[SAVE_MEETING_TRANSCRIPT] response:", res);
+      if (res?.error) {
+        console.error("Save transcript failed:", res.error);
+      } else {
+        const tIdFromBE = res?.data?.transcript_id;
+        // Lần đầu BE tạo mới -> FE lưu lại để lần sau update
+        if (tIdFromBE && !transcriptIdRef.current) {
+          transcriptIdRef.current = tIdFromBE;
+          console.log("[TRANSCRIPT] set current transcriptId =", tIdFromBE);
+        }
       }
-    );
-  };
+    }
+  );
+};
+
+
 
   const meetingLogRef = useRef(meetingLog);
   useEffect(() => {
@@ -494,37 +484,43 @@ const sendMessageToAgent = (newMessage, log) => {
     setShowSavePopup(true);
   };
 
-  const saveMeetingData = () => {
-    const meetingId = meetingData._id?._id || meetingData._id || meetingData.id;
+const saveMeetingData = () => {
+  const meetingId = meetingData._id?._id || meetingData._id || meetingData.id;
+  if (!meetingId) {
+    console.error("Missing meetingId in meetingData", meetingData);
+    return;
+  }
 
-    if (!meetingId) {
-      console.error("Missing meetingId in meetingData", meetingData);
-      return;
-    }
+  const transcriptText = meetingLog.join("\n");
+  if (!transcriptText || transcriptText.trim().length === 0) {
+    return;
+  }
 
-    const payloadMeeting = {
-      ...meetingData,
-      meeting_transcript: meetingLog.join("\n"),
-    };
-
-    chrome.runtime.sendMessage(
-      {
-        type: "SAVE_MEETING_TRANSCRIPT",
-        payload: {
-          email: decodedCookieEmail,
-          meetingId,
-          payloadMeeting,
-        },
+  chrome.runtime.sendMessage(
+    {
+      type: "SAVE_MEETING_TRANSCRIPT",
+      payload: {
+        email: decodedCookieEmail,
+        meetingId,
+        transcriptText,
+        transcriptId: transcriptIdRef.current,
       },
-      (res) => {
-        if (res?.error) {
-          console.error("Save failed:", res.error);
-        } else {
-          console.log("Meeting saved with transcript", res.data);
+    },
+    (res) => {
+      if (res?.error) {
+        console.error("Save failed:", res.error);
+      } else {
+        console.log("Meeting saved with transcript", res.data);
+        const tIdFromBE = res?.data?.transcript_id;
+        if (tIdFromBE && !transcriptIdRef.current) {
+          transcriptIdRef.current = tIdFromBE;
         }
       }
-    );
-  };
+    }
+  );
+};
+
+
 
   const handleConfirmSave = () => {
     saveMeetingData();

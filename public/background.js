@@ -4,8 +4,8 @@ let startTime = null;
 let timerInterval = null;
 const timeRemainingThreshold = 30 * 60;
 const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
-const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
-// const VITE_URL_BACKEND = "http://localhost:4000";
+// const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
+const VITE_URL_BACKEND = "http://localhost:4000";
 
 function resetTimer() {
   startTime = null;
@@ -447,41 +447,55 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
 
-    case "SAVE_MEETING_TRANSCRIPT":
-      (async function() {
-        try {
-          let { email, meetingId, payloadMeeting } = msg.payload;
-          if (!meetingId) {
-            sendResponse({ error: "Missing meetingId" });
-            return;
-          }
+      case "SAVE_MEETING_TRANSCRIPT":
+  (async function () {
+    try {
+      let { email, meetingId, transcriptText, transcriptId } = msg.payload;
+      if (!meetingId) {
+        sendResponse({ error: "Missing meetingId" });
+        return;
+      }
 
-          // Ép _id trong payload về string
-          payloadMeeting = {
-            ...payloadMeeting,
-            _id: meetingId.toString(),
-          };
-
-          const res = await fetch(
-            `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(
-              email
-            )}/${meetingId}`,
-            {
-              method: "PUT",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ meetings: [payloadMeeting] }),
-            }
-          );
-
-          if (!res.ok) throw new Error("Save meeting failed");
-
-          const data = await res.json();
-          sendResponse({ data });
-        } catch (err) {
-          sendResponse({ error: err.message });
+      const res = await fetch(
+        `${VITE_URL_BACKEND}/api/meeting_prepare/upsert_transcript/${encodeURIComponent(
+          email
+        )}/${meetingId}`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            meeting_transcript: transcriptText,
+            transcript_id: transcriptId || null,
+          }),
         }
-      })();
-      return true;
+      );
+
+      if (!res.ok) throw new Error("Save meeting failed");
+
+      const data = await res.json();
+      sendResponse({ data });
+
+      // fetch lại list meeting + REFRESH_BLOCKS
+      try {
+        const res2 = await fetch(
+          `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
+            email
+          )}`
+        );
+        const newData = await res2.json();
+        chrome.runtime.sendMessage({
+          type: "REFRESH_BLOCKS",
+          payload: newData.meeting?.meetings || [],
+        });
+      } catch (err2) {
+        console.warn("[SAVE_MEETING_TRANSCRIPT] refresh blocks failed:", err2);
+      }
+    } catch (err) {
+      sendResponse({ error: err.message });
+    }
+  })();
+  return true;
+
 
     case "SALE_PROSPECT_REQUEST":
       (async () => {
@@ -761,6 +775,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
 
+
+    
     default:
       if (msg.action === "pushCaption") {
         sharedCaptions.push(msg.data);
