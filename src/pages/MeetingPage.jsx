@@ -63,7 +63,6 @@ const saveOrUpdateMeeting = (logData) => {
     ? logData.join("\n")
     : meetingLog.join("\n");
 
-  // 🔐 nếu transcript đang rỗng thì khỏi tạo cái mới cho đỡ rác
   if (!transcriptText || transcriptText.trim().length === 0) {
     return;
   }
@@ -107,6 +106,34 @@ const saveOrUpdateMeeting = (logData) => {
   useEffect(() => {
     meetingLogRef.current = meetingLog;
   }, [meetingLog]);
+
+
+  useEffect(() => {
+  // reset log + ref
+  setMeetingLog([]);
+  meetingLogRef.current = [];
+
+  // reset live speech
+  setCurrentSpeech({});
+  setLastFinalizedWords({});
+  setSpeakingUsers({});
+
+  // reset transcript hiện tại (để tạo transcript mới cho session mới)
+  transcriptIdRef.current = null;
+
+  // (optional) reset chatMessages về mặc định nếu muốn
+  setChatMessages([
+    {
+      speaker: "Agent",
+      text:
+        "Hello, I’m your AI Sales Assistant. I can help you interact with your customers more effectively.",
+      isAgent: true,
+      isTemp: false,
+    },
+  ]);
+
+  setSessionExpired(false);
+}, [meetingData?._id, meetingData?.id]);
 
   // Listener chrome message
   useEffect(() => {
@@ -441,48 +468,60 @@ const sendMessageToAgent = (newMessage, log) => {
 };
 
 
-  const handleClose = () => {
-    const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
-    const alreadyConfirmed = localStorage.getItem("saveConfirmed") === "true";
+ const handleClose = () => {
+  const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
+  const alreadyConfirmed = localStorage.getItem("saveConfirmed") === "true";
 
-    if (autoSaveEnabled) {
-      if (meetingData._id || meetingData.id) {
-        saveMeetingData();
-        onBack();
-      }
+  const hasMeetingId = Boolean(meetingData._id || meetingData.id);
 
-      if (!meetingData._id && !meetingData.id) {
-        // Hiển thị ngay trạng thái đóng popup / quay lại
-        onBack();
-
-        // Tạo block mới bất đồng bộ
-        const newBlockPayload = {
-          ...meetingData,
-          blockName: meetingData.title || "Untitled Meeting",
-          meeting_transcript: meetingLog.join("\n"),
-          createdAt: new Date().toISOString(),
-        };
-
-        chrome.runtime.sendMessage(
-          {
-            type: "CREATE_MEETING_PREPARE",
-            payload: { email: decodedCookieEmail, payload: newBlockPayload },
-          },
-          (res) => {
-            if (res?.error) console.error("Create block failed:", res.error);
-            else console.log("Created new block with transcript:", res.data);
-          }
-        );
-
-        return;
-      }
-
+  if (autoSaveEnabled) {
+    // ✅ Mode auto-save:
+    // - Nếu meeting đã có ID: finalize đã tự gọi saveOrUpdateMeeting => KHÔNG save nữa để tránh duplicate
+    // - Chỉ cần đóng UI
+    if (hasMeetingId) {
+      onBack();
       return;
     }
 
-    // autoSave disabled và chưa confirm -> hiện popup
-    setShowSavePopup(true);
-  };
+    // ❗ Trường hợp hiếm: autoSaveEnabled=true nhưng meeting chưa có ID
+    // => vẫn dùng logic cũ để tạo block mới 1 lần
+    if (!hasMeetingId) {
+      // Hiển thị ngay trạng thái đóng popup / quay lại
+      onBack();
+
+      // Tạo block mới bất đồng bộ
+      const newBlockPayload = {
+        ...meetingData,
+        blockName: meetingData.title || "Untitled Meeting",
+        // Ở schema mới meeting_transcript là array => bạn có thể
+        // quyết định có tạo transcript đầu tiên ở đây hay không.
+        // Nếu KHÔNG muốn, có thể bỏ field này đi.
+        meeting_transcript: meetingLog.join("\n"),
+        createdAt: new Date().toISOString(),
+      };
+
+      chrome.runtime.sendMessage(
+        {
+          type: "CREATE_MEETING_PREPARE",
+          payload: { email: decodedCookieEmail, payload: newBlockPayload },
+        },
+        (res) => {
+          if (res?.error) console.error("Create block failed:", res.error);
+          else console.log("Created new block with transcript:", res.data);
+        }
+      );
+
+      return;
+    }
+  }
+
+  // 🔻 Đến đây là autoSaveEnabled === false
+  // => không auto save trong quá trình meeting
+  // => khi close mới hỏi popup có save không
+
+  setShowSavePopup(true);
+};
+
 
 const saveMeetingData = () => {
   const meetingId = meetingData._id?._id || meetingData._id || meetingData.id;
