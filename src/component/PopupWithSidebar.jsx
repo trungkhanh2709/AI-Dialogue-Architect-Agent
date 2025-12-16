@@ -37,6 +37,7 @@ export default function PopupWithSidebar({
     meetingMessage: "",
     meetingNote: "",
     meetingStart: "",
+    designatedTime: "",
     meetingDuration: "15",
     meetingEnd: "",
     guestEmail: "",
@@ -121,6 +122,8 @@ export default function PopupWithSidebar({
         psychLanguage: selectedBlock.psychLanguage || "English",
         psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
         businessDNAResult: selectedBlock.businessDNAResult || "",
+        designatedTime: selectedBlock.designatedTime || "",
+
         eventId: selectedBlock.eventId || "",
       }));
       setFormVisible(true);
@@ -150,6 +153,7 @@ export default function PopupWithSidebar({
         meetingMessage: selectedBlock.meetingMessage || "",
         meetingNote: selectedBlock.meetingNote || "",
         meetingStart: "",
+        designatedTime: selectedBlock.designatedTime || "",
         meetingDuration: "15",
         meetingEnd: "",
         guestEmail: "",
@@ -276,6 +280,8 @@ export default function PopupWithSidebar({
       customerCompanyServices: "",
       prospectCompanyWebsite: "",
       meetingGoal: "",
+      designatedTime: "",
+
       meetingEmail: "",
       meetingMessage: "",
       meetingNote: "",
@@ -518,6 +524,8 @@ export default function PopupWithSidebar({
           formData.psychAnalyzerResult || stagedResults.psych || "",
         businessDNAResult:
           formData.businessDNAResult || stagedResults.bdna || "",
+          designatedTime: formData.designatedTime || "",
+
       };
 
       if (selectedBlock) {
@@ -1062,6 +1070,17 @@ export default function PopupWithSidebar({
               openSections={openSections}
               setOpenSections={setOpenSections}
             >
+            <InputField
+  id="designatedTime"
+  label="Designated Time"
+  type="text"
+  value={formData.designatedTime}
+  onChange={handleChange}
+placeholder="e.g., 15 (minutes)"
+  error={errors.designatedTime}
+  readOnly={!isEditing}
+/>
+
               <ExpandableTextarea
                 id="meetingGoal"
                 label="Meeting Goal"

@@ -314,12 +314,16 @@ if (message.type === "AGENT_FILLER") {
       setSpeakingUsers((prev) => ({ ...prev, [speaker]: false }));
 
       // 🔥 GỌI SONG SONG 2 API
-      const p1 = sendFillerRequest(updatedLog);
+      // const p1 = sendFillerRequest(updatedLog);
       const p2 = sendMessageToAgent({ speaker, text: finalized }, updatedLog);
 
-      Promise.allSettled([p1, p2]).then((results) => {
-        console.log("Filler + Agent done:", results);
-      });
+      // Promise.allSettled([p1, p2]).then((results) => {
+      //   console.log("Filler + Agent done:", results);
+      // });
+
+      //tạm tắt filler
+      p2?.then((res) => console.log("Agent done:", res)).catch(console.error);
+
     }
 
     return updatedLog;
@@ -361,36 +365,36 @@ if (message.type === "AGENT_FILLER") {
     }
   }, [currentSpeech, meetingLog]);
 
-const sendFillerRequest = (log) => {
-  if (sessionExpired) return Promise.resolve(null);
+// const sendFillerRequest = (log) => {
+//   if (sessionExpired) return Promise.resolve(null);
 
-  return new Promise((resolve, reject) => {
-    chrome.runtime.sendMessage(
-      {
-        type: "SEND_FILLER_REQUEST",
-        payload: {
-          meetingData,
-          log,
-        },
-      },
-      (res) => {
-        if (chrome.runtime.lastError) {
-          console.error("Filler runtime error:", chrome.runtime.lastError);
-          reject(chrome.runtime.lastError);
-          return;
-        }
+//   return new Promise((resolve, reject) => {
+//     chrome.runtime.sendMessage(
+//       {
+//         type: "SEND_FILLER_REQUEST",
+//         payload: {
+//           meetingData,
+//           log,
+//         },
+//       },
+//       (res) => {
+//         if (chrome.runtime.lastError) {
+//           console.error("Filler runtime error:", chrome.runtime.lastError);
+//           reject(chrome.runtime.lastError);
+//           return;
+//         }
 
-        if (res?.error) {
-          console.error("Filler request failed:", res.error);
-          reject(res.error);
-        } else {
-          console.log("Filler request ok:", res);
-          resolve(res);
-        }
-      }
-    );
-  });
-};
+//         if (res?.error) {
+//           console.error("Filler request failed:", res.error);
+//           reject(res.error);
+//         } else {
+//           console.log("Filler request ok:", res);
+//           resolve(res);
+//         }
+//       }
+//     );
+//   });
+// };
 
 
 const sendMessageToAgent = (newMessage, log) => {
