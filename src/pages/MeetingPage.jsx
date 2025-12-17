@@ -418,12 +418,14 @@ const sendMessageToAgent = (newMessage, log) => {
   return new Promise((resolve, reject) => {
     chrome.runtime.sendMessage(
       {
-        type: "SEND_MESSAGE_TO_AGENT_STREAM",
+        type: "SEND_MESSAGE_TO_AGENT",
+        // type: "SEND_MESSAGE_TO_AGENT_STREAM",
         payload: {
           meetingData,
           chatHistory,
           log,
           requestId,
+          finalizedMessage: newMessage,
         },
       },
       (res) => {

@@ -269,7 +269,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 return;
               }
 
-              const { meetingData, chatHistory, log } = msg.payload;
+              const { meetingData, chatHistory, log, finalizedMessage } = msg.payload;
 
               const payload = {
                 ...meetingData, // toàn bộ fields từ handleSave
@@ -277,6 +277,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   ? log.join("\n")
                   : String(log || ""),
                 msg: Array.isArray(chatHistory) ? chatHistory : [],
+                 finalizedMessage,
               };
 
               try {
@@ -378,7 +379,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             }
           );
         } catch (err) {
-          console.error("[SEND_MESSAGE_TO_AGENT_STREAM] error:", err);
           sendResponse({ ok: false, error: String(err) });
         }
       })();
