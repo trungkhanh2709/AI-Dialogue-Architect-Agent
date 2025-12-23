@@ -466,8 +466,32 @@ const sendMessageToAgent = (newMessage, log) => {
           setAgentTyping(false);
           reject(res?.error || "Agent stream start failed");
         } else {
-          resolve(res);
-        }
+  // ✅ lấy content từ response
+  const content =
+    res?.data?.content ??
+    res?.data?.data?.content ??
+    res?.data?.text ??
+    "";
+
+  // ✅ update bubble temp: set text + tắt isTemp
+  setChatMessages((prev) =>
+    prev.map((m) =>
+      m.isAgent && m.isTemp && m.requestId === requestId
+        ? {
+            ...m,
+            text: String(content || "").trim()
+              ? String(content)
+              : "Agent returned empty content 😢",
+            isTemp: false,
+          }
+        : m
+    )
+  );
+
+  setAgentTyping(false);
+  resolve(res);
+}
+
       }
     );
   });

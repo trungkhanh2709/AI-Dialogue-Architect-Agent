@@ -50,7 +50,8 @@ function startTimer() {
     }
   }, 1000);
 }
-
+const queryTabs = (query) =>
+  new Promise((resolve) => chrome.tabs.query(query, resolve));
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log("Background received message:", msg);
   switch (msg.type) {
@@ -253,56 +254,55 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
 
-    case "SEND_MESSAGE_TO_AGENT":
-      (async function() {
-        try {
-          // Kiểm tra tab Google Meet active
-          chrome.tabs.query(
-            {
-              url: "https://meet.google.com/*",
-              active: true,
-              currentWindow: true,
-            },
-            async (tabs) => {
-              if (!tabs.length) {
-                sendResponse({ error: "Not on a Google Meet tab" });
-                return;
-              }
+  case "SEND_MESSAGE_TO_AGENT":
+  (async () => {
+    try {
+      const tabs = await queryTabs({
+        url: "https://meet.google.com/*",
+        active: true,
+        currentWindow: true,
+      });
 
-              const { meetingData, chatHistory, log, finalizedMessage } = msg.payload;
+      if (!tabs.length) {
+        sendResponse({ error: "Not on a Google Meet tab" });
+        return;
+      }
 
-              const payload = {
-                ...meetingData, // toàn bộ fields từ handleSave
-                meetingLog: Array.isArray(log)
-                  ? log.join("\n")
-                  : String(log || ""),
-                msg: Array.isArray(chatHistory) ? chatHistory : [],
-                 finalizedMessage,
-              };
+      const { meetingData, chatHistory, log, finalizedMessage, uiTimer } =
+        msg.payload || {};
 
-              try {
-                const response = await fetch(
-                  `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent`,
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
-                  }
-                );
+      const payload = {
+        ...meetingData,
+        meetingLog: Array.isArray(log) ? log.join("\n") : String(log || ""),
+        msg: Array.isArray(chatHistory) ? chatHistory : [],
+        finalizedMessage,
+        uiTimer,
+      };
 
-                const data = await response.json();
-                sendResponse({ data });
-              } catch (err) {
-                sendResponse({ error: err.message });
-              }
-            }
-          );
-        } catch (err) {
-          sendResponse({ error: err.message });
+      const response = await fetch(
+        `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
         }
-      })();
-      return true;
+      );
 
+      // nếu BE lỗi thì vẫn đọc text để trả về UI debug nhanh
+      if (!response.ok) {
+        const t = await response.text().catch(() => "");
+        sendResponse({ error: t || `HTTP ${response.status}` });
+        return;
+      }
+
+      const data = await response.json();
+      sendResponse({ data });
+    } catch (err) {
+      sendResponse({ error: err?.message || String(err) });
+    }
+  })();
+
+  return true;
     case "SEND_MESSAGE_TO_AGENT_STREAM":
       (async () => {
         try {
