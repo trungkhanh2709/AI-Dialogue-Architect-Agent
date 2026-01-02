@@ -60,9 +60,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ ok: true });
       return true;
 
-    case "START_TIMER":
-      startTimer();
-      return true;
+   case "START_TIMER":
+  startTimer();
+  sendResponse({ ok: true });
+  return true;
+
 
     case "GET_TIMER":
       if (!startTime) {
@@ -81,16 +83,24 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       latestCaptions = msg.payload;
       return true;
 
-    case "GET_CAPTIONS":
-      sendResponse({ data: latestCaptions });
-      return true;
+   case "NEW_CAPTION":
+  latestCaptions = msg.payload;
+  sendResponse({ ok: true });
+  return true;
 
-    case "LIVE_TRANSCRIPT":
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs[0]?.id) return;
-        chrome.tabs.sendMessage(tabs[0].id, msg);
-      });
-      return true;
+
+   case "LIVE_TRANSCRIPT":
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (!tabs[0]?.id) {
+      sendResponse({ ok: false, error: "No active tab" });
+      return;
+    }
+    chrome.tabs.sendMessage(tabs[0].id, msg, () => {
+      sendResponse({ ok: true });
+    });
+  });
+  return true;
+
 
     case "LOGIN_GOOGLE":
       chrome.identity.launchWebAuthFlow(
