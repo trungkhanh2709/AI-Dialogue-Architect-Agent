@@ -507,75 +507,88 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   return true;
 
 
-    case "SALE_PROSPECT_REQUEST":
-      (async () => {
-        try {
-          const { payload } = msg;
-          const url = `${VITE_URL_BACKEND}/api/sale/prospect`;
-          const res = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(payload?.username ? { username: payload.username } : {}),
-            },
-            body: JSON.stringify(payload),
-          });
+  case "SALE_PROSPECT_REQUEST":
+  (async () => {
+    try {
+      const { payload } = msg;
 
-          const raw = await res.text();
-          let data;
-          try {
-            data = JSON.parse(raw);
-          } catch {
-            data = raw;
-          }
-
-          // ✅ trả thẳng về cho sender (UI) qua callback
-          sendResponse({ ok: res.ok, status: res.status, data });
-        } catch (err) {
-          sendResponse({
-            ok: false,
-            status: 0,
-            data: `Background fetch error: ${String(err)}`,
-          });
+      const res = await fetch(
+        `${VITE_URL_BACKEND}/api/analyze/prospect-psychology`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            name: payload?.name || "",
+            biography: payload?.biography || "",
+            urls: payload?.socialMediaUrl?.map(
+              (x) => x.socialMediaUrl
+            ) || [],
+            msg: payload?.msg || [],
+          }),
         }
-      })();
+      );
 
-      return true;
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = raw;
+      }
 
-    case "BUSINESS_DNA_REQUEST":
-      (async () => {
-        try {
-          const { payload } = msg;
-          const url = `${VITE_URL_BACKEND}/api/sale/business-dna`;
-          const res = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              ...(payload?.username ? { username: payload.username } : {}),
-            },
-            body: JSON.stringify(payload),
-          });
+      sendResponse({
+        ok: res.ok,
+        status: res.status,
+        data,
+      });
+    } catch (err) {
+      sendResponse({
+        ok: false,
+        status: 0,
+        data: `Background fetch error: ${String(err)}`,
+      });
+    }
+  })();
 
-          const raw = await res.text();
-          let data;
-          try {
-            data = JSON.parse(raw);
-          } catch {
-            data = raw;
-          }
+  return true;
 
-          sendResponse({ ok: res.ok, status: res.status, data });
-        } catch (err) {
-          sendResponse({
-            ok: false,
-            status: 0,
-            data: `Background fetch error: ${String(err)}`,
-          });
-        }
-      })();
-      return true;
+ case "BUSINESS_DNA_REQUEST":
+  (async () => {
+    try {
+      const { payload } = msg;
+      const url = `${VITE_URL_BACKEND}/api/analyze/business-dna`;
 
-    case "AI_DIALOGUE_ME":
+      const res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(payload?.username ? { username: payload.username } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = raw;
+      }
+
+      sendResponse({ ok: res.ok, status: res.status, data });
+    } catch (err) {
+      sendResponse({
+        ok: false,
+        status: 0,
+        data: `Background fetch error: ${String(err)}`,
+      });
+    }
+  })();
+  return true;
+
+  case "AI_DIALOGUE_ME":
       (async () => {
         try {
           const { app_token } = msg;

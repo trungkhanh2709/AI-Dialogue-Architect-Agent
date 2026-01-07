@@ -54,39 +54,6 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
   }, [decodedCookieEmail]);
 
 
-  const sampleBlocks = [
-
-    {
-      id: 2,
-      name: "Follow-up Call – Client B",
-      type: "schedule",
-      userName: "Nguyễn Văn A",
-      userCompanyName: "TechCorp",
-      userCompanyServices: "Software solutions",
-      prospectName: "Mai Lan",
-      customerCompanyName: "Spa Luxury",
-      customerCompanyServices: "Chăm sóc da & làm đẹp",
-      meetingGoal: "Bàn kế hoạch hợp tác phần mềm",
-      meetingEmail: "nguyenvana@example.com",
-      meetingMessage: "Xin chào, muốn follow-up hợp đồng",
-      meetingNote: "Cuộc họp follow-up khách hàng"
-    },
-    {
-      id: 3,
-      name: "Product Pitch – Client C",
-      type: "instant",
-      userName: "Trần Thị B",
-      userCompanyName: "EduTech",
-      userCompanyServices: "Online education platform",
-      prospectName: "Hà Nội Spa",
-      customerCompanyName: "Hà Nội Spa",
-      customerCompanyServices: "Spa & Wellness",
-      meetingGoal: "Giới thiệu sản phẩm AI",
-      meetingEmail: "tranthib@example.com",
-      meetingMessage: "Chào bạn, mình muốn demo sản phẩm AI",
-      meetingNote: "Demo nội bộ"
-    }
-  ];
 
   const validateStep = () => {
     const newErrors = {};

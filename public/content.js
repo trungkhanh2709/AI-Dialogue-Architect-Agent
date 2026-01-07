@@ -144,3 +144,98 @@ const finder = setInterval(() => {
 }, 300);
 
 console.log("Waiting for caption container...");
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message.type !== "REFRESH_CAPTION_DOM") return;
+
+  const ts = new Date().toISOString();
+  const logPrefix = `[REFRESH_CAPTION_DOM ${ts}]`;
+
+  try {
+    console.groupCollapsed(`${logPrefix} start`);
+    console.log("url:", location.href);
+    console.log("sessionExpired:", sessionExpired);
+
+    // 1) raw query blocks
+    const blocksNow = document.querySelectorAll("div.nMcdL.bj4p3b");
+    console.log("blocksNow.length:", blocksNow?.length || 0);
+
+    // 2) check first block structure
+    if (blocksNow && blocksNow.length > 0) {
+      const b0 = blocksNow[0];
+      const nameEl0 = b0.querySelector("span.NWpY1d");
+      const textEl0 = b0.querySelector("div.ygicle.VbkSUe");
+      console.log("firstBlock has nameEl:", Boolean(nameEl0), "textEl:", Boolean(textEl0));
+      console.log("firstBlock speaker:", nameEl0?.textContent?.trim() || "(none)");
+      console.log("firstBlock text preview:", (textEl0?.textContent || "").slice(0, 120));
+    } else {
+      console.warn("No caption blocks found. Possible causes: captions OFF, Meet DOM changed, or not rendered yet.");
+    }
+
+    // 3) container resolve
+    const container =
+      document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.parentElement;
+
+    console.log("container found:", Boolean(container));
+    if (container) {
+      console.log("container tag:", container.tagName);
+      console.log("container class:", container.className);
+    }
+
+    if (!container) {
+      console.error("Caption container not found (selector returned null).");
+      console.groupEnd();
+      sendResponse({ ok: false, error: "Caption container not found" });
+      return;
+    }
+
+    // 4) init observer
+    console.log("initObserver() called");
+    initObserver(container);
+
+    // 5) verify again after 500ms
+    setTimeout(() => {
+      try {
+        const blocksLater = document.querySelectorAll("div.nMcdL.bj4p3b");
+        console.log("verify blocksLater.length:", blocksLater?.length || 0);
+
+        if (!blocksLater || blocksLater.length === 0) {
+          console.error("Still empty after refresh. Likely captions OFF or selector changed.");
+          console.groupEnd();
+          sendResponse({ ok: false, error: "Caption blocks still empty" });
+          return;
+        }
+
+        // extra deep check
+        let okNodeCount = 0;
+        blocksLater.forEach((b) => {
+          const hasName = Boolean(b.querySelector("span.NWpY1d"));
+          const hasText = Boolean(b.querySelector("div.ygicle.VbkSUe"));
+          if (hasName && hasText) okNodeCount++;
+        });
+
+        console.log("blocks with (name+text) nodes:", okNodeCount, "/", blocksLater.length);
+
+        if (okNodeCount === 0) {
+          console.warn("Blocks exist but expected nodes missing. Meet DOM structure likely changed.");
+        }
+
+        console.log("Refresh OK ✅");
+        console.groupEnd();
+        sendResponse({ ok: true, count: blocksLater.length, okNodeCount });
+      } catch (e) {
+        console.error("Verify step error:", e);
+        console.groupEnd();
+        sendResponse({ ok: false, error: String(e) });
+      }
+    }, 500);
+  } catch (err) {
+    console.error("Refresh exception:", err);
+    try {
+      console.groupEnd();
+    } catch {}
+    sendResponse({ ok: false, error: String(err) });
+  }
+
+  return true; // async response
+});
