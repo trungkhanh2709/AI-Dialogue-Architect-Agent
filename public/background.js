@@ -4,8 +4,8 @@ let startTime = null;
 let timerInterval = null;
 const timeRemainingThreshold = 30 * 60;
 const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
-// const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
-const VITE_URL_BACKEND = "http://localhost:4000";
+const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
+// const VITE_URL_BACKEND = "http://localhost:4000";
 
 function resetTimer() {
   startTime = null;
@@ -60,11 +60,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       sendResponse({ ok: true });
       return true;
 
-   case "START_TIMER":
-  startTimer();
-  sendResponse({ ok: true });
-  return true;
-
+    case "START_TIMER":
+      startTimer();
+      sendResponse({ ok: true });
+      return true;
 
     case "GET_TIMER":
       if (!startTime) {
@@ -81,26 +80,20 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
     case "NEW_CAPTION":
       latestCaptions = msg.payload;
+      sendResponse({ ok: true });
       return true;
 
-   case "NEW_CAPTION":
-  latestCaptions = msg.payload;
-  sendResponse({ ok: true });
-  return true;
-
-
-   case "LIVE_TRANSCRIPT":
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (!tabs[0]?.id) {
-      sendResponse({ ok: false, error: "No active tab" });
-      return;
-    }
-    chrome.tabs.sendMessage(tabs[0].id, msg, () => {
-      sendResponse({ ok: true });
-    });
-  });
-  return true;
-
+    case "LIVE_TRANSCRIPT":
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0]?.id) {
+          sendResponse({ ok: false, error: "No active tab" });
+          return;
+        }
+        chrome.tabs.sendMessage(tabs[0].id, msg, () => {
+          sendResponse({ ok: true });
+        });
+      });
+      return true;
 
     case "LOGIN_GOOGLE":
       chrome.identity.launchWebAuthFlow(
@@ -264,55 +257,55 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
 
-  case "SEND_MESSAGE_TO_AGENT":
-  (async () => {
-    try {
-      const tabs = await queryTabs({
-        url: "https://meet.google.com/*",
-        active: true,
-        currentWindow: true,
-      });
+    case "SEND_MESSAGE_TO_AGENT":
+      (async () => {
+        try {
+          const tabs = await queryTabs({
+            url: "https://meet.google.com/*",
+            active: true,
+            currentWindow: true,
+          });
 
-      if (!tabs.length) {
-        sendResponse({ error: "Not on a Google Meet tab" });
-        return;
-      }
+          if (!tabs.length) {
+            sendResponse({ error: "Not on a Google Meet tab" });
+            return;
+          }
 
-      const { meetingData, chatHistory, log, finalizedMessage, uiTimer } =
-        msg.payload || {};
+          const { meetingData, chatHistory, log, finalizedMessage, uiTimer } =
+            msg.payload || {};
 
-      const payload = {
-        ...meetingData,
-        meetingLog: Array.isArray(log) ? log.join("\n") : String(log || ""),
-        msg: Array.isArray(chatHistory) ? chatHistory : [],
-        finalizedMessage,
-        uiTimer,
-      };
+          const payload = {
+            ...meetingData,
+            meetingLog: Array.isArray(log) ? log.join("\n") : String(log || ""),
+            msg: Array.isArray(chatHistory) ? chatHistory : [],
+            finalizedMessage,
+            uiTimer,
+          };
 
-      const response = await fetch(
-        `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload),
+          const response = await fetch(
+            `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(payload),
+            }
+          );
+
+          // nếu BE lỗi thì vẫn đọc text để trả về UI debug nhanh
+          if (!response.ok) {
+            const t = await response.text().catch(() => "");
+            sendResponse({ error: t || `HTTP ${response.status}` });
+            return;
+          }
+
+          const data = await response.json();
+          sendResponse({ data });
+        } catch (err) {
+          sendResponse({ error: err?.message || String(err) });
         }
-      );
+      })();
 
-      // nếu BE lỗi thì vẫn đọc text để trả về UI debug nhanh
-      if (!response.ok) {
-        const t = await response.text().catch(() => "");
-        sendResponse({ error: t || `HTTP ${response.status}` });
-        return;
-      }
-
-      const data = await response.json();
-      sendResponse({ data });
-    } catch (err) {
-      sendResponse({ error: err?.message || String(err) });
-    }
-  })();
-
-  return true;
+      return true;
     case "SEND_MESSAGE_TO_AGENT_STREAM":
       (async () => {
         try {
@@ -457,138 +450,139 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
 
-      case "SAVE_MEETING_TRANSCRIPT":
-  (async function () {
-    try {
-      let { email, meetingId, transcriptText, transcriptId } = msg.payload;
-      if (!meetingId) {
-        sendResponse({ error: "Missing meetingId" });
-        return;
-      }
+    case "SAVE_MEETING_TRANSCRIPT":
+      (async function() {
+        try {
+          let { email, meetingId, transcriptText, transcriptId } = msg.payload;
+          if (!meetingId) {
+            sendResponse({ error: "Missing meetingId" });
+            return;
+          }
 
-      const res = await fetch(
-        `${VITE_URL_BACKEND}/api/meeting_prepare/upsert_transcript/${encodeURIComponent(
-          email
-        )}/${meetingId}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            meeting_transcript: transcriptText,
-            transcript_id: transcriptId || null,
-          }),
+          const res = await fetch(
+            `${VITE_URL_BACKEND}/api/meeting_prepare/upsert_transcript/${encodeURIComponent(
+              email
+            )}/${meetingId}`,
+            {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                meeting_transcript: transcriptText,
+                transcript_id: transcriptId || null,
+              }),
+            }
+          );
+
+          if (!res.ok) throw new Error("Save meeting failed");
+
+          const data = await res.json();
+          sendResponse({ data });
+
+          // fetch lại list meeting + REFRESH_BLOCKS
+          try {
+            const res2 = await fetch(
+              `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
+                email
+              )}`
+            );
+            const newData = await res2.json();
+            chrome.runtime.sendMessage({
+              type: "REFRESH_BLOCKS",
+              payload: newData.meeting?.meetings || [],
+            });
+          } catch (err2) {
+            console.warn(
+              "[SAVE_MEETING_TRANSCRIPT] refresh blocks failed:",
+              err2
+            );
+          }
+        } catch (err) {
+          sendResponse({ error: err.message });
         }
-      );
+      })();
+      return true;
 
-      if (!res.ok) throw new Error("Save meeting failed");
+    case "SALE_PROSPECT_REQUEST":
+      (async () => {
+        try {
+          const { payload } = msg;
 
-      const data = await res.json();
-      sendResponse({ data });
+          const res = await fetch(
+            `${VITE_URL_BACKEND}/api/analyze/prospect-psychology`,
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+              },
+              body: JSON.stringify({
+                name: payload?.name || "",
+                biography: payload?.biography || "",
+                urls:
+                  payload?.socialMediaUrl?.map((x) => x.socialMediaUrl) || [],
+                msg: payload?.msg || [],
+              }),
+            }
+          );
 
-      // fetch lại list meeting + REFRESH_BLOCKS
-      try {
-        const res2 = await fetch(
-          `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
-            email
-          )}`
-        );
-        const newData = await res2.json();
-        chrome.runtime.sendMessage({
-          type: "REFRESH_BLOCKS",
-          payload: newData.meeting?.meetings || [],
-        });
-      } catch (err2) {
-        console.warn("[SAVE_MEETING_TRANSCRIPT] refresh blocks failed:", err2);
-      }
-    } catch (err) {
-      sendResponse({ error: err.message });
-    }
-  })();
-  return true;
+          const raw = await res.text();
+          let data;
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = raw;
+          }
 
-
-  case "SALE_PROSPECT_REQUEST":
-  (async () => {
-    try {
-      const { payload } = msg;
-
-      const res = await fetch(
-        `${VITE_URL_BACKEND}/api/analyze/prospect-psychology`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: payload?.name || "",
-            biography: payload?.biography || "",
-            urls: payload?.socialMediaUrl?.map(
-              (x) => x.socialMediaUrl
-            ) || [],
-            msg: payload?.msg || [],
-          }),
+          sendResponse({
+            ok: res.ok,
+            status: res.status,
+            data,
+          });
+        } catch (err) {
+          sendResponse({
+            ok: false,
+            status: 0,
+            data: `Background fetch error: ${String(err)}`,
+          });
         }
-      );
+      })();
 
-      const raw = await res.text();
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        data = raw;
-      }
+      return true;
 
-      sendResponse({
-        ok: res.ok,
-        status: res.status,
-        data,
-      });
-    } catch (err) {
-      sendResponse({
-        ok: false,
-        status: 0,
-        data: `Background fetch error: ${String(err)}`,
-      });
-    }
-  })();
+    case "BUSINESS_DNA_REQUEST":
+      (async () => {
+        try {
+          const { payload } = msg;
+          const url = `${VITE_URL_BACKEND}/api/analyze/business-dna`;
 
-  return true;
+          const res = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(payload?.username ? { username: payload.username } : {}),
+            },
+            body: JSON.stringify(payload),
+          });
 
- case "BUSINESS_DNA_REQUEST":
-  (async () => {
-    try {
-      const { payload } = msg;
-      const url = `${VITE_URL_BACKEND}/api/analyze/business-dna`;
+          const raw = await res.text();
+          let data;
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = raw;
+          }
 
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...(payload?.username ? { username: payload.username } : {}),
-        },
-        body: JSON.stringify(payload),
-      });
+          sendResponse({ ok: res.ok, status: res.status, data });
+        } catch (err) {
+          sendResponse({
+            ok: false,
+            status: 0,
+            data: `Background fetch error: ${String(err)}`,
+          });
+        }
+      })();
+      return true;
 
-      const raw = await res.text();
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        data = raw;
-      }
-
-      sendResponse({ ok: res.ok, status: res.status, data });
-    } catch (err) {
-      sendResponse({
-        ok: false,
-        status: 0,
-        data: `Background fetch error: ${String(err)}`,
-      });
-    }
-  })();
-  return true;
-
-  case "AI_DIALOGUE_ME":
+    case "AI_DIALOGUE_ME":
       (async () => {
         try {
           const { app_token } = msg;
@@ -797,9 +791,39 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
       })();
       return true;
+// ===== ADD: Refresh Meet caption DOM =====
+case "REFRESH_MEET_CAPTION_DOM":
+  chrome.tabs.query({ url: "https://meet.google.com/*" }, (tabs) => {
+    if (!tabs?.length) {
+      sendResponse({
+        ok: false,
+        error: "No Google Meet tab found (https://meet.google.com/*)",
+        details: { tabsFound: 0 },
+      });
+      return;
+    }
 
+    // ưu tiên active tab trong current window nếu có
+    const activeTab = tabs.find((t) => t.active) || tabs[0];
 
-    
+    chrome.tabs.sendMessage(
+      activeTab.id,
+      { type: "REFRESH_CAPTION_OBSERVER" },
+      (details) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({
+            ok: false,
+            error: `[tabs.sendMessage error] ${chrome.runtime.lastError.message}`,
+            details: { tabId: activeTab.id },
+          });
+          return;
+        }
+        sendResponse({ ok: true, details: details || null });
+      }
+    );
+  });
+  return true;
+
     default:
       if (msg.action === "pushCaption") {
         sharedCaptions.push(msg.data);

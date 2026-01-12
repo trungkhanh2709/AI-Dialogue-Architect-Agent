@@ -239,3 +239,77 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
   return true; // async response
 });
+// ===== ADD: Refresh caption observer on demand + detailed diagnostics =====
+function _meetDomDiagnostics() {
+  const blocks = document.querySelectorAll("div.nMcdL.bj4p3b");
+  const nameEls = document.querySelectorAll("span.NWpY1d");
+  const textEls = document.querySelectorAll("div.ygicle.VbkSUe");
+  const container =
+    document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.parentElement || null;
+
+  return {
+    url: location.href,
+    ts: Date.now(),
+    blocksCount: blocks.length,
+    nameElsCount: nameEls.length,
+    textElsCount: textEls.length,
+    containerFound: Boolean(container),
+    containerTag: container ? container.tagName : null,
+    containerClass: container ? container.className : null,
+    observerExists: Boolean(window._captionObserver),
+    sessionExpired: Boolean(sessionExpired),
+  };
+}
+
+chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  if (message?.type !== "REFRESH_CAPTION_OBSERVER") return;
+
+  try {
+    const diagBefore = _meetDomDiagnostics();
+
+    // thử tìm lại container
+    const container =
+      document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.parentElement || null;
+
+    if (!container) {
+      const diagFail = _meetDomDiagnostics();
+      sendResponse({
+        ok: false,
+        reason: "Caption container not found (selector div.nMcdL.bj4p3b -> parentElement.parentElement = null)",
+        diagnostics: { before: diagBefore, after: diagFail },
+      });
+      return true;
+    }
+
+    // re-init observer (reuse existing function)
+    initObserver(container);
+
+    const diagAfter = _meetDomDiagnostics();
+
+    // quick sanity: run 1 scan immediately
+    try {
+      handleCaptions();
+    } catch (e2) {
+      sendResponse({
+        ok: false,
+        reason: `handleCaptions threw error: ${String(e2)}`,
+        diagnostics: { before: diagBefore, after: diagAfter },
+      });
+      return true;
+    }
+
+    sendResponse({
+      ok: true,
+      reason: "Observer re-attached",
+      diagnostics: { before: diagBefore, after: diagAfter },
+    });
+  } catch (e) {
+    sendResponse({
+      ok: false,
+      reason: `REFRESH_CAPTION_OBSERVER exception: ${String(e)}`,
+      diagnostics: { failSafe: _meetDomDiagnostics() },
+    });
+  }
+
+  return true;
+});

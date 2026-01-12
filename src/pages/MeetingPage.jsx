@@ -38,7 +38,9 @@ export default function Meeting({
   );
 
   const [uiTimer, setUiTimer] = useState({ minutes: 0, seconds: 0 });
-
+const [domRefreshInfo, setDomRefreshInfo] = useState(null);
+const [domRefreshError, setDomRefreshError] = useState("");
+const [domRefreshing, setDomRefreshing] = useState(false);
   const reqIdRef = useRef(0);
   function isMySpeech(speaker) {
     return speaker === "You" || speaker === "Bạn";
@@ -101,6 +103,48 @@ export default function Meeting({
     );
   };
 
+// ===== ADD: Try refresh Meet captions DOM =====
+const handleRefreshMeetDom = () => {
+  setDomRefreshing(true);
+  setDomRefreshError("");
+  setDomRefreshInfo(null);
+
+  chrome.runtime.sendMessage(
+    { type: "REFRESH_MEET_CAPTION_DOM" },
+    (res) => {
+      setDomRefreshing(false);
+
+      if (chrome.runtime.lastError) {
+        setDomRefreshError(
+          `[runtime.lastError] ${chrome.runtime.lastError.message}`
+        );
+        return;
+      }
+
+      if (!res?.ok) {
+        setDomRefreshError(
+          res?.error
+            ? String(res.error)
+            : "Unknown error: REFRESH_MEET_CAPTION_DOM returned ok=false"
+        );
+        if (res?.details) setDomRefreshInfo(res.details);
+        return;
+      }
+
+      // ok=true
+      if (res?.details) setDomRefreshInfo(res.details);
+
+      // nếu details nói fail thì vẫn show như error
+      if (res?.details?.ok === false) {
+        setDomRefreshError(
+          res?.details?.reason
+            ? `DOM refresh failed: ${res.details.reason}`
+            : "DOM refresh failed (unknown reason)"
+        );
+      }
+    }
+  );
+};
 
 
   const meetingLogRef = useRef(meetingLog);
@@ -612,6 +656,22 @@ uiTimer: timerNow,
     );
   };
 
+// ===== ADD: show DOM refresh result in console only =====
+useEffect(() => {
+  if (domRefreshError) {
+    console.group("[MEET DOM REFRESH ❌]");
+    console.error(domRefreshError);
+    console.groupEnd();
+  }
+}, [domRefreshError]);
+
+useEffect(() => {
+  if (domRefreshInfo) {
+    console.group("[MEET DOM REFRESH ✅]");
+    console.log(domRefreshInfo);
+    console.groupEnd();
+  }
+}, [domRefreshInfo]);
 
 
   const handleConfirmSave = () => {
@@ -650,51 +710,23 @@ uiTimer: timerNow,
           ) : null;
         })}
       </div>
-<button
-  onClick={() => {
-    const ts = new Date().toISOString();
-    console.groupCollapsed(`[UI][REFRESH_CAPTION_DOM ${ts}] click`);
+<div style={{ padding: 8, display: "flex", gap: 8, alignItems: "center" }}>
+  <button
+    onClick={handleRefreshMeetDom}
+    disabled={domRefreshing}
+    style={{
+      padding: "8px 10px",
+      borderRadius: 8,
+      border: "1px solid rgba(0,0,0,0.15)",
+      cursor: domRefreshing ? "not-allowed" : "pointer",
+      background: "#fff",
+    }}
+    title="Try to re-detect Google Meet caption DOM and re-attach observer"
+  >
+    {domRefreshing ? "Refreshing DOM..." : "Refresh DOM"}
+  </button>
+</div>
 
-    console.log("Sending REFRESH_CAPTION_DOM to content script…");
-
-    chrome.runtime.sendMessage({ type: "REFRESH_CAPTION_DOM" }, (res) => {
-      if (chrome.runtime.lastError) {
-        console.error(
-          "[UI] runtime.lastError:",
-          chrome.runtime.lastError.message
-        );
-        alert(
-          "⚠️ Không thể kết nối content script.\nHãy reload tab Google Meet."
-        );
-        console.groupEnd();
-        return;
-      }
-
-      console.log("[UI] response:", res);
-
-      if (!res?.ok) {
-        console.warn("[UI] Refresh failed reason:", res?.error);
-
-        alert(
-          "⚠️ Không thể đọc caption Google Meet.\n\n" +
-            "Chi tiết:\n" +
-            (res?.error || "Unknown error") +
-            "\n\nGợi ý:\n• Bật Captions trong Google Meet\n• Thử reload trang Meet"
-        );
-      } else {
-        console.log(
-          `[UI] Refresh success. blocks=${res.count}, okNodeCount=${res.okNodeCount}`
-        );
-      }
-
-      console.groupEnd();
-    });
-
-    console.log("REFRESH_CAPTION_DOM request sent");
-  }}
->
-  🔄 Refresh captions
-</button>
 
 
       {/* <ChatUI messages={sampleMessages} /> */}
