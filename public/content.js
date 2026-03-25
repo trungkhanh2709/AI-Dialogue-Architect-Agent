@@ -5,7 +5,7 @@ let currentSpeech = {}; // speaker → currently speaking part
 let speakerTimers = {}; // speaker
 let meeting_log = []; //  finalize sentences
 let lastFinalized = {}; // speaker → the entire last finalized sentence
-const SPEAKER_TIMEOUT = 2000; 
+const SPEAKER_TIMEOUT = 2000;
 let lastFinalizedWords = {}; // speaker -> array of finalized words
 let lastFinalizedText = {}; // speaker → full finalized text
 let sessionExpired = false;
@@ -16,12 +16,16 @@ function cleanMessage(msg) {
 
 function sendUpdateLive() {
   try {
-    chrome.runtime.sendMessage({
-      type: "LIVE_TRANSCRIPT",
-      payload: { action: "update_live", currentSpeech },
-    },()=>{
-      if (chrome.runtime.lastError) {}
-    });
+    chrome.runtime.sendMessage(
+      {
+        type: "LIVE_TRANSCRIPT",
+        payload: { action: "update_live", currentSpeech },
+      },
+      () => {
+        if (chrome.runtime.lastError) {
+        }
+      },
+    );
   } catch (err) {
     console.warn("⚠️ sendUpdateLive failed:", err);
   }
@@ -30,8 +34,6 @@ chrome.runtime.onMessage.addListener((message) => {
   if (message.type === "SESSION_EXPIRED") {
     console.log("Session expired, stopping caption observer...");
     sessionExpired = true;
-
-
   }
 });
 // Remove duplicate parts from the previously finalized sentence
@@ -39,14 +41,14 @@ function removeRepeatedPart(speaker, newText) {
   const oldText = lastFinalized[speaker] || "";
   if (!oldText) return newText;
 
-// If newText starts with oldText => take only the remaining part
+  // If newText starts with oldText => take only the remaining part
   if (newText.startsWith(oldText)) return newText.slice(oldText.length).trim();
 
-// If newText contains oldText somewhere => remove the part before oldText
+  // If newText contains oldText somewhere => remove the part before oldText
   const index = newText.indexOf(oldText);
   if (index >= 0) return newText.slice(index + oldText.length).trim();
 
-  return newText; 
+  return newText;
 }
 function finalizeSpeech(speaker) {
   const message = currentSpeech[speaker];
@@ -57,58 +59,149 @@ function finalizeSpeech(speaker) {
   sendUpdateLive();
 }
 
+
 function finalizeSentence(speaker, sentence) {
   if (!sentence) return;
 
-  const oldWords = lastFinalizedWords[speaker] || [];
-  const newWords = sentence.trim().split(/\s+/);
+  const prev = lastFinalizedText[speaker] || "";
 
-// Find the new delta: remove words that have already been finalized
-  let deltaStart = 0;
-  while (deltaStart < oldWords.length && deltaStart < newWords.length && oldWords[deltaStart] === newWords[deltaStart]) {
-    deltaStart++;
+  // nếu câu mới dài hơn → lấy phần thêm
+  if (sentence.startsWith(prev)) {
+    const delta = sentence.slice(prev.length).trim();
+    if (delta) {
+      chrome.runtime.sendMessage({
+        type: "LIVE_TRANSCRIPT",
+        payload: { action: "finalize", speaker, finalized: delta },
+      });
+    }
+  } else {
+    // fallback: gửi toàn bộ (Google đã rewrite)
+    chrome.runtime.sendMessage({
+      type: "LIVE_TRANSCRIPT",
+      payload: { action: "finalize", speaker, finalized: sentence },
+    });
   }
 
-  const deltaText = newWords.slice(deltaStart).join(" ");
-  if (!deltaText) return;
-
-  // Send new delta
-  chrome.runtime.sendMessage({
-    type: "LIVE_TRANSCRIPT",
-    payload: { action: "finalize", speaker, finalized: deltaText },
-  });
-
-  // Update lastFinalizedWords
-  lastFinalizedWords[speaker] = newWords;
-
-  // Delete live speech
+  lastFinalizedText[speaker] = sentence;
   delete currentSpeech[speaker];
 }
 
+function getCaptionBlocks() {
+  const container = document.querySelector('[aria-label="Captions"]');
+  if (!container) return [];
 
-
-
-function handleCaptions() {
-  const captionBlocks = document.querySelectorAll("div.nMcdL.bj4p3b");
-  captionBlocks.forEach((block) => {
-    const nameEl = block.querySelector("span.NWpY1d");
-    const textEl = block.querySelector("div.ygicle.VbkSUe");
-    if (!nameEl || !textEl) return;
-    
-    const speaker = nameEl.textContent.trim();
-    const fullMessage = cleanMessage(textEl.textContent);
-    currentSpeech[speaker] = fullMessage;
-
-    if (speakerTimers[speaker]) clearTimeout(speakerTimers[speaker]);
-    speakerTimers[speaker] = setTimeout(() => {
-      finalizeSentence(speaker, currentSpeech[speaker]);
-    }, SPEAKER_TIMEOUT);
+  return Array.from(container.children).filter(el => {
+    return el.innerText && el.innerText.length > 0;
   });
 }
 
-const observer = new MutationObserver(handleCaptions);
-const container = document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.parentElement;
-if (container) observer.observe(container, { childList: true, subtree: true, characterData: true });
+function extractSpeakerAndText(block) {
+  const bold = block.querySelector("b");
+  if (!bold) return null;
+
+  const speakerRaw = bold.textContent || "";
+  const fullText = block.textContent || "";
+
+  const speaker = speakerRaw.replace(":", "").trim();
+
+  // remove speaker khỏi text
+  let text = fullText.replace(speakerRaw, "").trim();
+
+  // clean duplicate
+  text = text.replace(speaker, "").trim();
+
+  if (!speaker || !text) return null;
+
+  return { speaker, text };
+}
+function isValidCaptionBlock(el) {
+  if (!el) return false;
+
+  // phải có text
+  const text = el.innerText?.trim();
+  if (!text) return false;
+
+  // caption thường ngắn
+  const words = text.split(/\s+/);
+  if (words.length < 3 || words.length > 50) return false;
+
+  // loại UI noise
+  const noisePatterns = [
+    "Press the down arrow",
+    "mute",
+    "camera",
+    "settings",
+    "More options",
+    "Meeting",
+    "reaction",
+    "Turn on",
+    "You can't"
+  ];
+
+  for (let p of noisePatterns) {
+    if (text.includes(p)) return false;
+  }
+
+  return true;
+}
+
+function extractFromBlock(block) {
+  if (!block) return null;
+
+  // ưu tiên đúng structure của Google Meet
+  let speakerEl =
+    block.querySelector('[class*="NWp"]') ||
+    block.querySelector("span");
+
+  let textEl =
+    block.querySelector('[class*="ygicle"]') ||
+    block.querySelector("div:last-child");
+
+  if (!speakerEl || !textEl) return null;
+
+  const speaker = speakerEl.innerText.trim();
+  const text = textEl.innerText.trim();
+
+  if (!speaker || !text) return null;
+
+  // filter trường hợp bị đảo ngược (rất quan trọng)
+  if (text.length < speaker.length) return null;
+
+  return { speaker, text };
+}
+
+function handleCaptions() {
+  const blocks = getCaptionBlocks();
+
+  blocks.forEach((block) => {
+    const result = extractFromBlock(block);
+    if (!result) return;
+
+    const { speaker, text } = result;
+
+    const fullMessage = cleanMessage(text);
+
+    // tránh spam giống nhau
+    if (currentSpeech[speaker] === fullMessage) return;
+
+    currentSpeech[speaker] = fullMessage;
+
+    if (speakerTimers[speaker]) clearTimeout(speakerTimers[speaker]);
+
+   const capturedText = fullMessage;
+
+speakerTimers[speaker] = setTimeout(() => {
+  // chỉ finalize nếu text không đổi
+  if (currentSpeech[speaker] === capturedText) {
+    finalizeSentence(speaker, capturedText);
+  }
+}, SPEAKER_TIMEOUT);
+  });
+}
+
+
+
+
 
 function getDeltaText(speaker, newText) {
   const oldText = lastFinalizedText[speaker] || "";
@@ -116,12 +209,23 @@ function getDeltaText(speaker, newText) {
 
   if (newText.startsWith(oldText)) return newText.slice(oldText.length).trim();
 
-  return newText; 
+  return newText;
 }
+let rafScheduled = false;
 
 function initObserver(container) {
   if (window._captionObserver) window._captionObserver.disconnect();
-  window._captionObserver = new MutationObserver(handleCaptions);
+
+  window._captionObserver = new MutationObserver(() => {
+    if (rafScheduled) return;
+
+    rafScheduled = true;
+    requestAnimationFrame(() => {
+      handleCaptions();
+      rafScheduled = false;
+    });
+  });
+
   window._captionObserver.observe(container, {
     childList: true,
     subtree: true,
@@ -130,12 +234,15 @@ function initObserver(container) {
 }
 
 function waitForCaptionContainer() {
-  const container = document.querySelector("div.nMcdL.bj4p3b")?.parentElement
-    ?.parentElement;
+  const container =
+    document.querySelector('[aria-label="Captions"]') ||
+    document.querySelector('[role="region"]');
+
   if (container) {
     initObserver(container);
     return true;
   }
+
   return false;
 }
 
@@ -165,16 +272,29 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       const b0 = blocksNow[0];
       const nameEl0 = b0.querySelector("span.NWpY1d");
       const textEl0 = b0.querySelector("div.ygicle.VbkSUe");
-      console.log("firstBlock has nameEl:", Boolean(nameEl0), "textEl:", Boolean(textEl0));
-      console.log("firstBlock speaker:", nameEl0?.textContent?.trim() || "(none)");
-      console.log("firstBlock text preview:", (textEl0?.textContent || "").slice(0, 120));
+      console.log(
+        "firstBlock has nameEl:",
+        Boolean(nameEl0),
+        "textEl:",
+        Boolean(textEl0),
+      );
+      console.log(
+        "firstBlock speaker:",
+        nameEl0?.textContent?.trim() || "(none)",
+      );
+      console.log(
+        "firstBlock text preview:",
+        (textEl0?.textContent || "").slice(0, 120),
+      );
     } else {
-      console.warn("No caption blocks found. Possible causes: captions OFF, Meet DOM changed, or not rendered yet.");
+      console.warn(
+        "No caption blocks found. Possible causes: captions OFF, Meet DOM changed, or not rendered yet.",
+      );
     }
 
     // 3) container resolve
-    const container =
-      document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.parentElement;
+    const container = document.querySelector("div.nMcdL.bj4p3b")?.parentElement
+      ?.parentElement;
 
     console.log("container found:", Boolean(container));
     if (container) {
@@ -200,7 +320,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         console.log("verify blocksLater.length:", blocksLater?.length || 0);
 
         if (!blocksLater || blocksLater.length === 0) {
-          console.error("Still empty after refresh. Likely captions OFF or selector changed.");
+          console.error(
+            "Still empty after refresh. Likely captions OFF or selector changed.",
+          );
           console.groupEnd();
           sendResponse({ ok: false, error: "Caption blocks still empty" });
           return;
@@ -214,10 +336,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
           if (hasName && hasText) okNodeCount++;
         });
 
-        console.log("blocks with (name+text) nodes:", okNodeCount, "/", blocksLater.length);
+        console.log(
+          "blocks with (name+text) nodes:",
+          okNodeCount,
+          "/",
+          blocksLater.length,
+        );
 
         if (okNodeCount === 0) {
-          console.warn("Blocks exist but expected nodes missing. Meet DOM structure likely changed.");
+          console.warn(
+            "Blocks exist but expected nodes missing. Meet DOM structure likely changed.",
+          );
         }
 
         console.log("Refresh OK ✅");
@@ -245,7 +374,8 @@ function _meetDomDiagnostics() {
   const nameEls = document.querySelectorAll("span.NWpY1d");
   const textEls = document.querySelectorAll("div.ygicle.VbkSUe");
   const container =
-    document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.parentElement || null;
+    document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.parentElement ||
+    null;
 
   return {
     url: location.href,
@@ -269,13 +399,15 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     // thử tìm lại container
     const container =
-      document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.parentElement || null;
+      document.querySelector("div.nMcdL.bj4p3b")?.parentElement
+        ?.parentElement || null;
 
     if (!container) {
       const diagFail = _meetDomDiagnostics();
       sendResponse({
         ok: false,
-        reason: "Caption container not found (selector div.nMcdL.bj4p3b -> parentElement.parentElement = null)",
+        reason:
+          "Caption container not found (selector div.nMcdL.bj4p3b -> parentElement.parentElement = null)",
         diagnostics: { before: diagBefore, after: diagFail },
       });
       return true;
