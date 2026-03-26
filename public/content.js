@@ -60,30 +60,42 @@ function finalizeSpeech(speaker) {
 }
 
 
+function getDelta(prev, curr) {
+  if (!prev) return curr;
+
+  const prevWords = prev.split(/\s+/);
+  const currWords = curr.split(/\s+/);
+
+  let i = 0;
+
+  // so theo WORD (không phải char)
+  while (
+    i < prevWords.length &&
+    i < currWords.length &&
+    prevWords[i] === currWords[i]
+  ) {
+    i++;
+  }
+
+  return currWords.slice(i).join(" ").trim();
+}
+
+
 function finalizeSentence(speaker, sentence) {
   if (!sentence) return;
 
   const prev = lastFinalizedText[speaker] || "";
 
-  // nếu câu mới dài hơn → lấy phần thêm
-  if (sentence.startsWith(prev)) {
-    const delta = sentence.slice(prev.length).trim();
-    if (delta) {
-      chrome.runtime.sendMessage({
-        type: "LIVE_TRANSCRIPT",
-        payload: { action: "finalize", speaker, finalized: delta },
-      });
-    }
-  } else {
-    // fallback: gửi toàn bộ (Google đã rewrite)
-    chrome.runtime.sendMessage({
-      type: "LIVE_TRANSCRIPT",
-      payload: { action: "finalize", speaker, finalized: sentence },
-    });
-  }
+  const delta = getDelta(prev, sentence);
+
+  if (!delta || delta.length < 2) return;
+
+  chrome.runtime.sendMessage({
+    type: "LIVE_TRANSCRIPT",
+    payload: { action: "finalize", speaker, finalized: delta },
+  });
 
   lastFinalizedText[speaker] = sentence;
-  delete currentSpeech[speaker];
 }
 
 function getCaptionBlocks() {
