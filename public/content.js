@@ -248,6 +248,7 @@ function initObserver(container) {
 function waitForCaptionContainer() {
   const container =
     document.querySelector('[aria-label="Captions"]') ||
+     document.querySelector('[aria-label="Phụ đề"]') ||
     document.querySelector('[role="region"]');
 
   if (container) {
