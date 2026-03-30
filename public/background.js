@@ -4,8 +4,21 @@ let startTime = null;
 let timerInterval = null;
 const timeRemainingThreshold = 30 * 60;
 const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
-const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
-// const VITE_URL_BACKEND = "http://localhost:4000";
+//const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
+const VITE_URL_BACKEND = "http://localhost:4000";
+const AI_DIALOGUE_AGENT_ENDPOINTS = {
+  gemini: "/api/content-generators/ai_dialogue_architect_agent",
+  groq: "/api/content-generators/ai_dialogue_architect_agent_groq",
+  kimi: "/api/content-generators/ai_dialogue_architect_agent_kimi",
+  perplexity: "/api/content-generators/ai_dialogue_architect_agent_perplexity",
+};
+
+function getAiDialogueAgentEndpoint(modelKey) {
+  return (
+    AI_DIALOGUE_AGENT_ENDPOINTS[modelKey] ||
+    AI_DIALOGUE_AGENT_ENDPOINTS.gemini
+  );
+}
 
 function resetTimer() {
   startTime = null;
@@ -281,9 +294,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             finalizedMessage,
             uiTimer,
           };
+          const selectedModelKey = meetingData?.agentModelKey || "gemini";
+          const agentEndpoint = getAiDialogueAgentEndpoint(selectedModelKey);
 
           const response = await fetch(
-            `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent`,
+            `${VITE_URL_BACKEND}${agentEndpoint}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },

@@ -12,6 +12,24 @@ import AIPsychAnalyzerStep from "./AIPsychAnalyzerStep";
 import { signInAndGetCalendarToken } from "../api/authGoogleCalendar"; // 👈 thêm
 
 const LS_PERSONA_KEY = "bm.persona_profile";
+const DEFAULT_AGENT_MODEL_KEY = "groq";
+const AGENT_MODEL_OPTIONS = [
+  {
+    key: "groq",
+    label: "Groq",
+    meta: "Fastest default",
+  },
+  {
+    key: "kimi",
+    label: "Kimi",
+    meta: "Moonshot route",
+  },
+  {
+    key: "perplexity",
+    label: "Perplexity",
+    meta: "Sonar route",
+  },
+];
 
 export default function PopupWithSidebar({
   onStartMeeting,
@@ -36,6 +54,7 @@ export default function PopupWithSidebar({
     meetingEmail: "",
     meetingMessage: "",
     meetingNote: "",
+    agentModelKey: DEFAULT_AGENT_MODEL_KEY,
     meetingStart: "",
     designatedTime: "",
     meetingDuration: "15",
@@ -109,6 +128,8 @@ export default function PopupWithSidebar({
         meetingEmail: selectedBlock.meetingEmail || "",
         meetingMessage: selectedBlock.meetingMessage || "",
         meetingNote: selectedBlock.meetingNote || "",
+        agentModelKey:
+          selectedBlock.agentModelKey || DEFAULT_AGENT_MODEL_KEY,
         meetingStart: selectedBlock.meetingStart || "",
         meetingDuration: selectedBlock.meetingDuration || "15",
         meetingEnd: selectedBlock.meetingEnd || "",
@@ -152,6 +173,8 @@ export default function PopupWithSidebar({
         meetingEmail: selectedBlock.meetingEmail || "",
         meetingMessage: selectedBlock.meetingMessage || "",
         meetingNote: selectedBlock.meetingNote || "",
+        agentModelKey:
+          selectedBlock.agentModelKey || DEFAULT_AGENT_MODEL_KEY,
         meetingStart: "",
         designatedTime: selectedBlock.designatedTime || "",
         meetingDuration: "15",
@@ -285,6 +308,7 @@ export default function PopupWithSidebar({
       meetingEmail: "",
       meetingMessage: "",
       meetingNote: "",
+      agentModelKey: DEFAULT_AGENT_MODEL_KEY,
       meetingStart: "",
       meetingDuration: "15",
       meetingEnd: "",
@@ -506,6 +530,11 @@ export default function PopupWithSidebar({
         meetingEmail: formData.meetingEmail || "",
         meetingMessage: formData.meetingMessage || "",
         meetingNote: formData.meetingNote || "",
+        agentModelKey: formData.agentModelKey || DEFAULT_AGENT_MODEL_KEY,
+        agentModelLabel:
+          AGENT_MODEL_OPTIONS.find(
+            (option) => option.key === formData.agentModelKey
+          )?.label || "Groq",
         meetingStart: formData.meetingStart || "",
         meetingDuration: formData.meetingDuration || "15",
         meetingEnd: formData.meetingEnd || "",
@@ -750,6 +779,39 @@ export default function PopupWithSidebar({
                 error={errors.title}
                 readOnly={!isEditing}
               />
+              <div className="agent-model-picker">
+                <div className="agent-model-picker__label">
+                  AI model test routes
+                </div>
+                <div className="agent-model-picker__subtext">
+                  Each button maps to a separate backend endpoint. Groq is set
+                  as the fastest default for quick testing.
+                </div>
+                <div className="agent-model-picker__buttons">
+                  {AGENT_MODEL_OPTIONS.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      className={`agent-model-button ${
+                        formData.agentModelKey === option.key ? "active" : ""
+                      }`}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          agentModelKey: option.key,
+                        }))
+                      }
+                    >
+                      <span className="agent-model-button__label">
+                        {option.label}
+                      </span>
+                      <span className="agent-model-button__meta">
+                        {option.meta}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <GoogleCalendar
                 formData={formData}
                 handleChange={handleChange}
