@@ -7,10 +7,9 @@ const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=24293459
 //const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
 const VITE_URL_BACKEND = "http://localhost:4000";
 const AI_DIALOGUE_AGENT_ENDPOINTS = {
-  gemini: "/api/content-generators/ai_dialogue_architect_agent",
+  gemini: "/api/content-generators/ai_dialogue_architect_agent_gemini",
   groq: "/api/content-generators/ai_dialogue_architect_agent_groq",
   kimi: "/api/content-generators/ai_dialogue_architect_agent_kimi",
-  perplexity: "/api/content-generators/ai_dialogue_architect_agent_perplexity",
 };
 
 function getAiDialogueAgentEndpoint(modelKey) {

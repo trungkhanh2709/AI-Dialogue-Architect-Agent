@@ -20,14 +20,14 @@ const AGENT_MODEL_OPTIONS = [
     meta: "Fastest default",
   },
   {
+    key: "gemini",
+    label: "Gemini",
+    meta: "Stable quality",
+  },
+  {
     key: "kimi",
     label: "Kimi",
     meta: "Moonshot route",
-  },
-  {
-    key: "perplexity",
-    label: "Perplexity",
-    meta: "Sonar route",
   },
 ];
 
