@@ -11,6 +11,17 @@ export default function Meeting({
   cookieUserName,
   onExpire,
 }) {
+  const THINKING_PREFIXES = [
+    "Hmm... Let me think.",
+    "That's a good question... let me think.",
+    "Let me think for a second...",
+    "One moment... thinking.",
+    "Give me a second to think...",
+    "Hmm... that's interesting. Let me think.",
+  ];
+
+  const pickThinkingPrefix = () =>
+    THINKING_PREFIXES[Math.floor(Math.random() * THINKING_PREFIXES.length)];
   const [currentSpeech, setCurrentSpeech] = useState({});
   const [meetingLog, setMeetingLog] = useState([]);
   const [lastFinalizedWords, setLastFinalizedWords] = useState({});
@@ -469,6 +480,13 @@ const getTimerFromBG = () =>
 
     setChatMessages((prev) => [
       ...prev,
+      {
+        speaker: "Agent",
+        text: pickThinkingPrefix(),
+        isAgent: true,
+        isTemp: false,
+        isThinking: true,
+      },
       {
         speaker: "Agent",
         text: "",
