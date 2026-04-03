@@ -22,6 +22,11 @@ export default function Meeting({
 
   const pickThinkingPrefix = () =>
     THINKING_PREFIXES[Math.floor(Math.random() * THINKING_PREFIXES.length)];
+  const [detectedLanguage, setDetectedLanguage] = useState("Unknown");
+  const [languageSource, setLanguageSource] = useState("auto");
+  const [showLanguageConfirm, setShowLanguageConfirm] = useState(false);
+  const [captionStatus, setCaptionStatus] = useState(null);
+  const [lastTranscriptAt, setLastTranscriptAt] = useState(null);
   const [currentSpeech, setCurrentSpeech] = useState({});
   const [meetingLog, setMeetingLog] = useState([]);
   const [lastFinalizedWords, setLastFinalizedWords] = useState({});
@@ -57,6 +62,50 @@ const [domRefreshing, setDomRefreshing] = useState(false);
     return speaker === "You" || speaker === "Bạn";
   }
 
+  const detectLanguage = (text) => {
+    if (!text || typeof text !== "string") return "Unknown";
+    const vietnamesePattern =
+      /[àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ]/i;
+    if (vietnamesePattern.test(text)) return "Vietnamese";
+    if (/[a-zA-Z]/.test(text)) return "English";
+    return "Unknown";
+  };
+
+  const updateDetectedLanguage = (text) => {
+    if (languageSource === "manual") return;
+    const detected = detectLanguage(text);
+    if (detected === "Unknown") {
+      setShowLanguageConfirm(true);
+      return;
+    }
+    if (detected !== detectedLanguage) {
+      setDetectedLanguage(detected);
+    }
+    setShowLanguageConfirm(false);
+  };
+
+  const handleLanguageSelect = (lang) => {
+    if (!lang) return;
+    setDetectedLanguage(lang);
+    setLanguageSource("manual");
+    setShowLanguageConfirm(false);
+    try {
+      localStorage.setItem("ai_dialogue_language", lang);
+    } catch {}
+  };
+
+  const handleDismissCaptionStatus = () => {
+    setCaptionStatus(null);
+  };
+
+  const formatAgentError = (err) => {
+    if (!err) return "Agent is unable to respond";
+    const raw =
+      typeof err === "string" ? err : JSON.stringify(err, null, 0);
+    const trimmed = raw.length > 200 ? `${raw.slice(0, 200)}...` : raw;
+    return `Agent is unable to respond (${trimmed})`;
+  };
+
   useEffect(() => {
     if (liveRef.current) {
       liveRef.current.scrollTop = liveRef.current.scrollHeight;
@@ -68,6 +117,17 @@ const [domRefreshing, setDomRefreshing] = useState(false);
       onExpire(); // báo cho App.jsx đổi sang upgrade
     }
   }, [sessionExpired, onExpire]);
+
+  useEffect(() => {
+    try {
+      const savedLang = localStorage.getItem("ai_dialogue_language");
+      if (savedLang) {
+        setDetectedLanguage(savedLang);
+        setLanguageSource("manual");
+        setShowLanguageConfirm(false);
+      }
+    } catch {}
+  }, []);
 
   const saveOrUpdateMeeting = (logData) => {
     const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
@@ -115,49 +175,6 @@ const [domRefreshing, setDomRefreshing] = useState(false);
   };
 
 // ===== ADD: Try refresh Meet captions DOM =====
-const handleRefreshMeetDom = () => {
-  setDomRefreshing(true);
-  setDomRefreshError("");
-  setDomRefreshInfo(null);
-
-  chrome.runtime.sendMessage(
-    { type: "REFRESH_MEET_CAPTION_DOM" },
-    (res) => {
-      setDomRefreshing(false);
-
-      if (chrome.runtime.lastError) {
-        setDomRefreshError(
-          `[runtime.lastError] ${chrome.runtime.lastError.message}`
-        );
-        return;
-      }
-
-      if (!res?.ok) {
-        setDomRefreshError(
-          res?.error
-            ? String(res.error)
-            : "Unknown error: REFRESH_MEET_CAPTION_DOM returned ok=false"
-        );
-        if (res?.details) setDomRefreshInfo(res.details);
-        return;
-      }
-
-      // ok=true
-      if (res?.details) setDomRefreshInfo(res.details);
-
-      // nếu details nói fail thì vẫn show như error
-      if (res?.details?.ok === false) {
-        setDomRefreshError(
-          res?.details?.reason
-            ? `DOM refresh failed: ${res.details.reason}`
-            : "DOM refresh failed (unknown reason)"
-        );
-      }
-    }
-  );
-};
-
-
   const meetingLogRef = useRef(meetingLog);
   useEffect(() => {
     meetingLogRef.current = meetingLog;
@@ -309,7 +326,7 @@ const handleRefreshMeetDom = () => {
             ) {
               newArr[i] = {
                 ...newArr[i],
-                text: "Agent is unable to respond 😢",
+                text: formatAgentError(error),
                 isTemp: false,
               };
               break;
@@ -317,6 +334,14 @@ const handleRefreshMeetDom = () => {
           }
           return newArr;
         });
+        return;
+      }
+
+      if (message.type === "CAPTION_STATUS") {
+        setCaptionStatus(message.payload || null);
+        if (message.payload?.state === "not_found") {
+          setShowLanguageConfirm(true);
+        }
         return;
       }
 
@@ -356,6 +381,7 @@ if (message.type === "TIMER_UPDATE") {
 
       // --- Handle finalize ---
       if (action === "finalize" && finalized) {
+        setLastTranscriptAt(Date.now());
         setMeetingLog((prev) => {
           const newLogEntry = `${speaker}: "${finalized}"`;
           if (prev.includes(newLogEntry)) return prev;
@@ -392,6 +418,8 @@ if (message.type === "TIMER_UPDATE") {
           return updatedLog;
         });
 
+        updateDetectedLanguage(finalized);
+
         setCurrentSpeech((prev) => {
           const updated = { ...prev };
           delete updated[speaker];
@@ -427,6 +455,19 @@ if (message.type === "TIMER_UPDATE") {
       liveRef.current.scrollTop = liveRef.current.scrollHeight;
     }
   }, [currentSpeech, meetingLog]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (!lastTranscriptAt) {
+        setCaptionStatus({
+          state: "not_found",
+          reason: "no_transcript_detected",
+        });
+        setShowLanguageConfirm(true);
+      }
+    }, 12000);
+    return () => clearTimeout(timer);
+  }, [lastTranscriptAt]);
 
   // const sendFillerRequest = (log) => {
   //   if (sessionExpired) return Promise.resolve(null);
@@ -500,12 +541,17 @@ const getTimerFromBG = () =>
 
     return new Promise( async(resolve, reject) => {
       const timerNow = await getTimerFromBG();
+      const responseLanguage =
+        detectedLanguage === "Unknown" ? "English" : detectedLanguage;
       chrome.runtime.sendMessage(
         {
           type: "SEND_MESSAGE_TO_AGENT",
           // type: "SEND_MESSAGE_TO_AGENT_STREAM",
           payload: {
-            meetingData,
+            meetingData: {
+              ...meetingData,
+              responseLanguage,
+            },
             chatHistory,
             log,
             requestId,
@@ -524,7 +570,7 @@ uiTimer: timerNow,
                 msg.isTemp && msg.isAgent && msg.requestId === requestId
                   ? {
                     ...msg,
-                    text: "Agent is unable to respond 😢",
+                    text: formatAgentError(chrome.runtime.lastError),
                     isTemp: false,
                   }
                   : msg
@@ -542,7 +588,7 @@ uiTimer: timerNow,
                 msg.isTemp && msg.isAgent && msg.requestId === requestId
                   ? {
                     ...msg,
-                    text: "Agent is unable to respond 😢",
+                    text: formatAgentError(res?.error || "Agent stream start failed"),
                     isTemp: false,
                   }
                   : msg
@@ -572,6 +618,7 @@ uiTimer: timerNow,
                   : m
               )
             );
+            updateDetectedLanguage(String(content || ""));
 
             setAgentTyping(false);
             resolve(res);
@@ -728,22 +775,6 @@ useEffect(() => {
           ) : null;
         })}
       </div>
-<div style={{ padding: 8, display: "flex", gap: 8, alignItems: "center" }}>
-  <button
-    onClick={handleRefreshMeetDom}
-    disabled={domRefreshing}
-    style={{
-      padding: "8px 10px",
-      borderRadius: 8,
-      border: "1px solid rgba(0,0,0,0.15)",
-      cursor: domRefreshing ? "not-allowed" : "pointer",
-      background: "#fff",
-    }}
-    title="Try to re-detect Google Meet caption DOM and re-attach observer"
-  >
-    {domRefreshing ? "Refreshing DOM..." : "Refresh DOM"}
-  </button>
-</div>
 
 
 
@@ -754,6 +785,17 @@ useEffect(() => {
         sessionExpired={sessionExpired}
         setSessionExpired={setSessionExpired}
         userEmail={decodedCookieEmail}
+        language={detectedLanguage}
+        languageSource={languageSource}
+        showLanguageConfirm={showLanguageConfirm}
+        onLanguageSelect={handleLanguageSelect}
+        captionStatus={captionStatus}
+        onCaptionDismiss={handleDismissCaptionStatus}
+        onOpenLanguageSettings={() => {
+          try {
+            chrome.runtime.sendMessage({ type: "OPEN_LANGUAGE_SETTINGS" });
+          } catch {}
+        }}
       />
 
       {showSavePopup && (

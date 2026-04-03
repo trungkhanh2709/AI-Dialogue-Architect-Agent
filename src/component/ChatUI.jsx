@@ -7,9 +7,23 @@ export default function ChatUI({
   userEmail,
   setSessionExpired,
   onTimerChange,
+  language,
+  languageSource,
+  showLanguageConfirm,
+  onLanguageSelect,
+  captionStatus,
+  onCaptionDismiss,
+  onOpenLanguageSettings,
 }) {
   const chatRef = useRef(null);
   const [timer, setTimer] = useState({ minutes: 0, seconds: 0 });
+  const [showLanguageOptions, setShowLanguageOptions] = useState(false);
+
+  useEffect(() => {
+    if (showLanguageConfirm) {
+      setShowLanguageOptions(true);
+    }
+  }, [showLanguageConfirm]);
 
   useEffect(() => {
     if (!chatRef.current) return;
@@ -109,6 +123,29 @@ export default function ChatUI({
           <span className="line line2"></span>
         </button>
       </div>
+
+      {captionStatus && (
+        <div className="caption-warning">
+          <div className="caption-warning__text">
+            Captions not detected. Please do the following steps:
+            <br />
+            1) In Google Meet, click the three dots (More options) and open Settings.
+            <br />
+            2) Go to Captions, add English or Vietnamese, then move it to the top.
+            <br />
+            3) Refresh the Meet page and reopen the extension.
+          </div>
+          {onOpenLanguageSettings && (
+            <button
+              type="button"
+              className="caption-help-link"
+              onClick={onOpenLanguageSettings}
+            >
+              Open Chrome language settings
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="chat-container" ref={chatRef}>
         {messages.map((msg, i) => (

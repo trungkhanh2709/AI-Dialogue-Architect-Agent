@@ -99,10 +99,20 @@ function finalizeSentence(speaker, sentence) {
 }
 
 function getCaptionBlocks() {
-  const container = document.querySelector('[aria-label="Captions"]');
+  const blocks = Array.from(
+    document.querySelectorAll("div.nMcdL.bj4p3b")
+  );
+  if (blocks.length) {
+    return blocks.filter((el) => el.innerText && el.innerText.length > 0);
+  }
+
+  const container =
+    document.querySelector('[aria-label="Captions"]') ||
+    document.querySelector('[role="region"]');
+
   if (!container) return [];
 
-  return Array.from(container.children).filter(el => {
+  return Array.from(container.children).filter((el) => {
     return el.innerText && el.innerText.length > 0;
   });
 }
@@ -248,7 +258,8 @@ function initObserver(container) {
 function waitForCaptionContainer() {
   const container =
     document.querySelector('[aria-label="Captions"]') ||
-    document.querySelector('[role="region"]');
+    document.querySelector('[role="region"]') ||
+    document.querySelector("div.nMcdL.bj4p3b")?.parentElement?.parentElement;
 
   if (container) {
     initObserver(container);
@@ -263,6 +274,29 @@ const finder = setInterval(() => {
 }, 300);
 
 console.log("Waiting for caption container...");
+
+let captionNotFoundNotified = false;
+let captionFinderTries = 0;
+const CAPTION_FINDER_MAX_TRIES = 30;
+
+const captionFinder = setInterval(() => {
+  captionFinderTries += 1;
+  if (waitForCaptionContainer()) {
+    clearInterval(captionFinder);
+    return;
+  }
+
+  if (!captionNotFoundNotified && captionFinderTries >= CAPTION_FINDER_MAX_TRIES) {
+    captionNotFoundNotified = true;
+    chrome.runtime.sendMessage({
+      type: "CAPTION_STATUS",
+      payload: {
+        state: "not_found",
+        reason: "caption_container_not_found",
+      },
+    });
+  }
+}, 300);
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.type !== "REFRESH_CAPTION_DOM") return;
@@ -317,6 +351,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (!container) {
       console.error("Caption container not found (selector returned null).");
       console.groupEnd();
+      chrome.runtime.sendMessage({
+        type: "CAPTION_STATUS",
+        payload: {
+          state: "not_found",
+          reason: "caption_container_not_found",
+        },
+      });
       sendResponse({ ok: false, error: "Caption container not found" });
       return;
     }
@@ -336,6 +377,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             "Still empty after refresh. Likely captions OFF or selector changed.",
           );
           console.groupEnd();
+          chrome.runtime.sendMessage({
+            type: "CAPTION_STATUS",
+            payload: {
+              state: "empty",
+              reason: "caption_blocks_empty",
+            },
+          });
           sendResponse({ ok: false, error: "Caption blocks still empty" });
           return;
         }

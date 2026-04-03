@@ -106,6 +106,22 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
       });
       return true;
+    case "CAPTION_STATUS":
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        if (!tabs[0]?.id) {
+          sendResponse({ ok: false, error: "No active tab" });
+          return;
+        }
+        chrome.tabs.sendMessage(tabs[0].id, msg, () => {
+          sendResponse({ ok: true });
+        });
+      });
+      return true;
+    case "OPEN_LANGUAGE_SETTINGS":
+      chrome.tabs.create({ url: "chrome://settings/languages" }, () => {
+        sendResponse({ ok: true });
+      });
+      return true;
 
     case "LOGIN_GOOGLE":
       chrome.identity.launchWebAuthFlow(
