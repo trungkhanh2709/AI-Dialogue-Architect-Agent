@@ -4,8 +4,22 @@ let startTime = null;
 let timerInterval = null;
 const timeRemainingThreshold = 30 * 60;
 const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
-//const VITE_URL_BACKEND = "https://api-as.reelsightsai.com";
-const VITE_URL_BACKEND = "http://localhost:4000";
+const URL_BACKEND_PROD = "https://api-as.reelsightsai.com";
+const URL_BACKEND_BETA = "https://beta.as.reelsightsai.com";
+const URL_BACKEND_LOCAL = "http://localhost:8000";
+// Change this to: "prod" | "beta" | "local"
+const ACTIVE_BACKEND = "beta";
+const VITE_URL_BACKEND =
+  ACTIVE_BACKEND === "prod"
+    ? URL_BACKEND_PROD
+    : ACTIVE_BACKEND === "local"
+    ? URL_BACKEND_LOCAL
+    : URL_BACKEND_BETA;
+const TELEMETRY_ENDPOINT = "/api/telemetry/extension-error";
+const EXTENSION_VERSION = chrome.runtime.getManifest().version;
+const ERROR_DEDUP_TTL_MS = 5 * 60 * 1000;
+const ERROR_DEDUP_MAX = 200;
+const errorDedup = new Map();
 const AI_DIALOGUE_AGENT_ENDPOINTS = {
   gemini: "/api/content-generators/ai_dialogue_architect_agent_gemini",
   groq: "/api/content-generators/ai_dialogue_architect_agent_groq",
@@ -17,6 +31,47 @@ function getAiDialogueAgentEndpoint(modelKey) {
     AI_DIALOGUE_AGENT_ENDPOINTS[modelKey] ||
     AI_DIALOGUE_AGENT_ENDPOINTS.gemini
   );
+}
+
+function makeErrorKey(payload) {
+  const msg = payload?.message || "";
+  const stack = payload?.stack || "";
+  const event = payload?.event || "";
+  return `${event}|${msg}|${stack}`.slice(0, 1000);
+}
+
+function shouldReportError(key) {
+  const now = Date.now();
+  const last = errorDedup.get(key);
+  if (last && now - last < ERROR_DEDUP_TTL_MS) return false;
+  errorDedup.set(key, now);
+  if (errorDedup.size > ERROR_DEDUP_MAX) {
+    const oldest = [...errorDedup.entries()].sort((a, b) => a[1] - b[1])[0];
+    if (oldest) errorDedup.delete(oldest[0]);
+  }
+  return true;
+}
+
+async function reportExtensionError(payload) {
+  try {
+    const normalized = {
+      ...payload,
+      ts: payload?.ts || new Date().toISOString(),
+      version: payload?.version || EXTENSION_VERSION,
+      userAgent: payload?.userAgent || self?.navigator?.userAgent || "",
+    };
+
+    const key = makeErrorKey(normalized);
+    if (!shouldReportError(key)) return;
+
+    await fetch(`${VITE_URL_BACKEND}${TELEMETRY_ENDPOINT}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(normalized),
+    });
+  } catch (err) {
+    console.warn("Telemetry send failed:", err);
+  }
 }
 
 function resetTimer() {
@@ -117,10 +172,114 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         });
       });
       return true;
+    case "REPORT_ERROR":
+      reportExtensionError(msg.payload || {});
+      sendResponse({ ok: true });
+      return true;
     case "OPEN_LANGUAGE_SETTINGS":
       chrome.tabs.create({ url: "chrome://settings/languages" }, () => {
         sendResponse({ ok: true });
       });
+      return true;
+    case "CHECK_MEET_TAB":
+      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+        const url = tabs?.[0]?.url || "";
+        const ok = url.startsWith("https://meet.google.com/");
+        sendResponse({ ok, url });
+      });
+      return true;
+    case "GET_USER_CLONE":
+      (async () => {
+        try {
+          const { email } = msg.payload || {};
+          const res = await fetch(`${VITE_URL_BACKEND}/api/profiles/primary`, {
+            headers: email ? { username: email } : {},
+            credentials: "include",
+          });
+          const raw = await res.text();
+          let data;
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = raw;
+          }
+          sendResponse({ ok: res.ok, status: res.status, data });
+        } catch (err) {
+          sendResponse({ ok: false, status: 0, error: String(err) });
+        }
+      })();
+      return true;
+    case "GET_PROFILES":
+      (async () => {
+        try {
+          const { email } = msg.payload || {};
+          const res = await fetch(`${VITE_URL_BACKEND}/api/profiles`, {
+            headers: email ? { username: email } : {},
+            credentials: "include",
+          });
+          const raw = await res.text();
+          let data;
+          try {
+            data = JSON.parse(raw);
+          } catch {
+            data = raw;
+          }
+          sendResponse({ ok: res.ok, status: res.status, data });
+        } catch (err) {
+          sendResponse({ ok: false, status: 0, error: String(err) });
+        }
+      })();
+      return true;
+    case "GET_PROFILE_INTEL":
+      (async () => {
+        try {
+          const { profileId, email } = msg.payload || {};
+          if (!profileId) {
+            sendResponse({ ok: false, status: 400, error: "Missing profileId" });
+            return;
+          }
+          sendResponse({
+            ok: false,
+            status: 404,
+            error: "check-intel endpoint not available",
+          });
+        } catch (err) {
+          sendResponse({ ok: false, status: 0, error: String(err) });
+        }
+      })();
+      return true;
+    case "GET_QUOTA":
+      (async () => {
+        try {
+          const { email, add_on_type } = msg.payload || {};
+          if (email && add_on_type) {
+            const fallbackRes = await fetch(
+              `${VITE_URL_BACKEND}/api/addons/get_addon_sessions`,
+              {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ email, add_on_type }),
+              }
+            );
+            const fallbackRaw = await fallbackRes.text();
+            let fallbackData;
+            try {
+              fallbackData = JSON.parse(fallbackRaw);
+            } catch {
+              fallbackData = fallbackRaw;
+            }
+            const remaining = fallbackData?.content?.value ?? 0;
+            sendResponse({
+              ok: false,
+              fallback: { remaining },
+            });
+            return;
+          }
+          sendResponse({ ok: false, status: res.status });
+        } catch (err) {
+          sendResponse({ ok: false, status: 0, error: String(err) });
+        }
+      })();
       return true;
 
     case "LOGIN_GOOGLE":
@@ -295,6 +454,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           });
 
           if (!tabs.length) {
+            reportExtensionError({
+              event: "agent_request_no_meet_tab",
+              message: "Not on a Google Meet tab",
+              source: "background",
+            });
             sendResponse({ error: "Not on a Google Meet tab" });
             return;
           }
@@ -324,6 +488,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           // nếu BE lỗi thì vẫn đọc text để trả về UI debug nhanh
           if (!response.ok) {
             const t = await response.text().catch(() => "");
+            reportExtensionError({
+              event: "agent_request_http_error",
+              message: t || `HTTP ${response.status}`,
+              source: "background",
+              url: tabs[0]?.url || "",
+              context: {
+                status: response.status,
+                endpoint: agentEndpoint,
+                modelKey: selectedModelKey,
+              },
+              userEmail: meetingData?.email || meetingData?.userEmail || "",
+            });
             sendResponse({ error: t || `HTTP ${response.status}` });
             return;
           }
@@ -331,6 +507,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const data = await response.json();
           sendResponse({ data });
         } catch (err) {
+          reportExtensionError({
+            event: "agent_request_exception",
+            message: err?.message || String(err),
+            stack: err?.stack || "",
+            source: "background",
+            context: { endpoint: "SEND_MESSAGE_TO_AGENT" },
+          });
           sendResponse({ error: err?.message || String(err) });
         }
       })();
@@ -361,6 +544,61 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   : String(log || ""),
                 msg: Array.isArray(chatHistory) ? chatHistory : [],
               };
+              const selectedModelKey = meetingData?.agentModelKey || "gemini";
+
+              if (selectedModelKey !== "groq") {
+                const agentEndpoint = getAiDialogueAgentEndpoint(selectedModelKey);
+                const res = await fetch(
+                  `${VITE_URL_BACKEND}${agentEndpoint}`,
+                  {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload),
+                  }
+                );
+
+                if (!res.ok) {
+                  const text = await res.text().catch(() => "");
+                  reportExtensionError({
+                    event: "agent_stream_http_error",
+                    message: text || `HTTP ${res.status}`,
+                    source: "background",
+                    url: tabs[0]?.url || "",
+                    context: {
+                      status: res.status,
+                      endpoint: agentEndpoint,
+                      modelKey: selectedModelKey,
+                    },
+                    userEmail:
+                      meetingData?.email || meetingData?.userEmail || "",
+                  });
+                  chrome.tabs.sendMessage(activeTabId, {
+                    type: "AGENT_STREAM_ERROR",
+                    payload: text || `HTTP ${res.status}`,
+                    requestId,
+                  });
+                  sendResponse({ ok: false, error: text });
+                  return;
+                }
+
+                const data = await res.json().catch(() => ({}));
+                const content =
+                  data?.content ??
+                  data?.data?.content ??
+                  data?.text ??
+                  "";
+
+                chrome.tabs.sendMessage(activeTabId, {
+                  type: "AGENT_STREAM_CHUNK",
+                  payload: { delta: String(content || ""), requestId },
+                });
+                chrome.tabs.sendMessage(activeTabId, {
+                  type: "AGENT_STREAM_DONE",
+                  payload: { requestId },
+                });
+                sendResponse({ ok: true });
+                return;
+              }
 
               const res = await fetch(
                 `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent_stream`,
@@ -373,6 +611,18 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
               if (!res.ok || !res.body) {
                 const text = await res.text().catch(() => "");
+                reportExtensionError({
+                  event: "agent_stream_http_error",
+                  message: text || `HTTP ${res.status}`,
+                  source: "background",
+                  url: tabs[0]?.url || "",
+                  context: {
+                    status: res.status,
+                    endpoint:
+                      "/api/content-generators/ai_dialogue_architect_agent_stream",
+                  },
+                  userEmail: meetingData?.email || meetingData?.userEmail || "",
+                });
                 chrome.tabs.sendMessage(activeTabId, {
                   type: "AGENT_STREAM_ERROR",
                   payload: text || `HTTP ${res.status}`,
@@ -412,6 +662,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             }
           );
         } catch (err) {
+          reportExtensionError({
+            event: "agent_stream_exception",
+            message: String(err),
+            stack: err?.stack || "",
+            source: "background",
+            context: { endpoint: "SEND_MESSAGE_TO_AGENT_STREAM" },
+          });
           sendResponse({ ok: false, error: String(err) });
         }
       })();

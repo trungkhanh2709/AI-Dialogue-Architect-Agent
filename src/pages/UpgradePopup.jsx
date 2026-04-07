@@ -96,7 +96,7 @@ const UpgradePopup = ({ onClose, userEmail, onContinue }) => {
           Limited Time: 10% Off. Smarter Conversations, Faster Closings.
         </h2>
         <p className="body-text">
-          You’ve seen the <strong>AI Dialogue Architect Agent</strong> in
+          You’ve seen the <strong>AI Dialogue Strategist Agent</strong> in
           action—delivering hyper-personalized responses that move deals
           forward. Now unlock full access to real-time objection handling,
           persona matching, and scalable outreach.
