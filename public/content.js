@@ -168,6 +168,7 @@ function getDelta(prev, curr) {
 
 function finalizeSentence(speaker, sentence) {
   if (!sentence) return;
+  if (isSystemCaptionText(speaker, sentence)) return;
 
   const prev = lastFinalizedText[speaker] || "";
 
@@ -239,6 +240,51 @@ function getCaptionContainers() {
   });
 
   return Array.from(containers).filter((el) => el);
+}
+
+function isSystemCaptionText(speaker, text) {
+  const t = `${speaker || ""} ${text || ""}`.toLowerCase();
+  if (
+    t.includes("closed_caption_off") ||
+    t.includes("closed captions off") ||
+    t.includes("live captions have been turned off") ||
+    t.includes("captions have been turned off") ||
+    t.includes("live captions have been turned on") ||
+    t.includes("captions have been turned on")
+  ) {
+    return true;
+  }
+  if (
+    t.includes("open caption settings") ||
+    t.includes("caption settings") ||
+    t.includes("font size") ||
+    t.includes("font color") ||
+    t.includes("format_size") ||
+    t.includes("arrow_downward") ||
+    t.includes("jump to bottom") ||
+    t.includes("jump to the bottom") ||
+    t.includes("jump to most recent captions")
+  ) {
+    return true;
+  }
+  if (
+    t.includes("your mic is off") ||
+    t.includes("mic is off") ||
+    t.includes("microphone is off") ||
+    t.includes("mic is muted") ||
+    t.includes("microphone is muted") ||
+    t.includes("you're muted") ||
+    t.includes("you are muted") ||
+    t.includes("turn on microphone") ||
+    t.includes("turn on mic") ||
+    t.includes("unmute") ||
+    t.includes("camera is off") ||
+    t.includes("your camera is off") ||
+    t.includes("turn on camera")
+  ) {
+    return true;
+  }
+  return false;
 }
 
 function scoreCaptionContainer(el) {
@@ -558,11 +604,13 @@ function handleLiveRegions() {
 
   regions.forEach((region) => {
     if (isInsideExtensionUI(region)) return;
+    if (!isCaptionContainer(region)) return;
     const raw = (region.innerText || "").trim();
     if (!raw) return;
 
     const cleaned = cleanMessage(raw);
     if (cleaned.length < 2) return;
+    if (isSystemCaptionText("Speaker", cleaned)) return;
 
     const prev = liveRegionCache.get(region) || "";
     if (prev === cleaned) return;
@@ -676,7 +724,16 @@ function initObserver(container) {
 function waitForCaptionContainer() {
   const existing = window._captionContainer;
   if (existing && document.contains(existing)) {
-    return true;
+    const hasBlocks = existing.querySelector
+      ? existing.querySelector("div.nMcdL.bj4p3b")
+      : null;
+    const hasLiveText =
+      existing.getAttribute &&
+      (existing.getAttribute("aria-live") === "polite" ||
+        existing.getAttribute("aria-live") === "assertive");
+    if (hasBlocks || hasLiveText) {
+      return true;
+    }
   }
 
   const container = pickBestCaptionContainer();
@@ -762,6 +819,14 @@ setInterval(() => {
   const stale = !lastSeen || Date.now() - lastSeen > RESYNC_STALE_MS;
   if (!stale) return;
   try {
+    if (window._captionObserver) {
+      try {
+        window._captionObserver.disconnect();
+      } catch {}
+    }
+    window._captionObserver = null;
+    window._captionContainer = null;
+    captionDetectedNotified = false;
     waitForCaptionContainer();
     handleCaptions();
     handleLiveRegions();

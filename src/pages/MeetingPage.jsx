@@ -130,6 +130,7 @@ export default function MeetingPage({
   const meetingLogRef = useRef([]);
   const [chatMessages, setChatMessages] = useState([]);
   const [captionStatus, setCaptionStatus] = useState(null);
+  const [lastRealTranscriptAt, setLastRealTranscriptAt] = useState(null);
   const [lastTranscriptAt, setLastTranscriptAt] = useState(null);
   const [nowTick, setNowTick] = useState(Date.now());
   const [detectedLanguage, setDetectedLanguage] = useState("English");
@@ -880,9 +881,12 @@ export default function MeetingPage({
       if (message.type === "CAPTION_STATUS") {
         const state = message.payload?.state;
         if (state === "detected") {
-          setLastTranscriptAt(Date.now());
-          setCaptionStatus(null);
+          // Container detected only; do not mark as synced until real transcript arrives.
+          setCaptionStatus(message.payload || null);
           return;
+        }
+        if (state === "not_found" || state === "empty" || state === "no_transcript") {
+          setLastTranscriptAt(null);
         }
         setCaptionStatus(message.payload || null);
         return;
@@ -897,14 +901,20 @@ export default function MeetingPage({
       const { action, speaker, finalized, currentSpeech } = message.payload;
 
       if (action === "update_live") {
+        const liveValues = currentSpeech ? Object.values(currentSpeech) : [];
+        const hasRealLive = liveValues.some((val) => {
+          const text = String(val || "").trim();
+          if (!text) return false;
+          return !isSystemCaptionText(speaker || "Speaker", text);
+        });
         const hasActiveSpeech =
           currentSpeech &&
           Object.values(currentSpeech).some(
             (val) => String(val || "").trim().length > 0
           );
         if (hasActiveSpeech) {
-          setLastTranscriptAt(Date.now());
           setCaptionStatus(null);
+          if (hasRealLive) setLastRealTranscriptAt(Date.now());
         }
         return;
       }
@@ -918,6 +928,7 @@ export default function MeetingPage({
         if (isSpeakerOnlyText(speaker, finalized)) {
           return;
         }
+        setLastRealTranscriptAt(Date.now());
 
         setMeetingLog((prev) => {
           const newLogEntry = `${speaker}: "${finalized}"`;
@@ -960,11 +971,11 @@ export default function MeetingPage({
   }, []);
 
   const statusState =
-    lastTranscriptAt && nowTick - lastTranscriptAt < 15000
+    lastRealTranscriptAt && nowTick - lastRealTranscriptAt < 15000
       ? "synced"
       : "waiting";
   const statusLabel =
-    statusState === "synced" ? "SYNCED" : "WAITING FOR CAPTIONS";
+    statusState === "synced" ? "I'm ready to help" : "WAITING FOR CAPTIONS";
 
   const showCaptionWarning =
     statusState !== "synced" ||
