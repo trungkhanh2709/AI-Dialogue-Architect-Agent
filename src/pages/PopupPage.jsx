@@ -23,6 +23,51 @@ const sendMessageAsync = (message) =>
     chrome.runtime.sendMessage(message, (res) => resolve(res));
   });
 
+const getIntelCacheKey = (profileId) => `ada_intel_${profileId}`;
+
+const loadIntelCache = async (profileId) => {
+  if (!profileId) return null;
+  const key = getIntelCacheKey(profileId);
+
+  try {
+    const chromeCached = await new Promise((resolve) => {
+      if (!chrome?.storage?.local) {
+        resolve(null);
+        return;
+      }
+      chrome.storage.local.get([key], (result) => {
+        resolve(result?.[key] || null);
+      });
+    });
+    if (chromeCached) return chromeCached;
+  } catch {}
+
+  try {
+    return JSON.parse(localStorage.getItem(key) || "null");
+  } catch {
+    return null;
+  }
+};
+
+const saveIntelCache = async (profileId, intel) => {
+  if (!profileId) return;
+  const key = getIntelCacheKey(profileId);
+
+  try {
+    localStorage.setItem(key, JSON.stringify(intel));
+  } catch {}
+
+  try {
+    await new Promise((resolve) => {
+      if (!chrome?.storage?.local) {
+        resolve();
+        return;
+      }
+      chrome.storage.local.set({ [key]: intel }, () => resolve());
+    });
+  } catch {}
+};
+
 const extractContent = (data) => {
   if (!data) return "";
   if (typeof data === "string") return data;
@@ -34,11 +79,13 @@ const extractContent = (data) => {
 const pickTextFromObject = (obj) => {
   if (!obj || typeof obj !== "object") return "";
   const candidates = [
+    "final",
     "business_dna",
     "businessDna",
     "psych_profile",
     "psychProfile",
     "content",
+    "draft",
     "report",
     "result",
     "text",
@@ -49,6 +96,71 @@ const pickTextFromObject = (obj) => {
   if (typeof obj?.data === "string") return obj.data;
   if (typeof obj?.data?.content === "string") return obj.data.content;
   return "";
+};
+
+const cleanIntelLines = (text) => {
+  const lines = String(text)
+    .replace(/\\n/g, "\n")
+    .replace(/\\t/g, " ")
+    .replace(/\r/g, "")
+    .split("\n");
+
+  const metaLinePatterns = [
+    /^status\s*:/i,
+    /^draft\s*:/i,
+    /^final\s*:/i,
+    /^role\s*:/i,
+    /^target entity\s*:/i,
+    /^target\s*:/i,
+    /^subject\s*:/i,
+    /^current date\s*:/i,
+    /^date of analysis\s*:/i,
+    /^prime directive\s*:/i,
+    /^classification\s*:/i,
+    /^executing\b/i,
+  ];
+
+  const cleaned = [];
+  let started = false;
+
+  for (const rawLine of lines) {
+    const line = rawLine.replace(/\*\*/g, "").trimEnd();
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      if (cleaned[cleaned.length - 1] !== "") cleaned.push("");
+      continue;
+    }
+
+    if (metaLinePatterns.some((pattern) => pattern.test(trimmed))) {
+      continue;
+    }
+
+    if (/^---+$/.test(trimmed)) {
+      continue;
+    }
+
+    if (
+      /^(executive summary|detailed analysis|strategic prediction|the wedge|the breaking news)/i.test(
+        trimmed
+      )
+    ) {
+      started = true;
+    }
+
+    if (!started) {
+      // Skip noisy preambles until the first user-meaningful section appears.
+      continue;
+    }
+
+    cleaned.push(line);
+  }
+
+  return cleaned
+    .join("\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/\s*##+\s*/g, "\n")
+    .trim();
 };
 
 const formatIntelContent = (raw) => {
@@ -84,12 +196,8 @@ const formatIntelContent = (raw) => {
     }
   }
 
-  return String(text)
-    .replace(/\\n/g, "\n")
-    .replace(/\\t/g, " ")
-    .replace(/\*\*/g, "")
-    .replace(/\s*##+\s*/g, "\n")
-    .trim();
+  const cleaned = cleanIntelLines(text);
+  return cleaned || String(text).trim();
 };
 const normalizeIntel = (data) => {
   if (!data) return { businessDna: "", psychProfile: "" };
@@ -342,21 +450,18 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
       linkedinUrl: defaultLinkedin || "",
     }));
 
-    const localKey = profileId ? `ada_intel_${profileId}` : "";
-    if (localKey) {
-      try {
-        const cached = JSON.parse(localStorage.getItem(localKey) || "null");
-        if (cached) {
-          setIntel({
-            businessDna: cached.businessDna || "",
-            psychProfile: cached.psychProfile || "",
-          });
-        } else {
-          setIntel({ businessDna: "", psychProfile: "" });
-        }
-      } catch {
+    if (profileId) {
+      const cached = await loadIntelCache(profileId);
+      if (cached) {
+        setIntel({
+          businessDna: cached.businessDna || "",
+          psychProfile: cached.psychProfile || "",
+        });
+      } else {
         setIntel({ businessDna: "", psychProfile: "" });
       }
+    } else {
+      setIntel({ businessDna: "", psychProfile: "" });
     }
 
     if (!profileId) return;
@@ -444,12 +549,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
         const next = { ...intel, businessDna: content };
         setIntel(next);
         pushToast("success", "Business DNA Loaded");
-        try {
-          localStorage.setItem(
-            `ada_intel_${selectedProfileId}`,
-            JSON.stringify(next)
-          );
-        } catch {}
+        await saveIntelCache(selectedProfileId, next);
       } else {
         pushToast("error", "Generation failed - retry?");
       }
@@ -469,12 +569,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
         const next = { ...intel, psychProfile: content };
         setIntel(next);
         pushToast("success", "Psych Profile Loaded");
-        try {
-          localStorage.setItem(
-            `ada_intel_${selectedProfileId}`,
-            JSON.stringify(next)
-          );
-        } catch {}
+        await saveIntelCache(selectedProfileId, next);
       } else {
         pushToast("error", "Generation failed - retry?");
       }
@@ -699,7 +794,9 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
                   onClick={() =>
                     openPreview("Business DNA", intel.businessDna || "")
                   }
+                  aria-label="Business DNA loaded"
                 >
+                  <span aria-hidden="true">{"\u{1F7E2}"}</span>{" "}
                   Business DNA: LOADED
                 </button>
               ) : (
@@ -707,8 +804,18 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
                   className="ada-btn ada-btn--primary ada-btn--small"
                   disabled={intelLoading.business}
                   onClick={() => handleGenerate("business")}
+                  aria-label="Generate Business DNA report"
                 >
-                  {intelLoading.business ? "Generating..." : "Generate DNA"}
+                  {intelLoading.business ? (
+                    <>
+                      <span className="ada-spinner" aria-hidden="true" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <span aria-hidden="true">{"\u26A1"}</span> GENERATE DNA
+                    </>
+                  )}
                 </button>
               )}
 
@@ -718,7 +825,9 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
                   onClick={() =>
                     openPreview("Psych Profile", intel.psychProfile || "")
                   }
+                  aria-label="Psych Profile loaded"
                 >
+                  <span aria-hidden="true">{"\u{1F7E2}"}</span>{" "}
                   Psych Profile: LOADED
                 </button>
               ) : (
@@ -726,8 +835,19 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
                   className="ada-btn ada-btn--primary ada-btn--small"
                   disabled={intelLoading.psych}
                   onClick={() => handleGenerate("psych")}
+                  aria-label="Generate Psych Profile report"
                 >
-                  {intelLoading.psych ? "Generating..." : "Generate Psych"}
+                  {intelLoading.psych ? (
+                    <>
+                      <span className="ada-spinner" aria-hidden="true" />
+                      Generating...
+                    </>
+                  ) : (
+                    <>
+                      <span aria-hidden="true">{"\u26A1"}</span> GENERATE
+                      PSYCH
+                    </>
+                  )}
                 </button>
               )}
             </div>
@@ -871,7 +991,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
             }
             onClick={handleActivate}
           >
-            Activate Architect
+            <span aria-hidden="true">{"\u{1F680}"}</span> ACTIVATE ARCHITECT
           </button>
         </div>
       </div>
@@ -880,35 +1000,47 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
         <div className="ada-modal-backdrop">
           <div className="ada-modal">
             <div className="ada-modal-title">Settings</div>
-            <div className="ada-field">
-              <label className="ada-label">
-                Auto-save debrief to ReelSights AI Hub
+            <div className="ada-toggle-row">
+              <div className="ada-toggle-copy">
+                <div className="ada-label">
+                  Auto-save debrief to ReelSights AI Hub
+                </div>
+              </div>
+              <label className="ada-switch" aria-label="Auto-save debrief to ReelSights AI Hub">
+                <input
+                  className="ada-switch__input"
+                  type="checkbox"
+                  checked={autoSaveEnabled}
+                  onChange={(e) => {
+                    setAutoSaveEnabled(e.target.checked);
+                    localStorage.setItem(
+                      "autoSaveEnabled",
+                      e.target.checked ? "true" : "false"
+                    );
+                  }}
+                />
+                <span className="ada-switch__slider" />
               </label>
-              <input
-                type="checkbox"
-                checked={autoSaveEnabled}
-                onChange={(e) => {
-                  setAutoSaveEnabled(e.target.checked);
-                  localStorage.setItem(
-                    "autoSaveEnabled",
-                    e.target.checked ? "true" : "false"
-                  );
-                }}
-              />
             </div>
-            <div className="ada-field">
-              <label className="ada-label">Auto-collapse live dock</label>
-              <input
-                type="checkbox"
-                checked={autoCollapseEnabled}
-                onChange={(e) => {
-                  setAutoCollapseEnabled(e.target.checked);
-                  localStorage.setItem(
-                    "ada_autoCollapse",
-                    e.target.checked ? "true" : "false"
-                  );
-                }}
-              />
+            <div className="ada-toggle-row">
+              <div className="ada-toggle-copy">
+                <div className="ada-label">Auto-collapse live dock</div>
+              </div>
+              <label className="ada-switch" aria-label="Auto-collapse live dock">
+                <input
+                  className="ada-switch__input"
+                  type="checkbox"
+                  checked={autoCollapseEnabled}
+                  onChange={(e) => {
+                    setAutoCollapseEnabled(e.target.checked);
+                    localStorage.setItem(
+                      "ada_autoCollapse",
+                      e.target.checked ? "true" : "false"
+                    );
+                  }}
+                />
+                <span className="ada-switch__slider" />
+              </label>
             </div>
             <div className="ada-field">
               Monthly Limit: {quota.total} Minutes. Used: {quota.used} Minutes.

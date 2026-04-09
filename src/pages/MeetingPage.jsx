@@ -975,7 +975,7 @@ export default function MeetingPage({
       ? "synced"
       : "waiting";
   const statusLabel =
-    statusState === "synced" ? "I'm ready to help" : "WAITING FOR CAPTIONS";
+    statusState === "synced" ? "SYNCED" : "WAITING FOR CAPTIONS";
 
   const showCaptionWarning =
     statusState !== "synced" ||

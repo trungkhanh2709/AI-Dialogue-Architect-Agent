@@ -38,7 +38,10 @@ export default function LiveDock({
 
   const markActive = () => {
     setLastActiveAt(Date.now());
-    if (collapsed) setCollapsed(false);
+    if (collapsed) {
+      setCollapsed(false);
+      if (manualCollapsed) setManualCollapsed(false);
+    }
   };
 
   const handleAsk = () => {
@@ -63,7 +66,12 @@ export default function LiveDock({
       onClick={markActive}
       onMouseMove={markActive}
     >
-      <div className="ada-collapse-pill">Architect</div>
+      <div className="ada-collapse-pill">
+        <span className="ada-collapse-pill__wave" aria-hidden="true">
+          ///
+        </span>
+        Architect
+      </div>
     </div>
   ) : (
     <div
@@ -158,20 +166,6 @@ export default function LiveDock({
             }}
           />
           <button onClick={handleAsk}>Send</button>
-        </div>
-      )}
-      {manualCollapsed && (
-        <div className="ada-dock-mini">
-          <div className="ada-dock-mini__label">Mini mode</div>
-          <button
-            className="ada-btn ada-btn--ghost ada-btn--small"
-            onClick={() => {
-              setManualCollapsed(false);
-              setCollapsed(false);
-            }}
-          >
-            Expand
-          </button>
         </div>
       )}
     </div>
