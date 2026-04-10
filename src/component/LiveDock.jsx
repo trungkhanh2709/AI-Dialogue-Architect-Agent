@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 export default function LiveDock({
   messages,
@@ -9,7 +9,6 @@ export default function LiveDock({
   onAsk,
   onToast,
   autoCollapseEnabled = true,
-  highlightText,
 }) {
   const [collapsed, setCollapsed] = useState(false);
   const [input, setInput] = useState("");
@@ -18,23 +17,18 @@ export default function LiveDock({
   const [inputFocused, setInputFocused] = useState(false);
   const feedRef = useRef(null);
 
+  const displayMessages = useMemo(() => messages, [messages]);
+
   useEffect(() => {
     if (!feedRef.current) return;
     feedRef.current.scrollTop = feedRef.current.scrollHeight;
   }, [messages, collapsed]);
 
   useEffect(() => {
-    if (!autoCollapseEnabled || manualCollapsed) return;
-    const timer = setInterval(() => {
-      if (inputFocused || input.trim().length > 0) {
-        return;
-      }
-      if (Date.now() - lastActiveAt > 5000) {
-        setCollapsed(true);
-      }
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [autoCollapseEnabled, lastActiveAt, inputFocused, input, manualCollapsed]);
+    if (collapsed && !manualCollapsed) {
+      setCollapsed(false);
+    }
+  }, [collapsed, manualCollapsed]);
 
   const markActive = () => {
     setLastActiveAt(Date.now());
@@ -99,7 +93,7 @@ export default function LiveDock({
 
       <div
         className={`ada-status ${
-          statusState === "synced"
+          statusState === "synced" || statusState === "detected"
             ? "ada-status--synced"
             : "ada-status--waiting"
         }`}
@@ -121,9 +115,13 @@ export default function LiveDock({
       )}
 
       <div className="ada-feed" ref={feedRef}>
-        {messages.map((msg) => {
+        {displayMessages.map((msg) => {
           const text = msg.text || "";
           if (msg.isTemp && !text) return null;
+
+          const isThinking = msg.isThinking;
+          const isStreaming = msg.isTemp && msg.isAgent && text;
+
           return (
             <div
               key={msg.id}
@@ -131,11 +129,27 @@ export default function LiveDock({
             >
               <div
                 className={`ada-bubble ${
-                  msg.isAgent ? "ada-bubble--agent" : "ada-bubble--prospect"
-                }`}
+                  isThinking
+                    ? "ada-bubble--thinking"
+                    : msg.isAgent
+                      ? "ada-bubble--agent"
+                      : "ada-bubble--prospect"
+                } ${isStreaming ? "ada-bubble--streaming" : ""}`}
               >
+                {isThinking && (
+                  <span className="ada-thinking-indicator" aria-hidden="true">
+                    💭{" "}
+                  </span>
+                )}
                 {text}
-                {msg.isAgent && !msg.isTemp && !msg.isThinking && (
+                {isStreaming && (
+                  <span className="ada-typing-dots">
+                    <span />
+                    <span />
+                    <span />
+                  </span>
+                )}
+                {msg.isAgent && !msg.isTemp && !isThinking && (
                   <button
                     className="ada-copy-btn"
                     onClick={() => handleCopy(msg.text)}
@@ -162,7 +176,10 @@ export default function LiveDock({
             onBlur={() => setInputFocused(false)}
             onKeyDown={(e) => {
               markActive();
-              if (e.key === "Enter") handleAsk();
+              if (e.key === "Enter" && !e.shiftKey) {
+                e.preventDefault();
+                handleAsk();
+              }
             }}
           />
           <button onClick={handleAsk}>Send</button>
@@ -172,13 +189,6 @@ export default function LiveDock({
   );
 
   return (
-    <>
-      {highlightText && (
-        <div className="ada-prompt" aria-live="polite">
-          {highlightText}
-        </div>
-      )}
-      {dockBody}
-    </>
+    <>{dockBody}</>
   );
 }

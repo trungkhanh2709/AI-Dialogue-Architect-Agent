@@ -1,14 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import LiveDock from "../component/LiveDock";
 
-const THINKING_PREFIXES = [
-  "Hmm... let me think.",
-  "That's a good question... let me think.",
-  "Let me think for a second...",
-  "One moment... thinking.",
-  "Give me a second to think...",
-  "Hmm... that's interesting. Let me think.",
-];
 const AGENT_DEBOUNCE_MS = 1500;
 const AGENT_MIN_INTERVAL_MS = 3000;
 const AGENT_USE_STREAMING = true;
@@ -17,11 +9,6 @@ const AGENT_MAX_LOG_CHARS = 4000;
 const FAST_LOG_LINES = 8;
 const FAST_LOG_CHARS = 1200;
 const AGENT_CONTEXT_MAX_CHARS = 2000;
-
-const pickThinkingPrefix = () =>
-  `Thinking: ${
-    THINKING_PREFIXES[Math.floor(Math.random() * THINKING_PREFIXES.length)]
-  }`;
 
 const COMPLEX_MARKERS = [
   /price|pricing|budget|roi|contract|legal|security|compliance/i,
@@ -115,7 +102,6 @@ export default function MeetingPage({
   meetingData,
   onBack,
   cookieUserName,
-  onExpire,
 }) {
   const decodedCookieEmail = useMemo(() => {
     if (!cookieUserName) return "";
@@ -134,7 +120,6 @@ export default function MeetingPage({
   const [lastTranscriptAt, setLastTranscriptAt] = useState(null);
   const [nowTick, setNowTick] = useState(Date.now());
   const [detectedLanguage, setDetectedLanguage] = useState("English");
-  const [sessionExpired, setSessionExpired] = useState(false);
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [toast, setToast] = useState(null);
   const [autoCollapseEnabled] = useState(
@@ -149,8 +134,6 @@ export default function MeetingPage({
   const lastAgentRequestAtRef = useRef(0);
   const agentInFlightRef = useRef(false);
   const activeAgentRequestIdRef = useRef(null);
-  const lastHighlightRef = useRef("");
-
   const nextId = () => ++messageIdRef.current;
 
   const trimMeetingLog = (log, fastMode = false) => {
@@ -187,6 +170,21 @@ export default function MeetingPage({
     );
   };
 
+  const requestThinkingFiller = (requestId, newMessage, log) => {
+    chrome.runtime.sendMessage(
+      {
+        type: "SEND_FILLER_REQUEST",
+        payload: {
+          meetingData: buildAgentMeetingData(),
+          log,
+          requestId,
+          finalizedMessage: newMessage,
+        },
+      },
+      () => {}
+    );
+  };
+
   const markAgentDone = (requestId) => {
     if (activeAgentRequestIdRef.current !== requestId) return;
     agentInFlightRef.current = false;
@@ -204,9 +202,7 @@ export default function MeetingPage({
     setChatMessages([]);
     setCaptionStatus(null);
     setLastTranscriptAt(null);
-    setSessionExpired(false);
     transcriptIdRef.current = null;
-    lastHighlightRef.current = "";
   }, [meetingData?._id, meetingData?.id]);
 
   useEffect(() => {
@@ -225,12 +221,6 @@ export default function MeetingPage({
     const interval = setInterval(() => setNowTick(Date.now()), 3000);
     return () => clearInterval(interval);
   }, []);
-
-  useEffect(() => {
-    if (sessionExpired) {
-      onExpire?.();
-    }
-  }, [sessionExpired, onExpire]);
 
   const normalizeSpeaker = (value) =>
     String(value || "")
@@ -530,18 +520,7 @@ export default function MeetingPage({
   };
 
   const sendMessageToAgent = (newMessage, log) => {
-    if (sessionExpired) return Promise.resolve(null);
-
     const requestId = ++reqIdRef.current;
-    const thinkingMsg = {
-      id: nextId(),
-      speaker: "Agent",
-      text: pickThinkingPrefix(),
-      isAgent: true,
-      isTemp: false,
-      isThinking: true,
-      requestId,
-    };
     const tempMsg = {
       id: nextId(),
       speaker: "Agent",
@@ -551,7 +530,8 @@ export default function MeetingPage({
       requestId,
     };
 
-    setChatMessages((prev) => [...prev, thinkingMsg, tempMsg]);
+    setChatMessages((prev) => [...prev, tempMsg]);
+    requestThinkingFiller(requestId, newMessage, log);
 
     const inferredLanguage = detectLanguage(newMessage?.text || "");
     const responseLanguage =
@@ -735,15 +715,6 @@ export default function MeetingPage({
 
     if (fastLocalReply) {
       const requestId = ++reqIdRef.current;
-      const thinkingMsg = {
-        id: nextId(),
-        speaker: "Agent",
-        text: pickThinkingPrefix(),
-        isAgent: true,
-        isTemp: false,
-        isThinking: true,
-        requestId,
-      };
       const replyMsg = {
         id: nextId(),
         speaker: "Agent",
@@ -752,7 +723,6 @@ export default function MeetingPage({
         isTemp: false,
         requestId,
       };
-      setChatMessages((prev) => [...prev, thinkingMsg]);
       setTimeout(() => {
         setChatMessages((prev) => [
           ...prev.filter(
@@ -814,7 +784,6 @@ export default function MeetingPage({
   useEffect(() => {
     const handleMessage = (message) => {
       if (message.type === "SESSION_EXPIRED") {
-        setSessionExpired(true);
         return;
       }
 
@@ -869,12 +838,50 @@ export default function MeetingPage({
       }
 
       if (message.type === "AGENT_FILLER") {
-        const { text } = message.payload || {};
+        const { text, requestId } = message.payload || {};
         if (!text) return;
-        setChatMessages((prev) => [
-          ...prev,
-          { id: nextId(), speaker: "Agent", text, isAgent: true },
-        ]);
+        setChatMessages((prev) => {
+          const alreadyFinalized = prev.some(
+            (msg) =>
+              msg.requestId === requestId &&
+              msg.isAgent &&
+              !msg.isThinking &&
+              !msg.isTemp &&
+              String(msg.text || "").trim()
+          );
+          if (alreadyFinalized) return prev;
+
+          const existingThinkingIndex = prev.findIndex(
+            (msg) => msg.requestId === requestId && msg.isThinking
+          );
+
+          if (existingThinkingIndex >= 0) {
+            return prev.map((msg, idx) =>
+              idx === existingThinkingIndex ? { ...msg, text } : msg
+            );
+          }
+
+          const tempIndex = prev.findIndex(
+            (msg) => msg.requestId === requestId && msg.isAgent && msg.isTemp
+          );
+          const fillerMsg = {
+            id: nextId(),
+            speaker: "Agent",
+            text,
+            isAgent: true,
+            isTemp: false,
+            isThinking: true,
+            requestId,
+          };
+
+          if (tempIndex >= 0) {
+            const next = [...prev];
+            next.splice(tempIndex, 0, fillerMsg);
+            return next;
+          }
+
+          return [...prev, fillerMsg];
+        });
         return;
       }
 
@@ -938,7 +945,7 @@ export default function MeetingPage({
           meetingLogRef.current = updatedLog;
           saveOrUpdateMeeting(updatedLog);
 
-          if (!sessionExpired && !isMySpeech(speaker)) {
+          if (!isMySpeech(speaker)) {
             setChatMessages((prevMsgs) => [
               ...prevMsgs,
               { id: nextId(), speaker, text: finalized, isAgent: false },
@@ -955,54 +962,41 @@ export default function MeetingPage({
 
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, [sessionExpired, detectedLanguage, meetingData]);
+  }, [detectedLanguage, meetingData]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (!lastTranscriptAt) {
+      if (!lastTranscriptAt && captionStatus?.state !== "detected") {
         setCaptionStatus({ state: "no_transcript" });
       }
     }, 12000);
     return () => clearTimeout(timer);
-  }, [lastTranscriptAt]);
+  }, [lastTranscriptAt, captionStatus?.state]);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: "GET_TIMER" }, () => {});
   }, []);
 
-  const statusState =
-    lastRealTranscriptAt && nowTick - lastRealTranscriptAt < 15000
-      ? "synced"
+  const hasRecentTranscript =
+    lastRealTranscriptAt && nowTick - lastRealTranscriptAt < 15000;
+  const captionsDetected = captionStatus?.state === "detected";
+  const statusState = hasRecentTranscript
+    ? "synced"
+    : captionsDetected
+      ? "detected"
       : "waiting";
   const statusLabel =
-    statusState === "synced" ? "SYNCED" : "WAITING FOR CAPTIONS";
+    statusState === "synced"
+      ? "SYNCED"
+      : statusState === "detected"
+        ? "CAPTIONS ON"
+        : "WAITING FOR CAPTIONS";
 
   const showCaptionWarning =
-    statusState !== "synced" ||
+    (!captionsDetected && statusState !== "synced") ||
     captionStatus?.state === "not_found" ||
     captionStatus?.state === "no_transcript" ||
     captionStatus?.state === "empty";
-
-  const highlightText = useMemo(() => {
-    for (let i = chatMessages.length - 1; i >= 0; i -= 1) {
-      const msg = chatMessages[i];
-      if (msg?.isAgent && msg.isThinking) {
-        const text = (msg.text || "").trim();
-        if (text) return text;
-      }
-    }
-
-    for (let i = chatMessages.length - 1; i >= 0; i -= 1) {
-      const msg = chatMessages[i];
-      if (!msg?.isAgent || msg.isThinking) continue;
-      const text = (msg.text || "").trim();
-      if (!text) continue;
-      if (text.toLowerCase().includes("agent returned empty")) continue;
-      lastHighlightRef.current = text;
-      return text;
-    }
-    return lastHighlightRef.current || "";
-  }, [chatMessages]);
 
   return (
     <>
@@ -1018,7 +1012,6 @@ export default function MeetingPage({
           setTimeout(() => setToast(null), 3000);
         }}
         autoCollapseEnabled={autoCollapseEnabled}
-        highlightText={highlightText}
       />
 
       {showEndConfirm && (

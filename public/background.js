@@ -2,7 +2,6 @@ let latestCaptions = [];
 let sharedCaptions = [];
 let startTime = null;
 let timerInterval = null;
-const timeRemainingThreshold = 30 * 60;
 const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
 const URL_BACKEND_PROD = "https://api-as.reelsightsai.com";
 const URL_BACKEND_BETA = "https://beta.as.reelsightsai.com";
@@ -101,20 +100,6 @@ function startTimer() {
         );
       });
     });
-
-    if (elapsedSeconds >= timeRemainingThreshold) {
-      clearInterval(timerInterval);
-      timerInterval = null;
-      chrome.tabs.query({ url: "https://meet.google.com/*" }, (tabs) => {
-        tabs.forEach((tab) => {
-          chrome.tabs.sendMessage(
-            tab.id,
-            { type: "SESSION_EXPIRED" },
-            () => {}
-          );
-        });
-      });
-    }
   }, 1000);
 }
 const queryTabs = (query) =>
@@ -691,13 +676,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               }
 
               const activeTabId = tabs[0].id;
-              const { meetingData, log } = msg.payload;
+              const { meetingData, log, requestId, finalizedMessage } = msg.payload;
 
               const payload = {
                 ...meetingData,
                 meetingLog: Array.isArray(log)
                   ? log.join("\n")
                   : String(log || ""),
+                finalizedMessage,
               };
 
               const res = await fetch(
@@ -724,7 +710,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               // bắn về content script (MeetingPage) để show lên ChatUI
               chrome.tabs.sendMessage(activeTabId, {
                 type: "AGENT_FILLER",
-                payload: { text: fillerText },
+                payload: { text: fillerText, requestId },
               });
 
               sendResponse({ ok: true, data });
