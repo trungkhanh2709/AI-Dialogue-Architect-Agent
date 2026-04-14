@@ -13,17 +13,20 @@ let lastDeepScanAt = 0;
 let liveRegionCache = new WeakMap();
 let lastCaptionSeenAt = 0;
 let lastLiveRegionSeenAt = 0;
+let recentFinalizedCache = new Map();
 let rafScheduled = false;
 let captionNotFoundNotified = false;
 let captionFinderTries = 0;
 const CAPTION_FINDER_MAX_TRIES = 30;
 const RESYNC_INTERVAL_MS = 4000;
 const RESYNC_STALE_MS = 8000;
+let lastLivePayload = "";
+let liveUpdateTimer = null;
 
 // Legacy class selectors — kept as ONE of many strategies.
 // Google obfuscates these and changes them frequently.
 const LEGACY_BLOCK_SELECTOR =
-  'div.nMcdL.bj4p3b, div.UVSzeb, div[class*="UVSzeb"]';
+  'div.nMcdL.bj4p3b, div.UVSzeb, div[class*="UVSzeb"], div.ygicle, div[class*="ygicle"], div[data-participant-id]';
 
 // Stable selectors based on ARIA attributes (language-agnostic where possible)
 const CAPTION_ARIA_KEYWORDS = [
@@ -41,6 +44,15 @@ function buildAriaSelector(keywords) {
 }
 
 const CAPTION_REGION_ARIA_SELECTOR = buildAriaSelector(CAPTION_ARIA_KEYWORDS);
+
+function queryCaptionBlocks(root = document) {
+  if (!root?.querySelectorAll) return [];
+  try {
+    return Array.from(root.querySelectorAll(LEGACY_BLOCK_SELECTOR)).filter(Boolean);
+  } catch {
+    return [];
+  }
+}
 
 // ===== UTILITY =====
 
@@ -73,10 +85,17 @@ function safeSendMessage(message, callback) {
 }
 
 function sendUpdateLive() {
-  safeSendMessage({
-    type: "LIVE_TRANSCRIPT",
-    payload: { action: "update_live", currentSpeech },
-  });
+  const payload = JSON.stringify(currentSpeech || {});
+  if (payload === lastLivePayload && liveUpdateTimer) return;
+  lastLivePayload = payload;
+  if (liveUpdateTimer) clearTimeout(liveUpdateTimer);
+  liveUpdateTimer = setTimeout(() => {
+    liveUpdateTimer = null;
+    safeSendMessage({
+      type: "LIVE_TRANSCRIPT",
+      payload: { action: "update_live", currentSpeech },
+    });
+  }, 120);
 }
 
 function reportContentError(payload) {
@@ -347,7 +366,7 @@ function getCaptionContainers() {
 
   // Strategy 6: Legacy class selectors (may still work on older Meet versions)
   try {
-    document.querySelectorAll(LEGACY_BLOCK_SELECTOR).forEach((b) => {
+    queryCaptionBlocks(document).forEach((b) => {
       if (isInsideExtensionUI(b)) return;
       const c = b?.parentElement?.parentElement;
       if (c) containers.add(c);
@@ -403,6 +422,7 @@ function isCaptionContainer(el) {
 
   // Legacy class check
   if (el.querySelector && el.querySelector(LEGACY_BLOCK_SELECTOR)) return true;
+  if (el.querySelector?.('[class*="ygicle"], .ygicle, [class*="NWpY1d"], .NWpY1d')) return true;
 
   // data-captions-display
   if (el.getAttribute && el.getAttribute("data-captions-display") !== null)
@@ -491,7 +511,7 @@ function pickBestCaptionContainer() {
   // Priority 1: containers with legacy caption blocks (DIV only)
   const withLegacyBlocks = candidates.filter((c) => {
     if (!c.querySelectorAll) return false;
-    return c.querySelectorAll(LEGACY_BLOCK_SELECTOR).length > 0;
+      return c.querySelectorAll(LEGACY_BLOCK_SELECTOR).length > 0;
   });
   if (withLegacyBlocks.length) {
     return withLegacyBlocks.sort((a, b) => {
@@ -541,9 +561,7 @@ function getBlocksFromContainer(container) {
   // Strategy 1: Legacy class selectors
   try {
     const legacy = Array.from(
-      container.querySelectorAll
-        ? container.querySelectorAll(LEGACY_BLOCK_SELECTOR)
-        : [],
+      container.querySelectorAll ? container.querySelectorAll(LEGACY_BLOCK_SELECTOR) : [],
     ).filter((el) => !isInsideExtensionUI(el) && el.innerText?.trim());
     if (legacy.length) return legacy;
   } catch {}
@@ -616,7 +634,7 @@ function getCaptionBlocks() {
   // Fallback: direct legacy selector on entire document
   try {
     const fallback = Array.from(
-      document.querySelectorAll(LEGACY_BLOCK_SELECTOR),
+      queryCaptionBlocks(document),
     );
     if (fallback.length) {
       return fallback.filter(
@@ -757,6 +775,20 @@ function getDelta(prev, curr) {
   return currWords.slice(i).join(" ").trim();
 }
 
+function wasRecentlyFinalized(text, ttlMs = 15000) {
+  const now = Date.now();
+  for (const [key, ts] of recentFinalizedCache.entries()) {
+    if (now - ts > ttlMs) recentFinalizedCache.delete(key);
+  }
+  const key = String(text || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+  if (recentFinalizedCache.has(key)) return true;
+  recentFinalizedCache.set(key, now);
+  return false;
+}
+
 function finalizeSentence(speaker, sentence) {
   if (!sentence) return;
   if (isSystemCaptionText(speaker, sentence)) return;
@@ -765,6 +797,7 @@ function finalizeSentence(speaker, sentence) {
   const delta = getDelta(prev, sentence);
 
   if (!delta || delta.length < 2) return;
+  if (wasRecentlyFinalized(delta)) return;
 
   safeSendMessage({
     type: "LIVE_TRANSCRIPT",
@@ -861,6 +894,8 @@ function handleCaptions() {
 // ===== LIVE REGION HANDLER =====
 
 function handleLiveRegions() {
+  if (Date.now() - lastCaptionSeenAt < 1800) return;
+
   let regions;
   try {
     regions = queryAllDeep(
@@ -1050,7 +1085,7 @@ function scheduleEnsureObserver() {
   });
 
   try {
-    const quickBlocks = document.querySelectorAll(LEGACY_BLOCK_SELECTOR);
+    const quickBlocks = queryCaptionBlocks(document);
     if (!quickBlocks.length) {
       const deepBlocks = queryAllDeep(LEGACY_BLOCK_SELECTOR);
       if (!deepBlocks.length) handleLiveRegions();
@@ -1166,7 +1201,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     console.log("url:", location.href);
 
     // 1) Check legacy blocks
-    const legacyBlocks = document.querySelectorAll(LEGACY_BLOCK_SELECTOR);
+    const legacyBlocks = queryCaptionBlocks(document);
     console.log("legacyBlocks.length:", legacyBlocks?.length || 0);
 
     // 2) Check aria-based containers
@@ -1283,7 +1318,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ===== DIAGNOSTICS =====
 
 function _meetDomDiagnostics() {
-  const legacyBlocks = document.querySelectorAll(LEGACY_BLOCK_SELECTOR);
+  const legacyBlocks = queryCaptionBlocks(document);
   let ariaContainers = [];
   try {
     ariaContainers = Array.from(

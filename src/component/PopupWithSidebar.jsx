@@ -66,6 +66,8 @@ export default function PopupWithSidebar({
     psychLanguage: "English",
     psychAnalyzerResult: "",
     businessDNAResult: "",
+    conversionArchitectDossier: "",
+    meetingTranscript: "",
   });
   const [errors, setErrors] = useState({});
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -143,6 +145,14 @@ export default function PopupWithSidebar({
         psychLanguage: selectedBlock.psychLanguage || "English",
         psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
         businessDNAResult: selectedBlock.businessDNAResult || "",
+        conversionArchitectDossier:
+          selectedBlock.conversionArchitectDossier ||
+          selectedBlock.conversion_architect_dossier ||
+          "",
+        meetingTranscript:
+          selectedBlock.meeting_transcript ||
+          selectedBlock.meetingTranscript ||
+          "",
         designatedTime: selectedBlock.designatedTime || "",
 
         eventId: selectedBlock.eventId || "",
@@ -189,6 +199,14 @@ export default function PopupWithSidebar({
         psychLanguage: selectedBlock.psychLanguage || "English",
         psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
         businessDNAResult: selectedBlock.businessDNAResult || "",
+        conversionArchitectDossier:
+          selectedBlock.conversionArchitectDossier ||
+          selectedBlock.conversion_architect_dossier ||
+          "",
+        meetingTranscript:
+          selectedBlock.meeting_transcript ||
+          selectedBlock.meetingTranscript ||
+          "",
         eventId: selectedBlock.eventId || "",
       }));
     }
@@ -319,6 +337,8 @@ export default function PopupWithSidebar({
       psychLanguage: "English",
       psychAnalyzerResult: "",
       businessDNAResult: "",
+      conversionArchitectDossier: "",
+      meetingTranscript: "",
       eventId: "",
     });
     setFormVisible(true);
@@ -553,7 +573,12 @@ export default function PopupWithSidebar({
           formData.psychAnalyzerResult || stagedResults.psych || "",
         businessDNAResult:
           formData.businessDNAResult || stagedResults.bdna || "",
-          designatedTime: formData.designatedTime || "",
+        conversionArchitectDossier:
+          formData.conversionArchitectDossier || "",
+        conversion_architect_dossier:
+          formData.conversionArchitectDossier || "",
+        meeting_transcript: formData.meetingTranscript || "",
+        designatedTime: formData.designatedTime || "",
 
       };
 
@@ -1178,6 +1203,16 @@ placeholder="e.g., 15 (minutes)"
                 label="Note (Optional)"
                 placeholder="For example, additional information useful for the Agent, such as personality analysis results, BusinessDNA insights, key pain points, potential objections, and relationship history with the prospect, etc."
                 maxRows={5}
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+              />
+              <ExpandableTextarea
+                id="conversionArchitectDossier"
+                label="Conversion Architect Dossier"
+                placeholder="Auto-generated summary from prior meetings. Keep the JSON structure so the Strategist can reuse sentiment, friction, milestones, and narrative arc."
+                maxRows={8}
                 formData={formData}
                 setFormData={setFormData}
                 errors={errors}

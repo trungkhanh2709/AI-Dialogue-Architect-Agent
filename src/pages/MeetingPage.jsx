@@ -1,5 +1,9 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import LiveDock from "../component/LiveDock";
+import {
+  buildConversionArchitectDossier,
+  parseConversionArchitectDossier,
+} from "../utils/conversionArchitectDossier";
 
 const AGENT_DEBOUNCE_MS = 1500;
 const AGENT_MIN_INTERVAL_MS = 3000;
@@ -103,6 +107,50 @@ export default function MeetingPage({
   onBack,
   cookieUserName,
 }) {
+  const SELF_GENERIC_LABELS = new Set([
+    "you",
+    "ban",
+    "toi",
+    "me",
+    "myself",
+    "yourself",
+    "vous",
+    "tu",
+    "usted",
+    "ustedes",
+    "du",
+    "sie",
+    "voce",
+    "você",
+    "voces",
+    "vocês",
+    "anda",
+    "kamu",
+    "ni",
+    "你",
+    "您",
+    "妳",
+    "anata",
+    "あなた",
+    "kimi",
+    "君",
+    "neo",
+    "너",
+    "dangsin",
+    "당신",
+    "vy",
+    "вы",
+    "ty",
+    "ты",
+    "sen",
+    "siz",
+  ]);
+  const UNKNOWN_SPEAKER_LABELS = new Set([
+    "speaker",
+    "participant",
+    "unknown",
+  ]);
+
   const decodedCookieEmail = useMemo(() => {
     if (!cookieUserName) return "";
     try {
@@ -117,9 +165,11 @@ export default function MeetingPage({
   const [chatMessages, setChatMessages] = useState([]);
   const [captionStatus, setCaptionStatus] = useState(null);
   const [lastRealTranscriptAt, setLastRealTranscriptAt] = useState(null);
-  const [lastTranscriptAt, setLastTranscriptAt] = useState(null);
+  const [, setLastTranscriptAt] = useState(null);
+  const [lastCaptionDetectedAt, setLastCaptionDetectedAt] = useState(null);
   const [nowTick, setNowTick] = useState(Date.now());
   const [detectedLanguage, setDetectedLanguage] = useState("English");
+  const [selfDisplayName, setSelfDisplayName] = useState("");
   const [showEndConfirm, setShowEndConfirm] = useState(false);
   const [toast, setToast] = useState(null);
   const [autoCollapseEnabled] = useState(
@@ -134,7 +184,31 @@ export default function MeetingPage({
   const lastAgentRequestAtRef = useRef(0);
   const agentInFlightRef = useRef(false);
   const activeAgentRequestIdRef = useRef(null);
+  const recentTranscriptKeysRef = useRef(new Map());
+  const recentFillerKeysRef = useRef(new Map());
+  const recentQueuedAgentKeysRef = useRef(new Map());
+  const recentAgentSendKeysRef = useRef(new Map());
+  const runtimeMessageHandlerRef = useRef(null);
   const nextId = () => ++messageIdRef.current;
+
+  const rememberRecentKey = (storeRef, key, ttl = 4000) => {
+    const now = Date.now();
+    const store = storeRef.current;
+    for (const [k, ts] of store.entries()) {
+      if (now - ts > ttl) store.delete(k);
+    }
+    if (store.has(key)) return true;
+    store.set(key, now);
+    return false;
+  };
+
+  const makeStableMessageKey = (_speaker, text) => {
+    const stableText = String(text || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
+    return stableText;
+  };
 
   const trimMeetingLog = (log, fastMode = false) => {
     if (!Array.isArray(log)) return log;
@@ -154,12 +228,55 @@ export default function MeetingPage({
     return text.slice(0, maxChars);
   };
 
+  const readStoredCognitiveCloneTone = () => {
+    try {
+      return localStorage.getItem("bm.persona_profile") || "";
+    } catch {
+      return "";
+    }
+  };
+
+  const buildStrategicContext = () => {
+    const parts = [
+      meetingData?.userCompanyName
+        ? `Company: ${meetingData.userCompanyName}`
+        : "",
+      meetingData?.userCompanyServices
+        ? `Services: ${meetingData.userCompanyServices}`
+        : "",
+      meetingData?.meetingGoal ? `Meeting Goal: ${meetingData.meetingGoal}` : "",
+      meetingData?.meetingNote ? `Strategic Notes: ${meetingData.meetingNote}` : "",
+      meetingData?.businessDNAResult
+        ? `Business DNA: ${meetingData.businessDNAResult}`
+        : "",
+      meetingData?.psychAnalyzerResult
+        ? `Psych Analysis: ${meetingData.psychAnalyzerResult}`
+        : "",
+    ].filter(Boolean);
+
+    return parts.join("\n\n");
+  };
+
   const buildAgentMeetingData = () => ({
     ...meetingData,
     businessDNAResult: trimContext(meetingData?.businessDNAResult),
     psychAnalyzerResult: trimContext(meetingData?.psychAnalyzerResult),
     meetingNote: trimContext(meetingData?.meetingNote),
     meetingMessage: trimContext(meetingData?.meetingMessage),
+    entity_name: meetingData?.userName || meetingData?.userNameAndRole || inferredSelfName,
+    strategic_context: trimContext(buildStrategicContext(), 3500),
+    cognitive_clone_tone: trimContext(
+      meetingData?.cognitiveCloneTone || readStoredCognitiveCloneTone(),
+      2500
+    ),
+    conversionArchitectDossier: effectiveDossierText,
+    conversion_architect_dossier: effectiveDossierText,
+    conversion_architect_dossier_json:
+      parseConversionArchitectDossier(effectiveDossierText),
+    meeting_goal: trimContext(meetingData?.meetingGoal),
+    strategic_directive: trimContext(
+      meetingData?.meetingGoal || meetingData?.meetingNote
+    ),
   });
 
   const removeThinkingMessage = (requestId) => {
@@ -171,6 +288,9 @@ export default function MeetingPage({
   };
 
   const requestThinkingFiller = (requestId, newMessage, log) => {
+    const overrideCommand = newMessage?.isOverride
+      ? String(newMessage?.text || "").trim()
+      : "";
     chrome.runtime.sendMessage(
       {
         type: "SEND_FILLER_REQUEST",
@@ -179,6 +299,7 @@ export default function MeetingPage({
           log,
           requestId,
           finalizedMessage: newMessage,
+          overrideCommand,
         },
       },
       () => {}
@@ -222,29 +343,224 @@ export default function MeetingPage({
     return () => clearInterval(interval);
   }, []);
 
-  const normalizeSpeaker = (value) =>
+  const normalizeSpeaker = (value) => {
+    let normalized = String(value || "").trim().toLowerCase();
+    try {
+      normalized = normalized.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    } catch {}
+    return normalized.replace(/[^a-z0-9]+/g, "");
+  };
+
+  const prettifyIdentity = (value) =>
     String(value || "")
-      .toLowerCase()
-      .replace(/[^a-z0-9]+/g, "");
+      .trim()
+      .replace(/[_\-.]+/g, " ")
+      .replace(/\s+/g, " ")
+      .replace(/\b\w/g, (c) => c.toUpperCase());
+
+  const looksLikeHumanName = (value) => {
+    const text = String(value || "").trim();
+    if (!text || text.length < 3 || text.length > 60) return false;
+    const normalized = normalizeSpeaker(text);
+    if (!normalized) return false;
+    if (SELF_GENERIC_LABELS.has(normalized)) return false;
+    if (UNKNOWN_SPEAKER_LABELS.has(normalized)) return false;
+    if (/\d/.test(text) || /[?.!,:;]$/.test(text)) return false;
+    const words = text.split(/\s+/).filter(Boolean);
+    if (words.length < 2 || words.length > 5) return false;
+    return words.every((word) => word.length >= 2);
+  };
+
+  const emailLocalPart = useMemo(() => {
+    if (!decodedCookieEmail) return "";
+    return decodedCookieEmail.split("@")[0] || "";
+  }, [decodedCookieEmail]);
+
+  const inferredSelfName = useMemo(() => {
+    const explicitName =
+      meetingData?.userName && !String(meetingData.userName).includes("@")
+        ? String(meetingData.userName).trim()
+        : "";
+    if (selfDisplayName) return selfDisplayName;
+    if (explicitName) return explicitName;
+    if (emailLocalPart) return prettifyIdentity(emailLocalPart);
+    return "You";
+  }, [meetingData?.userName, selfDisplayName, emailLocalPart]);
+
+  const effectiveDossierText = useMemo(() => {
+    const existingText =
+      meetingData?.conversionArchitectDossier ||
+      meetingData?.conversion_architect_dossier ||
+      "";
+
+    if (String(existingText || "").trim()) {
+      return trimContext(existingText, 5000);
+    }
+
+    const historicalTranscript =
+      meetingData?.meetingTranscript || meetingData?.meeting_transcript || "";
+
+    if (!String(historicalTranscript || "").trim()) {
+      return "";
+    }
+
+    return trimContext(
+      buildConversionArchitectDossier({
+        meetingData,
+        transcriptText: historicalTranscript,
+        existingDossierText: "",
+        selfNames: [inferredSelfName],
+      }),
+      5000
+    );
+  }, [inferredSelfName, meetingData]);
 
   const mySpeakerAliases = useMemo(() => {
-    const aliases = new Set(["you", "me", "ban", "b"]);
+    const aliases = new Set();
     if (meetingData?.userName) {
       aliases.add(normalizeSpeaker(meetingData.userName));
     }
     if (decodedCookieEmail) {
       aliases.add(normalizeSpeaker(decodedCookieEmail));
-      const localPart = decodedCookieEmail.split("@")[0];
-      if (localPart) aliases.add(normalizeSpeaker(localPart));
+      if (emailLocalPart) aliases.add(normalizeSpeaker(emailLocalPart));
     }
-    return aliases;
-  }, [meetingData?.userName, decodedCookieEmail]);
+    if (selfDisplayName) aliases.add(normalizeSpeaker(selfDisplayName));
+    if (inferredSelfName) aliases.add(normalizeSpeaker(inferredSelfName));
+    return new Set([...aliases].filter(Boolean));
+  }, [
+    meetingData?.userName,
+    decodedCookieEmail,
+    emailLocalPart,
+    selfDisplayName,
+    inferredSelfName,
+  ]);
 
-  const isMySpeech = (speaker) => {
-    if (!speaker) return false;
-    const norm = normalizeSpeaker(speaker);
-    if (!norm) return false;
-    return mySpeakerAliases.has(norm);
+  useEffect(() => {
+    const directNameSelectors = [
+      '[data-self-name]',
+      '[aria-label*="you" i]',
+      '[aria-label*="vous" i]',
+      '[aria-label*="usted" i]',
+      '[aria-label*="du" i]',
+      '[aria-label*="você" i]',
+      '[aria-label*="你" i]',
+      '[aria-label*="あなた" i]',
+      '[aria-label*="너" i]',
+      '[aria-label*="вы" i]',
+      '[aria-label*="bạn" i]',
+    ];
+
+    const extractSelfDisplayNameFromDom = () => {
+      const visibleTextMatches = new Set();
+      const candidateNames = [
+        meetingData?.userName,
+        inferredSelfName,
+        emailLocalPart,
+        prettifyIdentity(emailLocalPart),
+      ]
+        .map((value) => String(value || "").trim())
+        .filter(Boolean);
+
+      for (const selector of directNameSelectors) {
+        try {
+          const nodes = document.querySelectorAll(selector);
+          for (const node of nodes) {
+            const text = String(node.textContent || "").trim();
+            if (text && !SELF_GENERIC_LABELS.has(normalizeSpeaker(text))) {
+              visibleTextMatches.add(text);
+            }
+            let parent = node;
+            for (let i = 0; i < 4 && parent; i += 1) {
+              const nearbyTexts = Array.from(
+                parent.querySelectorAll?.("span, div") || []
+              )
+                .map((el) => String(el.textContent || "").trim())
+                .filter((candidate) => looksLikeHumanName(candidate));
+              nearbyTexts.forEach((candidate) => visibleTextMatches.add(candidate));
+              parent = parent.parentElement;
+            }
+          }
+        } catch {}
+      }
+
+      try {
+        const nodes = document.querySelectorAll("span, div");
+        for (const node of nodes) {
+          const text = String(node.textContent || "").trim();
+          if (!text || text.length > 80) continue;
+          if (text.includes("\n")) continue;
+          const style = window.getComputedStyle(node);
+          if (style.display === "none" || style.visibility === "hidden") continue;
+          const rect = node.getBoundingClientRect?.();
+          if (!rect || rect.width === 0 || rect.height === 0) continue;
+          const normalizedText = normalizeSpeaker(text);
+          if (!normalizedText) continue;
+          if (
+            candidateNames.some(
+              (candidate) => normalizeSpeaker(candidate) === normalizedText
+            )
+          ) {
+            visibleTextMatches.add(text);
+          }
+          const isBottomLeftCandidate =
+            rect.left < window.innerWidth * 0.28 &&
+            rect.top > window.innerHeight * 0.55 &&
+            rect.width < window.innerWidth * 0.35;
+          if (isBottomLeftCandidate && looksLikeHumanName(text)) {
+            visibleTextMatches.add(text);
+          }
+        }
+      } catch {}
+
+      const [firstMatch] = [...visibleTextMatches];
+      if (firstMatch) {
+        setSelfDisplayName((prev) => prev || firstMatch);
+      }
+    };
+
+    extractSelfDisplayNameFromDom();
+    const interval = setInterval(extractSelfDisplayNameFromDom, 3000);
+    return () => clearInterval(interval);
+  }, [meetingData?.userName, inferredSelfName, emailLocalPart]);
+
+  const resolveSpeaker = (rawSpeaker) => {
+    const raw = String(rawSpeaker || "").trim() || "Speaker";
+    const normalizedRaw = normalizeSpeaker(raw);
+    const resolvedSelf = inferredSelfName || raw;
+
+    if (SELF_GENERIC_LABELS.has(normalizedRaw)) {
+      return {
+        rawSpeaker: raw,
+        speakerLabel: resolvedSelf,
+        isSelf: true,
+        isUnknown: false,
+      };
+    }
+
+    if (UNKNOWN_SPEAKER_LABELS.has(normalizedRaw)) {
+      return {
+        rawSpeaker: raw,
+        speakerLabel: "Unknown Speaker",
+        isSelf: false,
+        isUnknown: true,
+      };
+    }
+
+    if (mySpeakerAliases.has(normalizedRaw)) {
+      return {
+        rawSpeaker: raw,
+        speakerLabel: resolvedSelf,
+        isSelf: true,
+        isUnknown: false,
+      };
+    }
+
+    return {
+      rawSpeaker: raw,
+      speakerLabel: raw,
+      isSelf: false,
+      isUnknown: false,
+    };
   };
 
   const isSpeakerOnlyText = (speaker, text) => {
@@ -491,13 +807,51 @@ export default function MeetingPage({
     );
   };
 
-  const createMeetingBlock = () => {
-    const newBlockPayload = {
-      ...meetingData,
-      blockName: meetingData.title || "Untitled Meeting",
-      meeting_transcript: meetingLog.join("\n"),
-      createdAt: new Date().toISOString(),
+  const buildMeetingPreparePayload = (logData, dossierText) => {
+    const transcriptText = Array.isArray(logData)
+      ? logData.join("\n")
+      : String(logData || "");
+
+    return {
+      blockName: meetingData?.title || meetingData?.blockName || "Untitled Meeting",
+      userNameAndRole: meetingData?.userNameAndRole || meetingData?.userName || "",
+      userCompanyName: meetingData?.userCompanyName || "",
+      userCompanyServices: meetingData?.userCompanyServices || "",
+      userCompanyWebsite: meetingData?.userCompanyWebsite || "",
+      userKeyCompanyUrls: Array.isArray(meetingData?.userKeyCompanyUrls)
+        ? meetingData.userKeyCompanyUrls
+        : [],
+      prospectName: meetingData?.prospectName || "",
+      customerCompanyName: meetingData?.customerCompanyName || "",
+      customerCompanyServices: meetingData?.customerCompanyServices || "",
+      prospectCompanyWebsite: meetingData?.prospectCompanyWebsite || "",
+      meetingGoal: meetingData?.meetingGoal || "",
+      meetingEmail: meetingData?.meetingEmail || "",
+      meetingMessage: meetingData?.meetingMessage || "",
+      meetingNote: meetingData?.meetingNote || "",
+      agentModelKey: meetingData?.agentModelKey || "groq",
+      agentModelLabel: meetingData?.agentModelLabel || "",
+      meetingStart: meetingData?.meetingStart || "",
+      meetingDuration: meetingData?.meetingDuration || "15",
+      meetingEnd: meetingData?.meetingEnd || "",
+      meetingLink: meetingData?.meetingLink || "",
+      eventId: meetingData?.eventId || "",
+      guestEmail: meetingData?.guestEmail || "",
+      createdAt: meetingData?.createdAt || new Date().toISOString(),
+      psychBackground: meetingData?.psychBackground || "",
+      psychUrls: Array.isArray(meetingData?.psychUrls) ? meetingData.psychUrls : [],
+      psychLanguage: meetingData?.psychLanguage || "English",
+      psychAnalyzerResult: meetingData?.psychAnalyzerResult || "",
+      businessDNAResult: meetingData?.businessDNAResult || "",
+      conversionArchitectDossier: dossierText || effectiveDossierText || "",
+      conversion_architect_dossier: dossierText || effectiveDossierText || "",
+      meeting_transcript: transcriptText,
+      designatedTime: meetingData?.designatedTime || "",
     };
+  };
+
+  const createMeetingBlock = (logData, dossierText) => {
+    const newBlockPayload = buildMeetingPreparePayload(logData, dossierText);
 
     chrome.runtime.sendMessage(
       {
@@ -508,18 +862,55 @@ export default function MeetingPage({
     );
   };
 
+  const persistConversionArchitectDossier = (logData) => {
+    const transcriptText = Array.isArray(logData)
+      ? logData.join("\n")
+      : String(logData || "");
+    const dossierText = buildConversionArchitectDossier({
+      meetingData,
+      transcriptText,
+      existingDossierText: effectiveDossierText,
+      selfNames: [inferredSelfName],
+    });
+
+    const meetingId = meetingData._id || meetingData.id;
+    if (meetingId) {
+      chrome.runtime.sendMessage(
+        {
+          type: "UPDATE_MEETING_PREPARE",
+          payload: {
+            email: decodedCookieEmail,
+            meetingId,
+            payload: buildMeetingPreparePayload(logData, dossierText),
+          },
+        },
+        () => {}
+      );
+      return;
+    }
+
+    createMeetingBlock(logData, dossierText);
+  };
+
   const finalizeAndClose = () => {
     localStorage.setItem("autoSaveEnabled", "true");
     const meetingId = meetingData._id || meetingData.id;
     if (meetingId) {
       saveOrUpdateMeeting(meetingLogRef.current);
-    } else {
-      createMeetingBlock();
     }
+    persistConversionArchitectDossier(meetingLogRef.current);
     onBack();
   };
 
   const sendMessageToAgent = (newMessage, log) => {
+    const sendKey = makeStableMessageKey(newMessage?.speaker, newMessage?.text);
+    if (rememberRecentKey(recentAgentSendKeysRef, sendKey, 2500)) {
+      return Promise.resolve({ ok: true, skipped: true });
+    }
+    const overrideCommand = newMessage?.isOverride
+      ? String(newMessage?.text || "").trim()
+      : "";
+
     const requestId = ++reqIdRef.current;
     const tempMsg = {
       id: nextId(),
@@ -550,12 +941,49 @@ export default function MeetingPage({
         });
       });
 
-    return new Promise(async (resolve, reject) => {
-      const trimmedLog = trimMeetingLog(log, fastMode);
-      if (AGENT_USE_STREAMING) {
+    return new Promise((resolve, reject) => {
+      const run = async () => {
+        const trimmedLog = trimMeetingLog(log, fastMode);
+        if (AGENT_USE_STREAMING) {
+          chrome.runtime.sendMessage(
+            {
+              type: "SEND_MESSAGE_TO_AGENT_STREAM",
+              payload: {
+                meetingData: {
+                  ...buildAgentMeetingData(),
+                  responseLanguage,
+                  responseStyle: fastMode ? "brief" : "normal",
+                  responseComplexity: fastMode ? "low" : "normal",
+                  latencyHint: fastMode ? "fast" : "normal",
+                },
+                chatHistory: [],
+                log: trimmedLog,
+                requestId,
+                finalizedMessage: newMessage,
+                overrideCommand,
+              },
+            },
+            (res) => {
+              if (chrome.runtime.lastError) {
+                removeThinkingMessage(requestId);
+                reject(chrome.runtime.lastError);
+                return;
+              }
+              if (res?.error || res?.ok === false) {
+                removeThinkingMessage(requestId);
+                reject(res?.error || "Agent error");
+                return;
+              }
+              resolve(res);
+            }
+          );
+          return;
+        }
+
+        const timerNow = await getTimerFromBG();
         chrome.runtime.sendMessage(
           {
-            type: "SEND_MESSAGE_TO_AGENT_STREAM",
+            type: "SEND_MESSAGE_TO_AGENT",
             payload: {
               meetingData: {
                 ...buildAgentMeetingData(),
@@ -567,117 +995,94 @@ export default function MeetingPage({
               chatHistory: [],
               log: trimmedLog,
               requestId,
+              finalizedMessage: newMessage,
+              uiTimer: timerNow,
+              overrideCommand,
             },
           },
           (res) => {
             if (chrome.runtime.lastError) {
               removeThinkingMessage(requestId);
+              setChatMessages((prev) =>
+                prev.map((msg) =>
+                  msg.isTemp && msg.isAgent && msg.requestId === requestId
+                    ? {
+                        ...msg,
+                        text: formatAgentError(chrome.runtime.lastError),
+                        isTemp: false,
+                      }
+                    : msg
+                )
+              );
               reject(chrome.runtime.lastError);
               return;
             }
+
             if (res?.error || res?.ok === false) {
               removeThinkingMessage(requestId);
+              setChatMessages((prev) =>
+                prev.map((msg) =>
+                  msg.isTemp && msg.isAgent && msg.requestId === requestId
+                    ? {
+                        ...msg,
+                        text: formatAgentError(res?.error || "Agent error"),
+                        isTemp: false,
+                      }
+                    : msg
+                )
+              );
               reject(res?.error || "Agent error");
               return;
             }
+
+            const content =
+              res?.data?.content ??
+              res?.data?.data?.content ??
+              res?.data?.text ??
+              "";
+            const cleanedContent = sanitizeAgentResponse(String(content || ""));
+
+            setChatMessages((prev) =>
+              prev.map((msg) =>
+                msg.isAgent && msg.isTemp && msg.requestId === requestId
+                  ? {
+                      ...msg,
+                      text: cleanedContent.trim()
+                        ? cleanedContent
+                        : "Agent returned empty content",
+                      isTemp: false,
+                    }
+                  : msg
+              )
+            );
+
+            removeThinkingMessage(requestId);
+            updateDetectedLanguage(cleanedContent || String(content || ""));
             resolve(res);
           }
         );
-        return;
-      }
+      };
 
-      const timerNow = await getTimerFromBG();
-      chrome.runtime.sendMessage(
-        {
-          type: "SEND_MESSAGE_TO_AGENT",
-          payload: {
-            meetingData: {
-              ...buildAgentMeetingData(),
-              responseLanguage,
-              responseStyle: fastMode ? "brief" : "normal",
-              responseComplexity: fastMode ? "low" : "normal",
-              latencyHint: fastMode ? "fast" : "normal",
-            },
-            chatHistory: [],
-            log: trimmedLog,
-            requestId,
-            finalizedMessage: newMessage,
-            uiTimer: timerNow,
-          },
-        },
-        (res) => {
-          if (chrome.runtime.lastError) {
-            removeThinkingMessage(requestId);
-            setChatMessages((prev) =>
-              prev.map((msg) =>
-                msg.isTemp && msg.isAgent && msg.requestId === requestId
-                  ? {
-                      ...msg,
-                      text: formatAgentError(chrome.runtime.lastError),
-                      isTemp: false,
-                    }
-                  : msg
-              )
-            );
-            reject(chrome.runtime.lastError);
-            return;
-          }
-
-          if (res?.error || res?.ok === false) {
-            removeThinkingMessage(requestId);
-            setChatMessages((prev) =>
-              prev.map((msg) =>
-                msg.isTemp && msg.isAgent && msg.requestId === requestId
-                  ? {
-                      ...msg,
-                      text: formatAgentError(res?.error || "Agent error"),
-                      isTemp: false,
-                    }
-                  : msg
-              )
-            );
-            reject(res?.error || "Agent error");
-            return;
-          }
-
-          const content =
-            res?.data?.content ??
-            res?.data?.data?.content ??
-            res?.data?.text ??
-            "";
-          const cleanedContent = sanitizeAgentResponse(String(content || ""));
-
-          setChatMessages((prev) =>
-            prev.map((msg) =>
-              msg.isAgent && msg.isTemp && msg.requestId === requestId
-                ? {
-                    ...msg,
-                    text: cleanedContent.trim()
-                      ? cleanedContent
-                      : "Agent returned empty content",
-                    isTemp: false,
-                  }
-                : msg
-            )
-          );
-
-          removeThinkingMessage(requestId);
-          updateDetectedLanguage(cleanedContent || String(content || ""));
-          resolve(res);
-        }
-      );
+      run().catch((error) => {
+        removeThinkingMessage(requestId);
+        reject(error);
+      });
     });
   };
 
   const handleManualAsk = (text) => {
     const msg = {
       id: nextId(),
-      speaker: "You",
+      speaker: inferredSelfName,
+      speakerLabel: inferredSelfName,
       text,
       isAgent: false,
     };
     setChatMessages((prev) => [...prev, msg]);
-    sendMessageToAgent({ speaker: "You", text }, meetingLogRef.current);
+    sendMessageToAgent(
+      { speaker: "You", text, isOverride: true },
+      meetingLogRef.current
+    );
   };
 
   const flushPendingAgentRequest = () => {
@@ -761,6 +1166,11 @@ export default function MeetingPage({
     const cleaned = String(text || "").trim();
     if (!cleaned) return;
 
+    const queuedKey = makeStableMessageKey(speaker, cleaned);
+    if (rememberRecentKey(recentQueuedAgentKeysRef, queuedKey, 2500)) {
+      return;
+    }
+
     if (
       pendingSpeakerRef.current &&
       pendingSpeakerRef.current !== speaker
@@ -781,8 +1191,7 @@ export default function MeetingPage({
     );
   };
 
-  useEffect(() => {
-    const handleMessage = (message) => {
+  runtimeMessageHandlerRef.current = (message) => {
       if (message.type === "SESSION_EXPIRED") {
         return;
       }
@@ -840,6 +1249,8 @@ export default function MeetingPage({
       if (message.type === "AGENT_FILLER") {
         const { text, requestId } = message.payload || {};
         if (!text) return;
+        const fillerKey = `${requestId}::${String(text).trim()}`;
+        if (rememberRecentKey(recentFillerKeysRef, fillerKey, 6000)) return;
         setChatMessages((prev) => {
           const alreadyFinalized = prev.some(
             (msg) =>
@@ -889,11 +1300,22 @@ export default function MeetingPage({
         const state = message.payload?.state;
         if (state === "detected") {
           // Container detected only; do not mark as synced until real transcript arrives.
+          setLastCaptionDetectedAt(Date.now());
           setCaptionStatus(message.payload || null);
           return;
         }
-        if (state === "not_found" || state === "empty" || state === "no_transcript") {
+        if (
+          state === "not_found" ||
+          state === "empty" ||
+          state === "no_transcript"
+        ) {
           setLastTranscriptAt(null);
+          const recentlyDetected =
+            lastCaptionDetectedAt && Date.now() - lastCaptionDetectedAt < 60000;
+          if (recentlyDetected) {
+            setCaptionStatus({ state: "detected", reason: "sticky_detected" });
+            return;
+          }
         }
         setCaptionStatus(message.payload || null);
         return;
@@ -920,66 +1342,123 @@ export default function MeetingPage({
             (val) => String(val || "").trim().length > 0
           );
         if (hasActiveSpeech) {
-          setCaptionStatus(null);
+          setLastCaptionDetectedAt(Date.now());
+          setCaptionStatus({ state: "detected", reason: "live_text_active" });
           if (hasRealLive) setLastRealTranscriptAt(Date.now());
         }
         return;
       }
 
       if (action === "finalize" && finalized) {
+        const resolvedSpeaker = resolveSpeaker(speaker);
+        const normalizedFinalizedText = normalizeSpeaker(finalized);
         setLastTranscriptAt(Date.now());
-        if (isSystemCaptionText(speaker, finalized)) {
+        if (isSystemCaptionText(resolvedSpeaker.speakerLabel, finalized)) {
           setCaptionStatus(null);
           return;
         }
-        if (isSpeakerOnlyText(speaker, finalized)) {
+        if (
+          looksLikeHumanName(finalized) &&
+          [
+            normalizeSpeaker(inferredSelfName),
+            normalizeSpeaker(selfDisplayName),
+            normalizeSpeaker(meetingData?.userName),
+          ]
+            .filter(Boolean)
+            .includes(normalizedFinalizedText)
+        ) {
+          setSelfDisplayName((prev) => prev || finalized);
+          return;
+        }
+        if (isSpeakerOnlyText(resolvedSpeaker.speakerLabel, finalized)) {
+          return;
+        }
+        const transcriptKey = makeStableMessageKey(
+          resolvedSpeaker.speakerLabel,
+          finalized
+        );
+        if (rememberRecentKey(recentTranscriptKeysRef, transcriptKey, 15000)) {
           return;
         }
         setLastRealTranscriptAt(Date.now());
+        setLastCaptionDetectedAt(Date.now());
+        setCaptionStatus({ state: "detected", reason: "finalized_transcript" });
 
-        setMeetingLog((prev) => {
-          const newLogEntry = `${speaker}: "${finalized}"`;
-          if (prev.includes(newLogEntry)) return prev;
+        const logSpeaker = resolvedSpeaker.speakerLabel;
+        const newLogEntry = `${logSpeaker}: "${finalized}"`;
+        if (meetingLogRef.current.includes(newLogEntry)) {
+          return;
+        }
 
-          const updatedLog = [...prev, newLogEntry];
-          meetingLogRef.current = updatedLog;
-          saveOrUpdateMeeting(updatedLog);
+        const normalizedFinalized = makeStableMessageKey(
+          resolvedSpeaker.speakerLabel,
+          finalized
+        );
+        const hasRecentSameBubble = chatMessages.some(
+          (msg) =>
+            !msg.isAgent &&
+            makeStableMessageKey(msg.speaker, msg.text) === normalizedFinalized
+        );
+        if (hasRecentSameBubble) {
+          return;
+        }
 
-          if (!isMySpeech(speaker)) {
-            setChatMessages((prevMsgs) => [
-              ...prevMsgs,
-              { id: nextId(), speaker, text: finalized, isAgent: false },
-            ]);
-            queueAgentRequest(speaker, finalized);
+        const updatedLog = [...meetingLogRef.current, newLogEntry];
+        meetingLogRef.current = updatedLog;
+        setMeetingLog(updatedLog);
+        saveOrUpdateMeeting(updatedLog);
+
+        if (!resolvedSpeaker.isSelf) {
+          const finalizedLooksLikeSelfName =
+            normalizedFinalizedText &&
+            [
+              normalizeSpeaker(inferredSelfName),
+              normalizeSpeaker(selfDisplayName),
+              normalizeSpeaker(meetingData?.userName),
+            ]
+              .filter(Boolean)
+              .includes(normalizedFinalizedText);
+          if (finalizedLooksLikeSelfName) {
+            return;
           }
-
-          return updatedLog;
-        });
+          setChatMessages((prevMsgs) => [
+            ...prevMsgs,
+            {
+              id: nextId(),
+              speaker: resolvedSpeaker.speakerLabel,
+              speakerLabel: resolvedSpeaker.speakerLabel,
+              speakerRaw: resolvedSpeaker.rawSpeaker,
+              text: finalized,
+              isAgent: false,
+            },
+          ]);
+          if (!resolvedSpeaker.isUnknown) {
+            queueAgentRequest(resolvedSpeaker.speakerLabel, finalized);
+          }
+        }
 
         updateDetectedLanguage(finalized);
       }
     };
 
+  useEffect(() => {
+    const handleMessage = (message) => {
+      runtimeMessageHandlerRef.current?.(message);
+    };
+
     chrome.runtime.onMessage.addListener(handleMessage);
     return () => chrome.runtime.onMessage.removeListener(handleMessage);
-  }, [detectedLanguage, meetingData]);
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      if (!lastTranscriptAt && captionStatus?.state !== "detected") {
-        setCaptionStatus({ state: "no_transcript" });
-      }
-    }, 12000);
-    return () => clearTimeout(timer);
-  }, [lastTranscriptAt, captionStatus?.state]);
+  }, []);
 
   useEffect(() => {
     chrome.runtime.sendMessage({ type: "GET_TIMER" }, () => {});
   }, []);
 
   const hasRecentTranscript =
-    lastRealTranscriptAt && nowTick - lastRealTranscriptAt < 15000;
-  const captionsDetected = captionStatus?.state === "detected";
+    lastRealTranscriptAt && nowTick - lastRealTranscriptAt < 20000;
+  const captionsDetected =
+    captionStatus?.state === "detected" ||
+    (lastCaptionDetectedAt && nowTick - lastCaptionDetectedAt < 60000);
   const statusState = hasRecentTranscript
     ? "synced"
     : captionsDetected
@@ -995,8 +1474,8 @@ export default function MeetingPage({
   const showCaptionWarning =
     (!captionsDetected && statusState !== "synced") ||
     captionStatus?.state === "not_found" ||
-    captionStatus?.state === "no_transcript" ||
-    captionStatus?.state === "empty";
+    (captionStatus?.state === "no_transcript" && !captionsDetected) ||
+    (captionStatus?.state === "empty" && !captionsDetected);
 
   return (
     <>
@@ -1019,7 +1498,7 @@ export default function MeetingPage({
           <div className="ada-modal">
             <div className="ada-modal-title">End session?</div>
             <div className="ada-modal-body">
-              Debrief will be saved to Archives.
+              Transcript and dossier will be saved to Archives.
             </div>
             <div className="ada-modal-actions">
               <button

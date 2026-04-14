@@ -19,6 +19,10 @@ const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 const ERROR_DEDUP_TTL_MS = 5 * 60 * 1000;
 const ERROR_DEDUP_MAX = 200;
 const errorDedup = new Map();
+const CAPTION_SOURCE_STALE_MS = 12000;
+const captionSourceByTab = new Map();
+const RECENT_CAPTION_EVENT_TTL_MS = 6000;
+const recentCaptionEventsByTab = new Map();
 const AI_DIALOGUE_AGENT_ENDPOINTS = {
   gemini: "/api/content-generators/ai_dialogue_architect_agent_gemini",
   groq: "/api/content-generators/ai_dialogue_architect_agent_groq",
@@ -49,6 +53,80 @@ function shouldReportError(key) {
     if (oldest) errorDedup.delete(oldest[0]);
   }
   return true;
+}
+
+function shouldForwardCaptionMessage(sender, type, payload) {
+  const tabId = sender?.tab?.id;
+  const frameId = typeof sender?.frameId === "number" ? sender.frameId : 0;
+  if (!tabId) return true;
+
+  const now = Date.now();
+  const current = captionSourceByTab.get(tabId);
+  const hasFinalizedTranscript =
+    type === "LIVE_TRANSCRIPT" &&
+    payload?.action === "finalize" &&
+    String(payload?.finalized || "").trim();
+  const hasDetectedCaption =
+    type === "CAPTION_STATUS" &&
+    (payload?.state === "detected" || payload?.state === "synced");
+
+  if (!current) {
+    if (hasFinalizedTranscript || hasDetectedCaption) {
+      captionSourceByTab.set(tabId, { frameId, lastSeenAt: now });
+    }
+    return true;
+  }
+
+  if (current.frameId === frameId) {
+    current.lastSeenAt = now;
+    captionSourceByTab.set(tabId, current);
+    return true;
+  }
+
+  const isStale = now - current.lastSeenAt > CAPTION_SOURCE_STALE_MS;
+  if (isStale && (hasFinalizedTranscript || hasDetectedCaption)) {
+    captionSourceByTab.set(tabId, { frameId, lastSeenAt: now });
+    return true;
+  }
+
+  return false;
+}
+
+function normalizeCaptionEventText(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function isDuplicateCaptionEvent(sender, type, payload) {
+  const tabId = sender?.tab?.id;
+  if (!tabId) return false;
+
+  if (type !== "LIVE_TRANSCRIPT" || payload?.action !== "finalize") {
+    return false;
+  }
+
+  const finalized = normalizeCaptionEventText(payload?.finalized || "");
+  if (!finalized) return false;
+
+  const now = Date.now();
+  const store = recentCaptionEventsByTab.get(tabId) || new Map();
+  for (const [key, ts] of store.entries()) {
+    if (now - ts > RECENT_CAPTION_EVENT_TTL_MS) {
+      store.delete(key);
+    }
+  }
+
+  const dedupeKey = finalized;
+  if (store.has(dedupeKey)) {
+    recentCaptionEventsByTab.set(tabId, store);
+    return true;
+  }
+
+  store.set(dedupeKey, now);
+  recentCaptionEventsByTab.set(tabId, store);
+  return false;
 }
 
 async function reportExtensionError(payload) {
@@ -136,6 +214,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
 
     case "LIVE_TRANSCRIPT":
+      if (!shouldForwardCaptionMessage(sender, "LIVE_TRANSCRIPT", msg.payload)) {
+        sendResponse({ ok: true, ignored: true });
+        return true;
+      }
+      if (isDuplicateCaptionEvent(sender, "LIVE_TRANSCRIPT", msg.payload)) {
+        sendResponse({ ok: true, ignored: true, duplicate: true });
+        return true;
+      }
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs[0]?.id) {
           sendResponse({ ok: false, error: "No active tab" });
@@ -147,6 +233,10 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       });
       return true;
     case "CAPTION_STATUS":
+      if (!shouldForwardCaptionMessage(sender, "CAPTION_STATUS", msg.payload)) {
+        sendResponse({ ok: true, ignored: true });
+        return true;
+      }
       chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
         if (!tabs[0]?.id) {
           sendResponse({ ok: false, error: "No active tab" });
@@ -448,7 +538,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             return;
           }
 
-          const { meetingData, chatHistory, log, finalizedMessage, uiTimer } =
+          const {
+            meetingData,
+            chatHistory,
+            log,
+            finalizedMessage,
+            uiTimer,
+            overrideCommand,
+          } =
             msg.payload || {};
 
           const payload = {
@@ -457,6 +554,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             msg: Array.isArray(chatHistory) ? chatHistory : [],
             finalizedMessage,
             uiTimer,
+            overrideCommand,
+            user_override: Boolean(overrideCommand),
           };
           const selectedModelKey = meetingData?.agentModelKey || "gemini";
           const agentEndpoint = getAiDialogueAgentEndpoint(selectedModelKey);
@@ -520,7 +619,14 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               }
 
               const activeTabId = tabs[0].id;
-              const { meetingData, chatHistory, log, requestId } = msg.payload;
+              const {
+                meetingData,
+                chatHistory,
+                log,
+                requestId,
+                finalizedMessage,
+                overrideCommand,
+              } = msg.payload;
 
               const payload = {
                 ...meetingData,
@@ -528,6 +634,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   ? log.join("\n")
                   : String(log || ""),
                 msg: Array.isArray(chatHistory) ? chatHistory : [],
+                finalizedMessage,
+                overrideCommand,
+                user_override: Boolean(overrideCommand),
               };
               const selectedModelKey = meetingData?.agentModelKey || "gemini";
 
@@ -676,7 +785,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               }
 
               const activeTabId = tabs[0].id;
-              const { meetingData, log, requestId, finalizedMessage } = msg.payload;
+              const {
+                meetingData,
+                log,
+                requestId,
+                finalizedMessage,
+                overrideCommand,
+              } = msg.payload;
 
               const payload = {
                 ...meetingData,
@@ -684,6 +799,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   ? log.join("\n")
                   : String(log || ""),
                 finalizedMessage,
+                overrideCommand,
+                user_override: Boolean(overrideCommand),
               };
 
               const res = await fetch(
