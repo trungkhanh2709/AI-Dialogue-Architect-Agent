@@ -214,6 +214,59 @@ button:disabled {
 .meeting-link a:hover {
   background-color: #3367d6;
 }
+.agent-model-picker {
+  margin: 12px 0 16px;
+}
+
+.agent-model-picker__label {
+  color: #fff;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.agent-model-picker__subtext {
+  color: rgba(255, 255, 255, 0.7);
+  font-size: 11px;
+  line-height: 1.4;
+  margin-bottom: 10px;
+}
+
+.agent-model-picker__buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.agent-model-button {
+  flex: 1 1 calc(33.333% - 8px);
+  min-width: 108px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 12px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #fff;
+  text-align: left;
+}
+
+.agent-model-button.active {
+  border-color: #ff7461;
+  background: rgba(255, 116, 97, 0.16);
+  box-shadow: 0 0 0 1px rgba(255, 116, 97, 0.2);
+}
+
+.agent-model-button__label {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.agent-model-button__meta {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.7);
+}
+
 .text_label{
   margin-bottom: 6px;
   color:#ffffff ;

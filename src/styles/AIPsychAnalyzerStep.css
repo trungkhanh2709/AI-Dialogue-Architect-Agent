@@ -359,8 +359,9 @@
   z-index: 9999;
 }
 .bm-modal {
-  width: 100%;
-  max-width: calc(100vw - 80px);
+  width: min(95vw, 1200px);
+  max-width: min(95vw, 1200px);
+  max-height: 85vh;
   background:
     linear-gradient(180deg, rgba(255,255,255,.02), rgba(255,255,255,0)),
     var(--panel);
@@ -399,10 +400,12 @@
 }
 .bm-modal__body {
   padding: 12px 14px;
+  overflow: auto;
+  flex: 1;
 }
 .bm-modal__textarea {
   width: 100%;
-  min-height: 360px;
+  min-height: 55vh;
   resize: vertical;
   background: var(--panel-2);
   color: var(--text);

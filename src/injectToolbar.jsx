@@ -16,78 +16,90 @@ import popupSidebarCss from "../src/styles/popupSidebar.css?raw";
 import upgradePopupCss from "../src/styles/upgradePopup.css?raw";
 import settingPageCss from "../src/styles/settingPage.css?raw";
 import AIPsychAnalyzerStep from "../src/styles/AIPsychAnalyzerStep.css?raw";
-import ResponseModal from "../src/styles/modal.css?raw"
+import ResponseModal from "../src/styles/modal.css?raw";
 import ResultBlock from "../src/styles/ResultBlock.css?raw";
 import GoogleLoginButton from "../src/styles/GoogleLoginButton.css?raw";
+import v15Css from "../src/styles/v15.css?raw";
 
 export function initToolbar() {
   let toolbarHost = document.getElementById("__ai_dialogue_toolbar__");
 
   if (!toolbarHost) {
-    // tạo host container
     toolbarHost = document.createElement("div");
     toolbarHost.id = "__ai_dialogue_toolbar__";
     Object.assign(toolbarHost.style, {
       position: "fixed",
-      top: "10px",
-      left: "50%",
-      transform: "translateX(-50%)",
+      top: "0",
+      left: "0",
+      width: "0",
+      height: "0",
+      overflow: "visible",
       zIndex: "999999",
-      pointerEvents: "none", // không chặn click bên ngoài
+      pointerEvents: "auto",
     });
 
     document.body.appendChild(toolbarHost);
 
-    // tạo Shadow DOM
     const shadow = toolbarHost.attachShadow({ mode: "open" });
     const style = document.createElement("style");
-    style.textContent = popupCss + "\n" + meetingCss + "\n" + upgradePopupCss 
-      + popupSidebarCss
-      + sidebarCss 
-      + collapsibleSectionCss
-      + blockListCss 
-      + chatCss + "\n" + emailInputCss + expandTextareaCss
-      + "\n" + GoogleCalendarCss + "\n" + InputFieldCss 
-      + SaveConfirmPopupCss + settingPageCss + AIPsychAnalyzerStep+ ResponseModal + ResultBlock +GoogleLoginButton;
+    style.textContent =
+      popupCss +
+      "\n" +
+      meetingCss +
+      "\n" +
+      upgradePopupCss +
+      popupSidebarCss +
+      sidebarCss +
+      collapsibleSectionCss +
+      blockListCss +
+      chatCss +
+      "\n" +
+      emailInputCss +
+      expandTextareaCss +
+      "\n" +
+      GoogleCalendarCss +
+      "\n" +
+      InputFieldCss +
+      SaveConfirmPopupCss +
+      settingPageCss +
+      AIPsychAnalyzerStep +
+      ResponseModal +
+      ResultBlock +
+      GoogleLoginButton +
+      "\n" +
+      v15Css;
 
     shadow.appendChild(style);
-    // wrapper nội dung React
+
     const inner = document.createElement("div");
     ["keydown", "keyup", "keypress"].forEach((type) => {
-  inner.addEventListener(
-    type,
-    (e) => {
-      // chỉ chặn khi focus đang ở trong vùng UI của mình
-      if (inner.contains(e.target)) {
-        e.stopPropagation();
-        // e.preventDefault(); // chỉ dùng nếu cần chặn luôn default (hiếm khi cần)
-      }
-    },
-    true // capture phase
-  );
-});
+      inner.addEventListener(
+        type,
+        (e) => {
+          if (inner.contains(e.target)) {
+            e.stopPropagation();
+          }
+        },
+        true
+      );
+    });
+
     Object.assign(inner.style, {
-      position: "absolute",
-      top: "10px",
-      right: "10px",
-      minWidth: "500px",
-      width: "500px",
-      maxHeight: "80vh",
+      position: "relative",
+      width: "0",
+      height: "0",
       backgroundColor: "transparent",
-      borderRadius: "24px",
       boxShadow: "none",
-      overflowY: "auto",
-      pointerEvents: "auto", // chỉ nội dung toolbar nhận sự kiện
+      pointerEvents: "auto",
     });
 
     shadow.appendChild(inner);
 
-    // render React app vào Shadow DOM
     window.toolbarRoot = ReactDOM.createRoot(inner);
     window.toolbarRoot.render(<App />);
   } else {
-    // toggle display
-    toolbarHost.style.display = toolbarHost.style.display === "none" ? "block" : "none";
+    toolbarHost.style.display =
+      toolbarHost.style.display === "none" ? "block" : "none";
   }
 }
 

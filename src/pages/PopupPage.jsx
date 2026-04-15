@@ -1,10 +1,10 @@
 import React, { useEffect, useState } from "react";
-// import "../styles/popup.css";
-import axios from "axios";
 import PopupWithSidebar from "../component/PopupWithSidebar.jsx";
 import ExpandableTextarea from "../component/ExpandableTextarea.jsx";
-import Setting_line_light from "../assets/Setting_line_light.svg?react";
-import SettingsPage from "../component/SettingsPage.jsx"
+import SettingLineLight from "../assets/Setting_line_light.svg?react";
+import SettingsPage from "../component/SettingsPage.jsx";
+
+const DEFAULT_AGENT_MODEL_KEY = "groq";
 
 export default function PopupPage({ onStartMeeting, cookieUserName }) {
   const [remainSessions, setRemainSessions] = useState(null);
@@ -19,53 +19,51 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
     meetingGoal: "",
     meetingEmail: "",
     meetingMessage: "",
-    meetingNote: ""
+    meetingNote: "",
+    conversionArchitectDossier: "",
+    agentModelKey: DEFAULT_AGENT_MODEL_KEY,
   });
   const [errors, setErrors] = useState({});
-  const decodedCookieEmail = decodeURIComponent(cookieUserName);
-  const [tab, setTab] = useState("schedule"); // "instant" | "schedule"
+  const decodedCookieEmail = decodeURIComponent(cookieUserName || "");
+  const [tab, setTab] = useState("schedule");
 
-
-
-  console.log("decodedCookieEmail", decodedCookieEmail);
   useEffect(() => {
-    const fetchRemainSessions = () => {
-      chrome.runtime.sendMessage(
-        {
-          type: "GET_REMAIN_SESSIONS",
-          payload: {
-            email: decodedCookieEmail,
-            add_on_type: "ai_dialogue_architect_agent",
-          },
+    if (!decodedCookieEmail) return;
+
+    chrome.runtime.sendMessage(
+      {
+        type: "GET_REMAIN_SESSIONS",
+        payload: {
+          email: decodedCookieEmail,
+          add_on_type: "ai_dialogue_architect_agent",
         },
-        (res) => {
-          if (res.error || !res.data) {
-            setRemainSessions("0 sessions");
-            return;
-          }
-          const { value, trial } = res.data.content;
-          setRemainSessions(trial ? `${value} sessions + Trial` : `${value} sessions`);
+      },
+      (res) => {
+        if (res?.error || !res?.data) {
+          setRemainSessions("0 sessions");
+          return;
         }
-      );
-
-    };
-
-    fetchRemainSessions();
+        const { value, trial } = res.data.content || {};
+        setRemainSessions(trial ? `${value} sessions + Trial` : `${value} sessions`);
+      }
+    );
   }, [decodedCookieEmail]);
-
-
 
   const validateStep = () => {
     const newErrors = {};
     if (step === 1) {
       if (!formData.userName.trim()) newErrors.userName = "Required field";
-      if (!formData.userCompanyName.trim()) newErrors.userCompanyName = "Required field";
-      if (!formData.userCompanyServices.trim()) newErrors.userCompanyServices = "Required field";
+      if (!formData.userCompanyName.trim())
+        newErrors.userCompanyName = "Required field";
+      if (!formData.userCompanyServices.trim())
+        newErrors.userCompanyServices = "Required field";
     }
     if (step === 2) {
       if (!formData.prospectName.trim()) newErrors.prospectName = "Required field";
-      if (!formData.customerCompanyName.trim()) newErrors.customerCompanyName = "Required field";
-      if (!formData.customerCompanyServices.trim()) newErrors.customerCompanyServices = "Required field";
+      if (!formData.customerCompanyName.trim())
+        newErrors.customerCompanyName = "Required field";
+      if (!formData.customerCompanyServices.trim())
+        newErrors.customerCompanyServices = "Required field";
     }
     if (step === 3) {
       if (!formData.meetingGoal.trim()) newErrors.meetingGoal = "Required field";
@@ -76,14 +74,14 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
 
   const handleChange = (e) => {
     const { id, value } = e.target;
-    setFormData(prev => ({ ...prev, [id]: value }));
+    setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
   const handleNext = () => {
-    if (validateStep()) setStep(prev => prev + 1);
+    if (validateStep()) setStep((prev) => prev + 1);
   };
 
-  const handleBack = () => setStep(prev => prev - 1);
+  const handleBack = () => setStep((prev) => prev - 1);
 
   const handleStart = () => {
     if (!validateStep()) return;
@@ -93,8 +91,8 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
         type: "USE_ADDON_SESSION",
         payload: {
           email: decodedCookieEmail,
-          add_on_type: "ai_dialogue_architect_agent"
-        }
+          add_on_type: "ai_dialogue_architect_agent",
+        },
       },
       (res) => {
         if (!res || res.error || !res.data) {
@@ -102,7 +100,6 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
           return;
         }
 
-        // Reset & start timer
         chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
           chrome.runtime.sendMessage({ type: "START_TIMER" });
         });
@@ -117,10 +114,9 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
     );
   };
 
-
-
   const renderTextarea = (id, label, rows = 3, placeholder) => {
-    const words = formData[id].trim() === "" ? [] : formData[id].trim().split(/\s+/);
+    const words =
+      formData[id].trim() === "" ? [] : formData[id].trim().split(/\s+/);
     const wordCount = words.length;
 
     return (
@@ -130,11 +126,12 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
           id={id}
           value={formData[id]}
           onChange={(e) => {
-            const newWords = e.target.value.trim() === "" ? [] : e.target.value.trim().split(/\s+/);
+            const newWords =
+              e.target.value.trim() === "" ? [] : e.target.value.trim().split(/\s+/);
             if (newWords.length <= 1000) {
               handleChange(e);
             } else {
-              e.target.value = formData[id]; // giữ giá trị cũ
+              e.target.value = formData[id];
               alert("Maximum 1000 words allowed");
             }
           }}
@@ -147,8 +144,6 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
       </div>
     );
   };
-
-
 
   const renderInput = (id, label, type = "text", placeholder) => (
     <div className="input-group">
@@ -164,13 +159,10 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
       {errors[id] && <div className="error-text">{errors[id]}</div>}
     </div>
   );
+
   useEffect(() => {
-    setStep(tab === "instant" ? 1 : 0); // schedule bắt đầu từ step 1,  instant từ step 0
+    setStep(tab === "instant" ? 1 : 0);
   }, [tab]);
-
-
-
-
 
   return (
     <div className="extension-container">
@@ -191,22 +183,22 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
       </div>
 
       <div className="agent-header">
-  <p className="agent_name">AI Dialogue Architect Agent</p>
-  <Setting_line_light
-    size={8}
-    className="settings-icon"
-    onClick={() => setTab("settings")}
-  />
-</div>
+        <p className="agent_name">AI Dialogue Strategist Agent</p>
+        <SettingLineLight
+          size={8}
+          className="settings-icon"
+          onClick={() => setTab("settings")}
+        />
+      </div>
+
       <div
-        className={`session-remain ${remainSessions === "0 sessions" ? "danger" : "normal"
-          }`}
+        className={`session-remain ${
+          remainSessions === "0 sessions" ? "danger" : "normal"
+        }`}
       >
         Remaining Sessions: {remainSessions || "Loading..."}
       </div>
 
-
-      {/* <div className="blue-glow"></div> */}
       {tab === "instant" && (
         <>
           <div className="step-indicator">
@@ -220,26 +212,45 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
             ))}
           </div>
 
-          {/* SECTION */}
           <div className="section-card">
             {step === 1 && (
               <>
-
-                <div className="section-title">User A – Your Info</div>
+                <div className="section-title">User A - Your Info</div>
                 {renderInput("userName", "Your Name - Role/Title", "text", "Your name - Role/Title")}
-                {renderInput("userCompanyName", "Company Name", "text", " Your Company Name")}
-                {renderTextarea("userCompanyServices", "Your Company: Business, Products, and Services", 3, "Please provide clear information about your company, including Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc.")}
-
+                {renderInput("userCompanyName", "Company Name", "text", "Your Company Name")}
+                {renderTextarea(
+                  "userCompanyServices",
+                  "Your Company: Business, Products, and Services",
+                  3,
+                  "Please provide clear information about your company, including Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc."
+                )}
               </>
             )}
+
             {step === 2 && (
               <>
-                <div className="section-title">User B – Prospect Info</div>
-                {renderInput("prospectName", "Prospect's Name - Role/Title", "text", "Prospect's Name - Role/Title")}
-                {renderInput("customerCompanyName", "Prospect Company Name", "text", "Prospect Company Name")}
-                {renderTextarea("customerCompanyServices", "Prospect Company: Business, Products, and Services", 3, "Please provide clear information about your prospect company, including its Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc.")}
+                <div className="section-title">User B - Prospect Info</div>
+                {renderInput(
+                  "prospectName",
+                  "Prospect's Name - Role/Title",
+                  "text",
+                  "Prospect's Name - Role/Title"
+                )}
+                {renderInput(
+                  "customerCompanyName",
+                  "Prospect Company Name",
+                  "text",
+                  "Prospect Company Name"
+                )}
+                {renderTextarea(
+                  "customerCompanyServices",
+                  "Prospect Company: Business, Products, and Services",
+                  3,
+                  "Please provide clear information about your prospect company, including its Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc."
+                )}
               </>
             )}
+
             {step === 3 && (
               <div className="scrollable-step">
                 <div className="section-title">Contextual Information</div>
@@ -279,35 +290,50 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
                   setFormData={setFormData}
                   errors={errors}
                 />
-
+                <ExpandableTextarea
+                  id="conversionArchitectDossier"
+                  label="Conversion Architect Dossier (Optional)"
+                  placeholder="Paste the structured dossier from prior meetings if you already have one."
+                  maxRows={8}
+                  formData={formData}
+                  setFormData={setFormData}
+                  errors={errors}
+                />
               </div>
             )}
-
-
           </div>
 
-          {/* Buttons */}
           <div className="btn-container">
-            {step > 1 && <button className="btn back" onClick={handleBack}>Back</button>}
-            {step < 3 && <button className="btn next" onClick={handleNext}>Next →</button>}
-            {step === 3 && <button className="btn start" onClick={handleStart}>Start</button>}
+            {step > 1 && (
+              <button className="btn back" onClick={handleBack}>
+                Back
+              </button>
+            )}
+            {step < 3 && (
+              <button className="btn next" onClick={handleNext}>
+                Next →
+              </button>
+            )}
+            {step === 3 && (
+              <button className="btn start" onClick={handleStart}>
+                Start
+              </button>
+            )}
           </div>
-          {/* render các step 1 → 3 như cũ */}
         </>
       )}
-      {/* Step Indicator */}
+
       {tab === "schedule" && (
         <div className="schedule-container">
-
           <PopupWithSidebar
             onStartMeeting={onStartMeeting}
             decodedCookieEmail={decodedCookieEmail}
-
             onSelectBlock={(block) => console.log("Selected:", block)}
-          />  </div>
+          />
+        </div>
       )}
-{tab === "settings" && <SettingsPage onBack={() => setTab("instant")} />}
 
+      {tab === "settings" && <SettingsPage onBack={() => setTab("instant")} />}
     </div>
   );
 }

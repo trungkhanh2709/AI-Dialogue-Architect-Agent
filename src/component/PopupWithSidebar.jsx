@@ -12,6 +12,24 @@ import AIPsychAnalyzerStep from "./AIPsychAnalyzerStep";
 import { signInAndGetCalendarToken } from "../api/authGoogleCalendar"; // 👈 thêm
 
 const LS_PERSONA_KEY = "bm.persona_profile";
+const DEFAULT_AGENT_MODEL_KEY = "groq";
+const AGENT_MODEL_OPTIONS = [
+  {
+    key: "groq",
+    label: "Groq",
+    meta: "Fastest default",
+  },
+  {
+    key: "gemini",
+    label: "Gemini",
+    meta: "Stable quality",
+  },
+  {
+    key: "kimi",
+    label: "Kimi",
+    meta: "Moonshot route",
+  },
+];
 
 export default function PopupWithSidebar({
   onStartMeeting,
@@ -36,6 +54,7 @@ export default function PopupWithSidebar({
     meetingEmail: "",
     meetingMessage: "",
     meetingNote: "",
+    agentModelKey: DEFAULT_AGENT_MODEL_KEY,
     meetingStart: "",
     designatedTime: "",
     meetingDuration: "15",
@@ -47,6 +66,8 @@ export default function PopupWithSidebar({
     psychLanguage: "English",
     psychAnalyzerResult: "",
     businessDNAResult: "",
+    conversionArchitectDossier: "",
+    meetingTranscript: "",
   });
   const [errors, setErrors] = useState({});
   const [sidebarVisible, setSidebarVisible] = useState(true);
@@ -109,6 +130,8 @@ export default function PopupWithSidebar({
         meetingEmail: selectedBlock.meetingEmail || "",
         meetingMessage: selectedBlock.meetingMessage || "",
         meetingNote: selectedBlock.meetingNote || "",
+        agentModelKey:
+          selectedBlock.agentModelKey || DEFAULT_AGENT_MODEL_KEY,
         meetingStart: selectedBlock.meetingStart || "",
         meetingDuration: selectedBlock.meetingDuration || "15",
         meetingEnd: selectedBlock.meetingEnd || "",
@@ -122,6 +145,14 @@ export default function PopupWithSidebar({
         psychLanguage: selectedBlock.psychLanguage || "English",
         psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
         businessDNAResult: selectedBlock.businessDNAResult || "",
+        conversionArchitectDossier:
+          selectedBlock.conversionArchitectDossier ||
+          selectedBlock.conversion_architect_dossier ||
+          "",
+        meetingTranscript:
+          selectedBlock.meeting_transcript ||
+          selectedBlock.meetingTranscript ||
+          "",
         designatedTime: selectedBlock.designatedTime || "",
 
         eventId: selectedBlock.eventId || "",
@@ -152,6 +183,8 @@ export default function PopupWithSidebar({
         meetingEmail: selectedBlock.meetingEmail || "",
         meetingMessage: selectedBlock.meetingMessage || "",
         meetingNote: selectedBlock.meetingNote || "",
+        agentModelKey:
+          selectedBlock.agentModelKey || DEFAULT_AGENT_MODEL_KEY,
         meetingStart: "",
         designatedTime: selectedBlock.designatedTime || "",
         meetingDuration: "15",
@@ -166,6 +199,14 @@ export default function PopupWithSidebar({
         psychLanguage: selectedBlock.psychLanguage || "English",
         psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
         businessDNAResult: selectedBlock.businessDNAResult || "",
+        conversionArchitectDossier:
+          selectedBlock.conversionArchitectDossier ||
+          selectedBlock.conversion_architect_dossier ||
+          "",
+        meetingTranscript:
+          selectedBlock.meeting_transcript ||
+          selectedBlock.meetingTranscript ||
+          "",
         eventId: selectedBlock.eventId || "",
       }));
     }
@@ -285,6 +326,7 @@ export default function PopupWithSidebar({
       meetingEmail: "",
       meetingMessage: "",
       meetingNote: "",
+      agentModelKey: DEFAULT_AGENT_MODEL_KEY,
       meetingStart: "",
       meetingDuration: "15",
       meetingEnd: "",
@@ -295,6 +337,8 @@ export default function PopupWithSidebar({
       psychLanguage: "English",
       psychAnalyzerResult: "",
       businessDNAResult: "",
+      conversionArchitectDossier: "",
+      meetingTranscript: "",
       eventId: "",
     });
     setFormVisible(true);
@@ -506,6 +550,11 @@ export default function PopupWithSidebar({
         meetingEmail: formData.meetingEmail || "",
         meetingMessage: formData.meetingMessage || "",
         meetingNote: formData.meetingNote || "",
+        agentModelKey: formData.agentModelKey || DEFAULT_AGENT_MODEL_KEY,
+        agentModelLabel:
+          AGENT_MODEL_OPTIONS.find(
+            (option) => option.key === formData.agentModelKey
+          )?.label || "Groq",
         meetingStart: formData.meetingStart || "",
         meetingDuration: formData.meetingDuration || "15",
         meetingEnd: formData.meetingEnd || "",
@@ -524,7 +573,12 @@ export default function PopupWithSidebar({
           formData.psychAnalyzerResult || stagedResults.psych || "",
         businessDNAResult:
           formData.businessDNAResult || stagedResults.bdna || "",
-          designatedTime: formData.designatedTime || "",
+        conversionArchitectDossier:
+          formData.conversionArchitectDossier || "",
+        conversion_architect_dossier:
+          formData.conversionArchitectDossier || "",
+        meeting_transcript: formData.meetingTranscript || "",
+        designatedTime: formData.designatedTime || "",
 
       };
 
@@ -750,6 +804,39 @@ export default function PopupWithSidebar({
                 error={errors.title}
                 readOnly={!isEditing}
               />
+              <div className="agent-model-picker">
+                <div className="agent-model-picker__label">
+                  AI model test routes
+                </div>
+                <div className="agent-model-picker__subtext">
+                  Each button maps to a separate backend endpoint. Groq is set
+                  as the fastest default for quick testing.
+                </div>
+                <div className="agent-model-picker__buttons">
+                  {AGENT_MODEL_OPTIONS.map((option) => (
+                    <button
+                      key={option.key}
+                      type="button"
+                      className={`agent-model-button ${
+                        formData.agentModelKey === option.key ? "active" : ""
+                      }`}
+                      onClick={() =>
+                        setFormData((prev) => ({
+                          ...prev,
+                          agentModelKey: option.key,
+                        }))
+                      }
+                    >
+                      <span className="agent-model-button__label">
+                        {option.label}
+                      </span>
+                      <span className="agent-model-button__meta">
+                        {option.meta}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
               <GoogleCalendar
                 formData={formData}
                 handleChange={handleChange}
@@ -1116,6 +1203,16 @@ placeholder="e.g., 15 (minutes)"
                 label="Note (Optional)"
                 placeholder="For example, additional information useful for the Agent, such as personality analysis results, BusinessDNA insights, key pain points, potential objections, and relationship history with the prospect, etc."
                 maxRows={5}
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+              />
+              <ExpandableTextarea
+                id="conversionArchitectDossier"
+                label="Conversion Architect Dossier"
+                placeholder="Auto-generated summary from prior meetings. Keep the JSON structure so the Strategist can reuse sentiment, friction, milestones, and narrative arc."
+                maxRows={8}
                 formData={formData}
                 setFormData={setFormData}
                 errors={errors}
