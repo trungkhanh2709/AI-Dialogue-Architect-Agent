@@ -91,6 +91,68 @@ export default function PopupWithSidebar({
 
   const imgUrlPsychAnalyzer = chrome.runtime.getURL("images/prospect.jpg");
   const imgUrlBussinessDNA = chrome.runtime.getURL("images/business_dna.jpg");
+  const [toolHistoryOptions, setToolHistoryOptions] = useState([]);
+  const [selectedToolHistory, setSelectedToolHistory] = useState("");
+  const [showDossier, setShowDossier] = useState(false);
+  const [brandDNA, setBrandDNA] = useState("");
+  useEffect(() => {
+    chrome.runtime.sendMessage(
+      { type: "GET_TOOL_HISTORY" },
+      (res) => {
+        if (res?.ok) {
+          setToolHistoryOptions(res.data || []);
+        } else {
+          setToolHistoryOptions([]);
+        }
+      }
+    );
+  }, []);
+  const fetchBrandDNA = () => {
+    chrome.runtime.sendMessage(
+      {
+        type: "GET_BRAND_DNA",
+        payload: { username: decodedCookieEmail },
+      },
+      (res) => {
+        if (!res?.ok) {
+          console.error("❌ Get BrandDNA failed:", res);
+          return;
+        }
+
+        const data = res.data;
+
+        // tuỳ BE trả array hay object
+        let content = "";
+
+        if (Array.isArray(data) && data.length > 0) {
+          content = JSON.stringify(data[0], null, 2);
+        } else if (typeof data === "object") {
+          content = JSON.stringify(data, null, 2);
+        } else {
+          content = String(data);
+        }
+
+        setBrandDNA(content);
+
+        // 🔥 quan trọng: merge vào formData KHÔNG overwrite
+        setFormData((prev) => ({
+          ...prev,
+          businessDNAResult:
+            prev.businessDNAResult && prev.businessDNAResult.trim()
+              ? prev.businessDNAResult
+              : content,
+        }));
+      }
+    );
+  };
+  useEffect(() => {
+    if (!decodedCookieEmail) return;
+
+    // chỉ load lần đầu
+    if (brandDNA && brandDNA.trim()) return;
+
+    fetchBrandDNA();
+  }, [decodedCookieEmail, brandDNA]);
 
   useEffect(() => {
     if (!selectedBlock) return;
@@ -110,6 +172,10 @@ export default function PopupWithSidebar({
 
   useEffect(() => {
     if (selectedBlock) {
+            const dossier =
+  selectedBlock.conversionArchitectDossier ||
+  selectedBlock.conversion_architect_dossier ||
+  "";
       setFormData((prev) => ({
         ...prev,
         title: selectedBlock.blockName || "",
@@ -119,7 +185,7 @@ export default function PopupWithSidebar({
         userCompanyWebsite: selectedBlock.userCompanyWebsite || "",
         userKeyCompanyUrls:
           Array.isArray(selectedBlock.userKeyCompanyUrls) &&
-          selectedBlock.userKeyCompanyUrls.length
+            selectedBlock.userKeyCompanyUrls.length
             ? selectedBlock.userKeyCompanyUrls
             : ["", "", ""],
         prospectName: selectedBlock.prospectName || "",
@@ -144,11 +210,11 @@ export default function PopupWithSidebar({
             : ["", "", ""],
         psychLanguage: selectedBlock.psychLanguage || "English",
         psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
-        businessDNAResult: selectedBlock.businessDNAResult || "",
-        conversionArchitectDossier:
-          selectedBlock.conversionArchitectDossier ||
-          selectedBlock.conversion_architect_dossier ||
+        businessDNAResult:
+          selectedBlock.businessDNAResult ||
+          brandDNA || // 🔥 fallback từ auto load
           "",
+        conversionArchitectDossier: dossier,
         meetingTranscript:
           selectedBlock.meeting_transcript ||
           selectedBlock.meetingTranscript ||
@@ -157,12 +223,20 @@ export default function PopupWithSidebar({
 
         eventId: selectedBlock.eventId || "",
       }));
+
+
+setShowDossier(!!dossier);
       setFormVisible(true);
+      
     }
   }, [selectedBlock]);
 
   const handleCancel = () => {
     if (selectedBlock) {
+      const dossier =
+  selectedBlock.conversionArchitectDossier ||
+  selectedBlock.conversion_architect_dossier ||
+  "";
       setFormData((prev) => ({
         ...prev,
         title: selectedBlock.blockName || "",
@@ -172,7 +246,7 @@ export default function PopupWithSidebar({
         userCompanyWebsite: selectedBlock.userCompanyWebsite || "",
         userKeyCompanyUrls:
           Array.isArray(selectedBlock.userKeyCompanyUrls) &&
-          selectedBlock.userKeyCompanyUrls.length
+            selectedBlock.userKeyCompanyUrls.length
             ? selectedBlock.userKeyCompanyUrls
             : ["", "", ""],
         prospectName: selectedBlock.prospectName || "",
@@ -199,10 +273,7 @@ export default function PopupWithSidebar({
         psychLanguage: selectedBlock.psychLanguage || "English",
         psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
         businessDNAResult: selectedBlock.businessDNAResult || "",
-        conversionArchitectDossier:
-          selectedBlock.conversionArchitectDossier ||
-          selectedBlock.conversion_architect_dossier ||
-          "",
+        conversionArchitectDossier:dossier ,
         meetingTranscript:
           selectedBlock.meeting_transcript ||
           selectedBlock.meetingTranscript ||
@@ -211,6 +282,7 @@ export default function PopupWithSidebar({
       }));
     }
     setIsEditing(false);
+    setShowDossier(!!dossier);
   };
 
   const handleChange = (e) => {
@@ -345,7 +417,112 @@ export default function PopupWithSidebar({
     setIsEditing(true);
   };
 
+
+  function extractCognitiveTone(brandDNA) {
+    try {
+      const parsed =
+        typeof brandDNA === "string" ? JSON.parse(brandDNA) : brandDNA;
+
+      return parsed?.cognitive_clone_tone || "";
+    } catch {
+      return "";
+    }
+  }
+  const handleArchiveDossier = () => {
+    console.log("==== START ARCHIVE DOSSIER ====");
+
+    console.log("selectedToolHistory:", selectedToolHistory);
+    console.log("toolHistoryOptions:", toolHistoryOptions);
+
+    const selectedHistory = toolHistoryOptions.find(
+      (item) => item._id === selectedToolHistory
+    );
+
+    console.log("selectedHistory:", selectedHistory);
+
+    if (!selectedHistory) {
+      console.error("❌ Không tìm thấy selectedHistory");
+      alert("Please select tool history");
+      return;
+    }
+
+    let parsedResult = {};
+
+    try {
+      console.log("raw result:", selectedHistory.result);
+      console.log("typeof result:", typeof selectedHistory.result);
+
+      parsedResult =
+        typeof selectedHistory.result === "string"
+          ? JSON.parse(selectedHistory.result)
+          : selectedHistory.result || {};
+
+      console.log("✅ parsedResult:", parsedResult);
+    } catch (e) {
+      console.error("❌ Parse result error:", e);
+    }
+
+    const architectMessages = parsedResult?.architectMessages || [];
+
+    console.log("architectMessages:", architectMessages);
+    console.log("architectMessages length:", architectMessages.length);
+
+    const rawConversation = architectMessages
+      .map((m, idx) => {
+        console.log(`msg[${idx}]:`, m);
+        return `${m.role}: ${m.content}`;
+      })
+      .join("\n");
+
+    console.log("rawConversation:", rawConversation);
+
+    const existingDossier = {
+      psych: parsedResult?.dossier?.psych || "",
+      business: parsedResult?.dossier?.business || "",
+    };
+
+    console.log("existingDossier:", existingDossier);
+
+    if (!rawConversation) {
+      console.error("❌ rawConversation empty");
+      alert("No conversation history found");
+      return;
+    }
+
+    chrome.runtime.sendMessage(
+      {
+        type: "ARCHIVE_CONVERSATION",
+        payload: {
+          raw_conversation_history: rawConversation,
+          existing_dossier: existingDossier,
+        },
+      },
+      (res) => {
+        console.log("response:", res);
+
+        if (!res?.ok) {
+          console.error("❌ Archive failed:", res);
+          alert("Archive failed");
+          return;
+        }
+
+        const data = res.data?.content;
+
+        console.log("✅ archive data:", data);
+
+        setFormData((prev) => ({
+          ...prev,
+          conversionArchitectDossier: JSON.stringify(data, null, 2),
+        }));
+        setShowDossier(true);
+      }
+    );
+  };
+
   const handleStart = () => {
+    const cognitiveTone = extractCognitiveTone(brandDNA);
+    console.log("brandDNA RAW:", brandDNA);
+    console.log("cognitiveTone:", cognitiveTone);
     chrome.runtime.sendMessage(
       {
         type: "USE_ADDON_SESSION",
@@ -364,6 +541,7 @@ export default function PopupWithSidebar({
         ) {
           onStartMeeting({
             ...formData,
+            cognitive_clone_tone: cognitiveTone,
             id: selectedBlock?.id,
             _id: selectedBlock?.id,
           });
@@ -381,7 +559,7 @@ export default function PopupWithSidebar({
     let personaProfile = "";
     try {
       personaProfile = localStorage.getItem(LS_PERSONA_KEY) || "";
-    } catch {}
+    } catch { }
     return {
       username: decodedCookieEmail || "",
       name: formData.prospectName?.trim() || "",
@@ -450,16 +628,15 @@ export default function PopupWithSidebar({
             (res) => {
               let text;
               if (chrome.runtime.lastError) {
-                text = `Error: ${
-                  chrome.runtime.lastError.message || "Runtime error"
-                }`;
+                text = `Error: ${chrome.runtime.lastError.message || "Runtime error"
+                  }`;
               } else if (!res?.ok) {
                 const msg =
                   typeof res?.data === "string"
                     ? res.data
                     : res?.status
-                    ? `HTTP ${res.status}`
-                    : "Request failed.";
+                      ? `HTTP ${res.status}`
+                      : "Request failed.";
                 text = `Error: ${msg}`;
               } else {
                 const data = res.data;
@@ -467,8 +644,8 @@ export default function PopupWithSidebar({
                   typeof data === "string"
                     ? data
                     : data?.content
-                    ? String(data.content)
-                    : JSON.stringify(data, null, 2);
+                      ? String(data.content)
+                      : JSON.stringify(data, null, 2);
               }
               results.push({ key: "psych", label: "AI Psych Analyzer", text });
               resolve();
@@ -487,16 +664,15 @@ export default function PopupWithSidebar({
             (res) => {
               let text;
               if (chrome.runtime.lastError) {
-                text = `Error: ${
-                  chrome.runtime.lastError.message || "Runtime error"
-                }`;
+                text = `Error: ${chrome.runtime.lastError.message || "Runtime error"
+                  }`;
               } else if (!res?.ok) {
                 const msg =
                   typeof res?.data === "string"
                     ? res.data
                     : res?.status
-                    ? `HTTP ${res.status}`
-                    : "Request failed.";
+                      ? `HTTP ${res.status}`
+                      : "Request failed.";
                 text = `Error: ${msg}`;
               } else {
                 const data = res.data;
@@ -504,8 +680,8 @@ export default function PopupWithSidebar({
                   typeof data === "string"
                     ? data
                     : data?.content
-                    ? String(data.content)
-                    : JSON.stringify(data, null, 2);
+                      ? String(data.content)
+                      : JSON.stringify(data, null, 2);
               }
               results.push({ key: "bdna", label: "AI BusinessDNA", text });
               resolve();
@@ -754,9 +930,8 @@ export default function PopupWithSidebar({
       </div>
 
       <button
-        className={`sidebar-toggle ${
-          sidebarVisible ? "expanded" : "collapsed"
-        }`}
+        className={`sidebar-toggle ${sidebarVisible ? "expanded" : "collapsed"
+          }`}
         onClick={() => setSidebarVisible((v) => !v)}
       >
         {sidebarVisible ? "<" : ">"}
@@ -794,6 +969,89 @@ export default function PopupWithSidebar({
               openSections={openSections}
               setOpenSections={setOpenSections}
             >
+              <div style={{ marginBottom: 12 }}>
+                <div className="text_label">Tool History</div>
+
+                <select
+                  value={selectedToolHistory}
+                  onChange={(e) => setSelectedToolHistory(e.target.value)}
+
+                >
+                  <option value="">Select...</option>
+
+                  {toolHistoryOptions
+                    .filter((item) => item.toolName === "Conversion Architect")
+                    .map((item) => (
+                      <option key={item._id} value={item._id}>
+                        {item.title}
+                      </option>
+                    ))}
+                </select>
+              </div>
+              <button
+                type="button"
+                className="bm-btn bm-btn--primary"
+                onClick={handleArchiveDossier}
+                style={{ marginTop: 8 }}
+              >
+                Generate Dossier
+              </button>
+              {formData.conversionArchitectDossier && showDossier && (
+                <div style={{ marginTop: 12 }}>
+                  <ResultBlock
+                    label="Conversion Architect Dossier"
+                    content={formData.conversionArchitectDossier}
+                    onOpen={() => {
+                      setModalQueue([
+                        {
+                          key: "dossier",
+                          label: "Conversion Architect Dossier",
+                          text: formData.conversionArchitectDossier,
+                        },
+                      ]);
+                      setModalIdx(0);
+                      setModalOpen(true);
+                    }}
+                    onRemove={() => {
+                      setFormData((prev) => ({
+                        ...prev,
+                        conversionArchitectDossier: "",
+                      }));
+                      setShowDossier(false);
+                    }}
+                  />
+                </div>
+              )}
+
+
+
+              {brandDNA && (
+                <div style={{ marginTop: 12 }}>
+                  <ResultBlock
+                    label="Brand DNA (Auto)"
+                    content={brandDNA}
+                    onOpen={() => {
+                      setModalQueue([
+                        {
+                          key: "brandDNA",
+                          label: "Brand DNA",
+                          text: brandDNA,
+                        },
+                      ]);
+                      setModalIdx(0);
+                      setModalOpen(true);
+                    }}
+                    onRemove={() => {
+                      setBrandDNA("");
+                      setFormData((prev) => ({
+                        ...prev,
+                        businessDNAResult: "",
+                      }));
+                    }}
+                  />
+                </div>
+              )}
+
               <InputField
                 id="title"
                 label="Title"
@@ -817,9 +1075,8 @@ export default function PopupWithSidebar({
                     <button
                       key={option.key}
                       type="button"
-                      className={`agent-model-button ${
-                        formData.agentModelKey === option.key ? "active" : ""
-                      }`}
+                      className={`agent-model-button ${formData.agentModelKey === option.key ? "active" : ""
+                        }`}
                       onClick={() =>
                         setFormData((prev) => ({
                           ...prev,
@@ -1089,7 +1346,7 @@ export default function PopupWithSidebar({
                       onRemove={
                         isEditing
                           ? () =>
-                              setStagedResults((r) => ({ ...r, psych: "" }))
+                            setStagedResults((r) => ({ ...r, psych: "" }))
                           : undefined
                       }
                     />
@@ -1102,7 +1359,7 @@ export default function PopupWithSidebar({
                       onRemove={
                         isEditing
                           ? () =>
-                              setStagedResults((r) => ({ ...r, bdna: "" }))
+                            setStagedResults((r) => ({ ...r, bdna: "" }))
                           : undefined
                       }
                     />
@@ -1136,15 +1393,25 @@ export default function PopupWithSidebar({
                   alignItems: "center",
                 }}
               >
-                <button
-                  type="button"
-                  className="bm-btn bm-btn--primary"
-                  onClick={handleGenerate}
-                  disabled={generating}
-                  style={{ marginLeft: "auto" }}
-                >
-                  {generating ? "Generating..." : "Generate"}
-                </button>
+<button
+  type="button"
+  className={`bm-btn bm-btn--primary ${generating ? "loading" : ""}`}
+  onClick={handleGenerate}
+  disabled={generating}
+  style={{
+    marginLeft: "auto",
+    opacity: generating ? 0.7 : 1,
+    cursor: generating ? "not-allowed" : "pointer",
+  }}
+>
+  {generating ? (
+    <>
+      <span className="spinner" /> Generating...
+    </>
+  ) : (
+    "Generate"
+  )}
+</button>
               </div>
             </CollapsibleSection>
 
@@ -1157,16 +1424,16 @@ export default function PopupWithSidebar({
               openSections={openSections}
               setOpenSections={setOpenSections}
             >
-            <InputField
-  id="designatedTime"
-  label="Designated Time"
-  type="text"
-  value={formData.designatedTime}
-  onChange={handleChange}
-placeholder="e.g., 15 (minutes)"
-  error={errors.designatedTime}
-  readOnly={!isEditing}
-/>
+              <InputField
+                id="designatedTime"
+                label="Designated Time"
+                type="text"
+                value={formData.designatedTime}
+                onChange={handleChange}
+                placeholder="e.g., 15 (minutes)"
+                error={errors.designatedTime}
+                readOnly={!isEditing}
+              />
 
               <ExpandableTextarea
                 id="meetingGoal"
@@ -1247,9 +1514,8 @@ placeholder="e.g., 15 (minutes)"
       {modalOpen && modalQueue[modalIdx] && (
         <ResultModal
           open={true}
-          title={`${modalQueue[modalIdx].label} (${
-            modalIdx + 1
-          }/${modalQueue.length})`}
+          title={`${modalQueue[modalIdx].label} (${modalIdx + 1
+            }/${modalQueue.length})`}
           value={modalQueue[modalIdx].text}
           setValue={(v) => {
             setModalQueue((prev) => {
@@ -1261,7 +1527,7 @@ placeholder="e.g., 15 (minutes)"
           onCopy={() =>
             navigator.clipboard
               ?.writeText(modalQueue[modalIdx].text)
-              .catch(() => {})
+              .catch(() => { })
           }
           onClose={() => {
             setModalOpen(false);

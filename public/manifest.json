@@ -17,7 +17,10 @@
     "https://api-as.reelsightsai.com/*",
     "https://beta.as.reelsightsai.com/*",
     "http://localhost:4000/*",
-    "https://www.googleapis.com/*"
+    "http://localhost:8000/*",
+    "http://localhost:3000/*",
+    "https://www.googleapis.com/*",
+     "https://beta.hav.reelsightsai.com/*"
   ],
 
   "icons": {

@@ -265,10 +265,10 @@ export default function MeetingPage({
     meetingMessage: trimContext(meetingData?.meetingMessage),
     entity_name: meetingData?.userName || meetingData?.userNameAndRole || inferredSelfName,
     strategic_context: trimContext(buildStrategicContext(), 3500),
-    cognitive_clone_tone: trimContext(
-      meetingData?.cognitiveCloneTone || readStoredCognitiveCloneTone(),
-      2500
-    ),
+   cognitive_clone_tone: trimContext(
+  meetingData?.cognitive_clone_tone || readStoredCognitiveCloneTone(),
+  2500
+),
     conversionArchitectDossier: effectiveDossierText,
     conversion_architect_dossier: effectiveDossierText,
     conversion_architect_dossier_json:

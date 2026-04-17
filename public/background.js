@@ -5,15 +5,16 @@ let timerInterval = null;
 const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
 const URL_BACKEND_PROD = "https://api-as.reelsightsai.com";
 const URL_BACKEND_BETA = "https://beta.as.reelsightsai.com";
-const URL_BACKEND_LOCAL = "http://localhost:8000";
+const URL_BACKEND_LOCAL = "http://localhost:4000";
 // Change this to: "prod" | "beta" | "local"
-const ACTIVE_BACKEND = "beta";
+const ACTIVE_BACKEND = "local";
 const VITE_URL_BACKEND =
   ACTIVE_BACKEND === "prod"
     ? URL_BACKEND_PROD
     : ACTIVE_BACKEND === "local"
     ? URL_BACKEND_LOCAL
     : URL_BACKEND_BETA;
+const VITE_URL_HAV_BACKEND = "http://localhost:8000"; // Replace with your actual backend URL
 const TELEMETRY_ENDPOINT = "/api/telemetry/extension-error";
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 const ERROR_DEDUP_TTL_MS = 5 * 60 * 1000;
@@ -31,8 +32,7 @@ const AI_DIALOGUE_AGENT_ENDPOINTS = {
 
 function getAiDialogueAgentEndpoint(modelKey) {
   return (
-    AI_DIALOGUE_AGENT_ENDPOINTS[modelKey] ||
-    AI_DIALOGUE_AGENT_ENDPOINTS.gemini
+    AI_DIALOGUE_AGENT_ENDPOINTS[modelKey] || AI_DIALOGUE_AGENT_ENDPOINTS.gemini
   );
 }
 
@@ -174,7 +174,7 @@ function startTimer() {
         chrome.tabs.sendMessage(
           tab.id,
           { type: "TIMER_UPDATE", payload: { minutes, seconds } },
-          () => {}
+          () => {},
         );
       });
     });
@@ -214,7 +214,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
 
     case "LIVE_TRANSCRIPT":
-      if (!shouldForwardCaptionMessage(sender, "LIVE_TRANSCRIPT", msg.payload)) {
+      if (
+        !shouldForwardCaptionMessage(sender, "LIVE_TRANSCRIPT", msg.payload)
+      ) {
         sendResponse({ ok: true, ignored: true });
         return true;
       }
@@ -310,7 +312,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         try {
           const { profileId, email } = msg.payload || {};
           if (!profileId) {
-            sendResponse({ ok: false, status: 400, error: "Missing profileId" });
+            sendResponse({
+              ok: false,
+              status: 400,
+              error: "Missing profileId",
+            });
             return;
           }
           sendResponse({
@@ -334,7 +340,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, add_on_type }),
-              }
+              },
             );
             const fallbackRaw = await fallbackRes.text();
             let fallbackData;
@@ -369,7 +375,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
           const m = redirectUrl.match(/access_token=([^&]+)/);
           sendResponse({ token: m ? m[1] : null });
-        }
+        },
       );
       return true;
 
@@ -404,8 +410,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const { email: meetingEmail } = msg.payload;
       fetch(
         `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
-          meetingEmail
-        )}`
+          meetingEmail,
+        )}`,
       )
         .then((res) => res.json())
         .then((data) => {
@@ -419,7 +425,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           sendResponse({
             data: { meeting: { meetings: [] } },
             error: err.message,
-          })
+          }),
         );
 
       return true; // giữ sendResponse mở
@@ -430,13 +436,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const { email, meetingId, payload } = msg.payload;
           const res = await fetch(
             `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(
-              email
+              email,
             )}/${meetingId}`,
             {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ meetings: [payload] }),
-            }
+            },
           );
 
           if (!res.ok) throw new Error("Update failed: " + res.status);
@@ -447,8 +453,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           // update local state: fetch lại blocks
           const res2 = await fetch(
             `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
-              email
-            )}`
+              email,
+            )}`,
           );
           const newData = await res2.json();
           chrome.runtime.sendMessage({
@@ -467,9 +473,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const { email, meetingId } = msg.payload;
           const res = await fetch(
             `${VITE_URL_BACKEND}/api/meeting_prepare/delete_meeting_prepare/${encodeURIComponent(
-              email
+              email,
             )}/${meetingId}`,
-            { method: "DELETE" }
+            { method: "DELETE" },
           );
 
           if (!res.ok) throw new Error("Delete failed: " + res.status);
@@ -480,8 +486,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           // Sau khi xoá thì fetch lại danh sách mới
           const res2 = await fetch(
             `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
-              email
-            )}`
+              email,
+            )}`,
           );
           const newData = await res2.json();
           chrome.runtime.sendMessage({
@@ -500,13 +506,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const { email, payload } = msg.payload;
           const res = await fetch(
             `${VITE_URL_BACKEND}/api/meeting_prepare/create_meeting_prepare/${encodeURIComponent(
-              email
+              email,
             )}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ username: email, meetings: [payload] }),
-            }
+            },
           );
 
           if (!res.ok) throw new Error("Create failed: " + res.status);
@@ -545,8 +551,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             finalizedMessage,
             uiTimer,
             overrideCommand,
-          } =
-            msg.payload || {};
+          } = msg.payload || {};
 
           const payload = {
             ...meetingData,
@@ -556,18 +561,16 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             uiTimer,
             overrideCommand,
             user_override: Boolean(overrideCommand),
+             cognitive_clone_tone: meetingData?.cognitive_clone_tone || "",
           };
           const selectedModelKey = meetingData?.agentModelKey || "gemini";
           const agentEndpoint = getAiDialogueAgentEndpoint(selectedModelKey);
 
-          const response = await fetch(
-            `${VITE_URL_BACKEND}${agentEndpoint}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            }
-          );
+          const response = await fetch(`${VITE_URL_BACKEND}${agentEndpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
           // nếu BE lỗi thì vẫn đọc text để trả về UI debug nhanh
           if (!response.ok) {
@@ -637,19 +640,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 finalizedMessage,
                 overrideCommand,
                 user_override: Boolean(overrideCommand),
+                 cognitive_clone_tone: meetingData?.cognitive_clone_tone || "",
               };
               const selectedModelKey = meetingData?.agentModelKey || "gemini";
 
               if (selectedModelKey !== "groq") {
-                const agentEndpoint = getAiDialogueAgentEndpoint(selectedModelKey);
-                const res = await fetch(
-                  `${VITE_URL_BACKEND}${agentEndpoint}`,
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
-                  }
+                const agentEndpoint = getAiDialogueAgentEndpoint(
+                  selectedModelKey,
                 );
+                const res = await fetch(`${VITE_URL_BACKEND}${agentEndpoint}`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
+                });
 
                 if (!res.ok) {
                   const text = await res.text().catch(() => "");
@@ -677,10 +680,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
                 const data = await res.json().catch(() => ({}));
                 const content =
-                  data?.content ??
-                  data?.data?.content ??
-                  data?.text ??
-                  "";
+                  data?.content ?? data?.data?.content ?? data?.text ?? "";
 
                 chrome.tabs.sendMessage(activeTabId, {
                   type: "AGENT_STREAM_CHUNK",
@@ -700,7 +700,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(payload),
-                }
+                },
               );
 
               if (!res.ok || !res.body) {
@@ -753,7 +753,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               });
 
               sendResponse({ ok: true });
-            }
+            },
           );
         } catch (err) {
           reportExtensionError({
@@ -809,7 +809,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(payload),
-                }
+                },
               );
 
               const raw = await res.text();
@@ -831,7 +831,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               });
 
               sendResponse({ ok: true, data });
-            }
+            },
           );
         } catch (err) {
           console.error("[SEND_FILLER_REQUEST] error:", err);
@@ -851,7 +851,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
           const res = await fetch(
             `${VITE_URL_BACKEND}/api/meeting_prepare/upsert_transcript/${encodeURIComponent(
-              email
+              email,
             )}/${meetingId}`,
             {
               method: "POST",
@@ -860,7 +860,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 meeting_transcript: transcriptText,
                 transcript_id: transcriptId || null,
               }),
-            }
+            },
           );
 
           if (!res.ok) throw new Error("Save meeting failed");
@@ -872,8 +872,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           try {
             const res2 = await fetch(
               `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
-                email
-              )}`
+                email,
+              )}`,
             );
             const newData = await res2.json();
             chrome.runtime.sendMessage({
@@ -883,7 +883,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           } catch (err2) {
             console.warn(
               "[SAVE_MEETING_TRANSCRIPT] refresh blocks failed:",
-              err2
+              err2,
             );
           }
         } catch (err) {
@@ -911,7 +911,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   payload?.socialMediaUrl?.map((x) => x.socialMediaUrl) || [],
                 msg: payload?.msg || [],
               }),
-            }
+            },
           );
 
           const raw = await res.text();
@@ -992,7 +992,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               headers: {
                 Authorization: `Bearer ${app_token}`,
               },
-            }
+            },
           );
 
           if (!tokRes.ok) {
@@ -1019,7 +1019,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             "https://www.googleapis.com/oauth2/v3/userinfo",
             {
               headers: { Authorization: `Bearer ${access_token}` },
-            }
+            },
           );
 
           if (!uiRes.ok) {
@@ -1151,7 +1151,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
 
           const url = `${VITE_URL_BACKEND}/api/calendar/event/${encodeURIComponent(
-            event_id
+            event_id,
           )}`;
 
           const res = await fetch(url, {
@@ -1181,37 +1181,169 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
       })();
       return true;
-// ===== ADD: Refresh Meet caption DOM =====
-case "REFRESH_MEET_CAPTION_DOM":
-  chrome.tabs.query({ url: "https://meet.google.com/*" }, (tabs) => {
-    if (!tabs?.length) {
-      sendResponse({
-        ok: false,
-        error: "No Google Meet tab found (https://meet.google.com/*)",
-        details: { tabsFound: 0 },
-      });
-      return;
-    }
-
-    // ưu tiên active tab trong current window nếu có
-    const activeTab = tabs.find((t) => t.active) || tabs[0];
-
-    chrome.tabs.sendMessage(
-      activeTab.id,
-      { type: "REFRESH_CAPTION_OBSERVER" },
-      (details) => {
-        if (chrome.runtime.lastError) {
+    // ===== ADD: Refresh Meet caption DOM =====
+    case "REFRESH_MEET_CAPTION_DOM":
+      chrome.tabs.query({ url: "https://meet.google.com/*" }, (tabs) => {
+        if (!tabs?.length) {
           sendResponse({
             ok: false,
-            error: `[tabs.sendMessage error] ${chrome.runtime.lastError.message}`,
-            details: { tabId: activeTab.id },
+            error: "No Google Meet tab found (https://meet.google.com/*)",
+            details: { tabsFound: 0 },
           });
           return;
         }
-        sendResponse({ ok: true, details: details || null });
+
+        // ưu tiên active tab trong current window nếu có
+        const activeTab = tabs.find((t) => t.active) || tabs[0];
+
+        chrome.tabs.sendMessage(
+          activeTab.id,
+          { type: "REFRESH_CAPTION_OBSERVER" },
+          (details) => {
+            if (chrome.runtime.lastError) {
+              sendResponse({
+                ok: false,
+                error: `[tabs.sendMessage error] ${chrome.runtime.lastError.message}`,
+                details: { tabId: activeTab.id },
+              });
+              return;
+            }
+            sendResponse({ ok: true, details: details || null });
+          },
+        );
+      });
+      return true;
+
+      function getUsernameCookie() {
+        return new Promise((resolve) => {
+          chrome.cookies.get(
+            {
+              // url: "https://reelsightsai.com/dashboard",
+              url: "http://localhost:3000/dashboard",
+
+              name: "username",
+            },
+            (cookie) => {
+              resolve(cookie?.value || null);
+            },
+          );
+        });
       }
-    );
-  });
+      function getJwtToken() {
+        return new Promise((resolve) => {
+          chrome.cookies.get(
+            {
+              url: "http://localhost:3000/dashboard", // ✅ FIX
+              name: "jwt_token",
+            },
+            (cookie) => {
+              resolve(cookie ? cookie.value : null);
+            },
+          );
+        });
+      }
+    case "GET_TOOL_HISTORY":
+      (async () => {
+        try {
+          const username = await getUsernameCookie();
+          const token = await getJwtToken();
+          console.log("JWT TOKEN:", token);
+          const res = await fetch(
+            `${VITE_URL_HAV_BACKEND}/api/v1/tool-history/get`,
+            {
+              method: "POST", // ✅ FIX
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`, // ✅ FIX
+              },
+              body: JSON.stringify({
+                take: 28,
+                skip: 0,
+                filterToolName: [],
+                search: "",
+                folderPath: null,
+              }),
+              credentials: "include", // ✅ nếu dùng cookie
+            },
+          );
+
+          const data = await res.json(); // ❗ bỏ text + parse tay
+
+          sendResponse({
+            ok: res.ok,
+            status: res.status,
+            data: data?.histories || [], // ❗ CHỈ lấy histories
+            count: data?.count || 0,
+          });
+        } catch (err) {
+          sendResponse({
+            ok: false,
+            status: 0,
+            data: [],
+            error: String(err),
+          });
+        }
+      })();
+
+      return true;
+
+    case "ARCHIVE_CONVERSATION": {
+      fetch(`${VITE_URL_BACKEND}/api/ai_dialogue_architect_agent/archive`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(msg.payload),
+      })
+        .then((res) => res.json())
+        .then((data) => {
+          sendResponse({ ok: true, data });
+        })
+        .catch((err) => {
+          sendResponse({ ok: false, error: err.message });
+        });
+
+      return true;
+    }
+case "GET_BRAND_DNA":
+  (async () => {
+    try {
+      const username = msg.payload?.username;
+
+      const res = await fetch(
+        `${VITE_URL_BACKEND}/api/profiles/autofill/brand-dna`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...(username ? { username } : {}),
+          },
+        }
+      );
+
+      const raw = await res.text();
+      let data;
+
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = raw;
+      }
+
+      sendResponse({
+        ok: res.ok,
+        status: res.status,
+        data,
+      });
+    } catch (err) {
+      sendResponse({
+        ok: false,
+        status: 0,
+        data: `Background fetch error: ${String(err)}`,
+      });
+    }
+  })();
+
   return true;
 
     default:
@@ -1227,9 +1359,9 @@ case "REFRESH_MEET_CAPTION_DOM":
             sendResponse(
               cookie
                 ? { loggedIn: true, username: cookie.value }
-                : { loggedIn: false }
+                : { loggedIn: false },
             );
-          }
+          },
         );
         return true;
       }
