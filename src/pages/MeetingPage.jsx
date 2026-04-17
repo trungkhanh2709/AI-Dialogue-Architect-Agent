@@ -5,9 +5,10 @@ import {
   parseConversionArchitectDossier,
 } from "../utils/conversionArchitectDossier";
 
-const AGENT_DEBOUNCE_MS = 1500;
-const AGENT_MIN_INTERVAL_MS = 3000;
+const AGENT_DEBOUNCE_MS = 800;
+const AGENT_MIN_INTERVAL_MS = 1800;
 const AGENT_USE_STREAMING = true;
+const AGENT_STREAM_STALL_TIMEOUT_MS = 25000;
 const AGENT_MAX_LOG_LINES = 30;
 const AGENT_MAX_LOG_CHARS = 4000;
 const FAST_LOG_LINES = 8;
@@ -64,7 +65,17 @@ const isSystemCaptionText = (speaker, text) => {
     t.includes("caption settings") ||
     t.includes("font size") ||
     t.includes("font color") ||
-    t.includes("format_size")
+    t.includes("format_size") ||
+    t.includes("keep_outline") ||
+    t.includes("zoom_in") ||
+    t.includes("open_in_new") ||
+    t.includes("open in new window") ||
+    t.includes("open_in_full") ||
+    t.includes("enter full screen") ||
+    t.includes("frame_person") ||
+    t.includes("continuously framed") ||
+    t.includes("to your main screen") ||
+    t.includes("notetaker")
   ) {
     return true;
   }
@@ -178,12 +189,16 @@ export default function MeetingPage({
   const reqIdRef = useRef(0);
   const transcriptIdRef = useRef(null);
   const messageIdRef = useRef(0);
-  const pendingUtteranceRef = useRef("");
-  const pendingSpeakerRef = useRef("");
+  // --- Concurrent async request pipeline ---
+  // Each speaker's finalized caption fires its own AI request independently.
+  // activeAgentsRef tracks per-request state keyed by requestId.
+  const activeAgentsRef = useRef(new Map()); // requestId → {startedAt, lastChunkAt, watchdogTimer}
+  const inFlightCountRef = useRef(0);        // number of AI requests currently in-flight
+  // Per-speaker debounce map: prevents bursting the same speaker's rapid events.
+  const pendingBySpeakerRef = useRef(new Map()); // speaker → {text, timer}
+  // General-purpose timer ref (used by handleManualAsk path & cleanup)
   const pendingTimerRef = useRef(null);
   const lastAgentRequestAtRef = useRef(0);
-  const agentInFlightRef = useRef(false);
-  const activeAgentRequestIdRef = useRef(null);
   const recentTranscriptKeysRef = useRef(new Map());
   const recentFillerKeysRef = useRef(new Map());
   const recentQueuedAgentKeysRef = useRef(new Map());
@@ -202,12 +217,16 @@ export default function MeetingPage({
     return false;
   };
 
-  const makeStableMessageKey = (_speaker, text) => {
+  const makeStableMessageKey = (speaker, text) => {
+    const stableSpeaker = String(speaker || "")
+      .trim()
+      .replace(/\s+/g, " ")
+      .toLowerCase();
     const stableText = String(text || "")
       .trim()
       .replace(/\s+/g, " ")
       .toLowerCase();
-    return stableText;
+    return `${stableSpeaker}::${stableText}`;
   };
 
   const trimMeetingLog = (log, fastMode = false) => {
@@ -318,6 +337,27 @@ export default function MeetingPage({
     );
   };
 
+  const ensureThinkingMessage = (requestId, fallbackText = "Thinking...") => {
+    setChatMessages((prev) => {
+      const exists = prev.some(
+        (msg) => msg.isThinking && msg.requestId === requestId
+      );
+      if (exists) return prev;
+      return [
+        ...prev,
+        {
+          id: nextId(),
+          speaker: "Agent",
+          text: fallbackText,
+          isAgent: true,
+          isTemp: false,
+          isThinking: true,
+          requestId,
+        },
+      ];
+    });
+  };
+
   const requestThinkingFiller = (requestId, newMessage, log) => {
     const overrideCommand = newMessage?.isOverride
       ? String(newMessage?.text || "").trim()
@@ -338,15 +378,12 @@ export default function MeetingPage({
   };
 
   const markAgentDone = (requestId) => {
-    if (activeAgentRequestIdRef.current !== requestId) return;
-    agentInFlightRef.current = false;
+    const entry = activeAgentsRef.current.get(requestId);
+    if (!entry) return;
+    if (entry.watchdogTimer) clearTimeout(entry.watchdogTimer);
+    activeAgentsRef.current.delete(requestId);
+    inFlightCountRef.current = Math.max(0, inFlightCountRef.current - 1);
     lastAgentRequestAtRef.current = Date.now();
-    if ((pendingUtteranceRef.current || "").trim()) {
-      pendingTimerRef.current = setTimeout(
-        flushPendingAgentRequest,
-        AGENT_DEBOUNCE_MS
-      );
-    }
   };
 
   useEffect(() => {
@@ -363,8 +400,14 @@ export default function MeetingPage({
 
   useEffect(() => {
     return () => {
-      if (pendingTimerRef.current) {
-        clearTimeout(pendingTimerRef.current);
+      if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+      // Clear all per-speaker debounce timers.
+      for (const { timer } of pendingBySpeakerRef.current.values()) {
+        if (timer) clearTimeout(timer);
+      }
+      // Clear all per-request watchdog timers.
+      for (const entry of activeAgentsRef.current.values()) {
+        if (entry.watchdogTimer) clearTimeout(entry.watchdogTimer);
       }
     };
   }, []);
@@ -943,10 +986,6 @@ export default function MeetingPage({
   };
 
   const sendMessageToAgent = (newMessage, log) => {
-    const sendKey = makeStableMessageKey(newMessage?.speaker, newMessage?.text);
-    if (rememberRecentKey(recentAgentSendKeysRef, sendKey, 2500)) {
-      return Promise.resolve({ ok: true, skipped: true });
-    }
     const overrideCommand = newMessage?.isOverride
       ? String(newMessage?.text || "").trim()
       : "";
@@ -962,6 +1001,7 @@ export default function MeetingPage({
     };
 
     setChatMessages((prev) => [...prev, tempMsg]);
+    ensureThinkingMessage(requestId);
     requestThinkingFiller(requestId, newMessage, log);
 
     const inferredLanguage = detectLanguage(newMessage?.text || "");
@@ -1110,6 +1150,37 @@ export default function MeetingPage({
     });
   };
 
+  const forceReleaseStuckAgent = (requestId, reason = "Agent stream stalled") => {
+    if (!activeAgentsRef.current.has(requestId)) return;
+    setChatMessages((prev) =>
+      prev.map((msg) => {
+        if (msg.isAgent && msg.isTemp && msg.requestId === requestId) {
+          const existing = String(msg.text || "").trim();
+          return { ...msg, text: existing || reason, isTemp: false };
+        }
+        return msg;
+      })
+    );
+    removeThinkingMessage(requestId);
+    markAgentDone(requestId);
+  };
+
+  const resetAgentStreamWatchdog = (requestId) => {
+    const entry = activeAgentsRef.current.get(requestId);
+    if (!entry) return;
+    if (entry.watchdogTimer) clearTimeout(entry.watchdogTimer);
+    entry.watchdogTimer = setTimeout(() => {
+      const e = activeAgentsRef.current.get(requestId);
+      if (!e) return; // already completed
+      const lastTick = e.lastChunkAt || e.startedAt;
+      if (Date.now() - lastTick < AGENT_STREAM_STALL_TIMEOUT_MS - 300) {
+        resetAgentStreamWatchdog(requestId); // reschedule
+        return;
+      }
+      forceReleaseStuckAgent(requestId);
+    }, AGENT_STREAM_STALL_TIMEOUT_MS);
+  };
+
   const handleManualAsk = (text) => {
     const msg = {
       id: nextId(),
@@ -1125,35 +1196,31 @@ export default function MeetingPage({
     );
   };
 
-  const flushPendingAgentRequest = () => {
-    const text = (pendingUtteranceRef.current || "").trim();
-    if (!text) return;
-    const speaker = pendingSpeakerRef.current || "Speaker";
-    const now = Date.now();
-    const sinceLast = now - lastAgentRequestAtRef.current;
+  /**
+   * MAX_CONCURRENT_REQUESTS — backpressure cap for simultaneous AI calls.
+   * Prevents flooding the backend in extremely active meetings.
+   */
+  const MAX_CONCURRENT_REQUESTS = 3;
 
-    if (agentInFlightRef.current) {
-      pendingTimerRef.current = setTimeout(
-        flushPendingAgentRequest,
-        AGENT_DEBOUNCE_MS
-      );
+  /**
+   * fireAgentRequest — immediately dispatches a single AI request for one
+   * (speaker, text) pair without waiting for other in-flight requests.
+   * Different speakers fire fully in parallel; responses arrive independently.
+   */
+  const fireAgentRequest = (speaker, text) => {
+    // Backpressure: retry shortly instead of dropping requests.
+    if (inFlightCountRef.current >= MAX_CONCURRENT_REQUESTS) {
+      setTimeout(() => fireAgentRequest(speaker, text), 400);
       return;
     }
-
-    if (sinceLast < AGENT_MIN_INTERVAL_MS) {
-      const delay = Math.max(AGENT_MIN_INTERVAL_MS - sinceLast, 500);
-      pendingTimerRef.current = setTimeout(flushPendingAgentRequest, delay);
-      return;
-    }
-
-    pendingUtteranceRef.current = "";
-    pendingSpeakerRef.current = "";
 
     const inferredLanguage = detectLanguage(text);
     const responseLanguage =
       inferredLanguage === "Vietnamese" || detectedLanguage === "Vietnamese"
         ? "Vietnamese"
         : "English";
+
+    // Fast local reply (greeting / thanks) — no API call needed.
     const fastLocalReply = isFastUtterance(text)
       ? buildFastLocalReply(text, responseLanguage)
       : null;
@@ -1170,38 +1237,47 @@ export default function MeetingPage({
       };
       setTimeout(() => {
         setChatMessages((prev) => [
-          ...prev.filter(
-            (msg) => !(msg.isThinking && msg.requestId === requestId)
-          ),
+          ...prev.filter((msg) => !(msg.isThinking && msg.requestId === requestId)),
           replyMsg,
         ]);
         updateDetectedLanguage(fastLocalReply);
       }, 250);
-
       lastAgentRequestAtRef.current = Date.now();
       return;
     }
 
-    agentInFlightRef.current = true;
+    inFlightCountRef.current += 1;
 
     const requestPromise = sendMessageToAgent(
       { speaker, text },
       meetingLogRef.current
     );
-    const requestId = reqIdRef.current;
-    activeAgentRequestIdRef.current = requestId;
+    const requestId = reqIdRef.current; // set by sendMessageToAgent via ++reqIdRef
+
+    // Register this request in the per-request tracking map.
+    activeAgentsRef.current.set(requestId, {
+      startedAt: Date.now(),
+      lastChunkAt: Date.now(),
+      watchdogTimer: null,
+    });
+
+    if (AGENT_USE_STREAMING) {
+      resetAgentStreamWatchdog(requestId);
+    }
 
     requestPromise
-      .catch(() => {
-        markAgentDone(requestId);
-      })
+      .catch(() => markAgentDone(requestId))
       .finally(() => {
-        if (!AGENT_USE_STREAMING) {
-          markAgentDone(requestId);
-        }
+        if (!AGENT_USE_STREAMING) markAgentDone(requestId);
       });
   };
 
+  /**
+   * queueAgentRequest — entry point called for each finalized CC utterance.
+   * Uses a per-speaker debounce so rapid corrections from the same speaker
+   * are coalesced, while utterances from different speakers fire in parallel
+   * immediately without waiting for each other.
+   */
   const queueAgentRequest = (speaker, text) => {
     const cleaned = String(text || "").trim();
     if (!cleaned) return;
@@ -1211,24 +1287,16 @@ export default function MeetingPage({
       return;
     }
 
-    if (
-      pendingSpeakerRef.current &&
-      pendingSpeakerRef.current !== speaker
-    ) {
-      flushPendingAgentRequest();
-    }
+    // Cancel any existing debounce for this speaker and set a new one.
+    const existing = pendingBySpeakerRef.current.get(speaker);
+    if (existing?.timer) clearTimeout(existing.timer);
 
-    pendingSpeakerRef.current = speaker;
-    const prev = pendingUtteranceRef.current || "";
-    pendingUtteranceRef.current = `${prev} ${cleaned}`.trim();
+    const timer = setTimeout(() => {
+      pendingBySpeakerRef.current.delete(speaker);
+      fireAgentRequest(speaker, cleaned);
+    }, AGENT_DEBOUNCE_MS);
 
-    if (pendingTimerRef.current) {
-      clearTimeout(pendingTimerRef.current);
-    }
-    pendingTimerRef.current = setTimeout(
-      flushPendingAgentRequest,
-      AGENT_DEBOUNCE_MS
-    );
+    pendingBySpeakerRef.current.set(speaker, { text: cleaned, timer });
   };
 
   runtimeMessageHandlerRef.current = (message) => {
@@ -1239,6 +1307,13 @@ export default function MeetingPage({
       if (message.type === "AGENT_STREAM_CHUNK") {
         const { delta, requestId } = message.payload || {};
         if (!delta) return;
+        // Update per-request lastChunkAt and reset its watchdog.
+        const entry = activeAgentsRef.current.get(requestId);
+        if (entry) {
+          entry.lastChunkAt = Date.now();
+          resetAgentStreamWatchdog(requestId);
+        }
+        removeThinkingMessage(requestId);
         setChatMessages((prev) =>
           prev.map((msg) =>
             msg.isAgent && msg.isTemp && msg.requestId === requestId

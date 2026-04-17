@@ -533,6 +533,11 @@ function isDuplicateCaptionEvent(sender, type, payload) {
   const finalized = normalizeCaptionEventText(payload?.finalized || "");
   if (!finalized) return false;
 
+  // Include speaker in the dedup key so that two different speakers
+  // saying the same phrase (e.g. "Okay") are NOT silently dropped.
+  const speaker = normalizeCaptionEventText(payload?.speaker || "unknown");
+  const dedupeKey = `${speaker}::${finalized}`;
+
   const now = Date.now();
   const store = recentCaptionEventsByTab.get(tabId) || new Map();
   for (const [key, ts] of store.entries()) {
@@ -541,7 +546,6 @@ function isDuplicateCaptionEvent(sender, type, payload) {
     }
   }
 
-  const dedupeKey = finalized;
   if (store.has(dedupeKey)) {
     recentCaptionEventsByTab.set(tabId, store);
     return true;

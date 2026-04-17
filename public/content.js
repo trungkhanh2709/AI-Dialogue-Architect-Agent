@@ -5,7 +5,7 @@ let currentSpeech = {};
 let speakerTimers = {};
 let meeting_log = [];
 let lastFinalized = {};
-const SPEAKER_TIMEOUT = 2000;
+const SPEAKER_TIMEOUT = 1200;
 let lastFinalizedText = {};
 let captionDetectedNotified = false;
 let deepContainersCache = [];
@@ -224,12 +224,57 @@ function isUINoiseText(text) {
     "chat with everyone",
     "send a message",
     "activities",
+    "keep_outline",
+    "zoom_in",
+    "open_in_new",
+    "open_in_full",
+    "frame_person",
+    "to your main screen",
+    "to your screen",
+    "notetaker",
+    "you're continuously framed",
+    "youre continuously framed",
+    "pin ",
   ];
   for (const p of noisePatterns) {
     if (t.includes(p)) return true;
   }
   if (t.length < 2) return true;
   return false;
+}
+
+function normalizeCaptionText(text) {
+  return String(text || "")
+    .trim()
+    .replace(/\s+/g, " ")
+    .toLowerCase();
+}
+
+function isLikelySpeechText(text) {
+  const normalized = normalizeCaptionText(text);
+  if (!normalized) return false;
+  if (isUINoiseText(normalized)) return false;
+  if (isSystemCaptionText("", normalized)) return false;
+  if (/^(keep_outline|zoom_in|open_in_new|open_in_full|frame_person)\b/.test(normalized)) {
+    return false;
+  }
+  if (/(to your main screen|continuously framed|notetaker)/.test(normalized)) {
+    return false;
+  }
+  return true;
+}
+
+function isValidCaptionPair(speaker, text) {
+  const cleanSpeaker = String(speaker || "").trim();
+  const cleanText = String(text || "").trim();
+  if (!cleanSpeaker || !cleanText) return false;
+  if (!isLikelySpeechText(cleanText)) return false;
+  const normalizedSpeaker = normalizeCaptionText(cleanSpeaker);
+  const normalizedText = normalizeCaptionText(cleanText);
+  if (!normalizedSpeaker || !normalizedText) return false;
+  if (normalizedSpeaker === normalizedText) return false;
+  if (normalizedText === `${normalizedSpeaker} ${normalizedSpeaker}`) return false;
+  return true;
 }
 
 // ===== CC BUTTON DETECTION =====
@@ -670,7 +715,7 @@ function extractFromCaptionBlock(block) {
     if (speakerEl && textEl) {
       const speaker = speakerEl.innerText.trim();
       const text = textEl.innerText.trim();
-      if (speaker && text) return { speaker, text };
+      if (isValidCaptionPair(speaker, text)) return { speaker, text };
     }
   } catch {}
 
@@ -682,7 +727,7 @@ function extractFromCaptionBlock(block) {
       if (speaker) {
         const fullText = block.innerText.trim();
         const text = fullText.replace(speaker, "").trim();
-        if (text) return { speaker, text };
+        if (isValidCaptionPair(speaker, text)) return { speaker, text };
       }
     }
   } catch {}
@@ -704,7 +749,7 @@ function extractFromCaptionBlock(block) {
           text = text.slice(speakerIdx + speaker.length).trim();
         }
         text = text.replace(/^[:\-–—]\s*/, "").trim();
-        if (text && text !== speaker) return { speaker, text };
+        if (isValidCaptionPair(speaker, text)) return { speaker, text };
       }
     }
   } catch {}
@@ -716,7 +761,7 @@ function extractFromCaptionBlock(block) {
   if (childTexts.length >= 2) {
     const speaker = childTexts[0];
     const text = childTexts.slice(1).join(" ").trim();
-    if (speaker && text && speaker !== text) return { speaker, text };
+    if (isValidCaptionPair(speaker, text)) return { speaker, text };
   }
 
   // Strategy 5: Newline-separated text (Speaker\nCaption text)
@@ -730,7 +775,7 @@ function extractFromCaptionBlock(block) {
   if (lines.length >= 2) {
     const speaker = lines[0];
     const text = lines.slice(1).join(" ").trim();
-    if (speaker && text) return { speaker, text };
+    if (isValidCaptionPair(speaker, text)) return { speaker, text };
   }
 
   // Strategy 6: Colon-separated (Speaker: text)
@@ -738,11 +783,11 @@ function extractFromCaptionBlock(block) {
   if (colonIndex > 0 && colonIndex < 40) {
     const speaker = raw.slice(0, colonIndex).trim();
     const text = raw.slice(colonIndex + 1).trim();
-    if (speaker && text) return { speaker, text };
+    if (isValidCaptionPair(speaker, text)) return { speaker, text };
   }
 
   // Strategy 7: If we have text but can't identify speaker
-  if (raw.length > 2) {
+  if (raw.length > 2 && isLikelySpeechText(raw)) {
     return { speaker: "Speaker", text: raw };
   }
 
