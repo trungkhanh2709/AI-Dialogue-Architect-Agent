@@ -5,10 +5,10 @@ import {
   parseConversionArchitectDossier,
 } from "../utils/conversionArchitectDossier";
 
-const AGENT_DEBOUNCE_MS = 800;
+const AGENT_DEBOUNCE_MS = 300;
 const AGENT_MIN_INTERVAL_MS = 1800;
 const AGENT_USE_STREAMING = true;
-const AGENT_STREAM_STALL_TIMEOUT_MS = 25000;
+const AGENT_STREAM_STALL_TIMEOUT_MS = 10000;
 const AGENT_MAX_LOG_LINES = 30;
 const AGENT_MAX_LOG_CHARS = 4000;
 const FAST_LOG_LINES = 8;
@@ -178,7 +178,6 @@ export default function MeetingPage({
   const [lastRealTranscriptAt, setLastRealTranscriptAt] = useState(null);
   const [, setLastTranscriptAt] = useState(null);
   const [lastCaptionDetectedAt, setLastCaptionDetectedAt] = useState(null);
-  const [nowTick, setNowTick] = useState(Date.now());
   const [detectedLanguage, setDetectedLanguage] = useState("English");
   const [selfDisplayName, setSelfDisplayName] = useState("");
   const [showEndConfirm, setShowEndConfirm] = useState(false);
@@ -198,14 +197,15 @@ export default function MeetingPage({
   const pendingBySpeakerRef = useRef(new Map()); // speaker → {text, timer}
   // General-purpose timer ref (used by handleManualAsk path & cleanup)
   const pendingTimerRef = useRef(null);
+  const runtimeMessageHandlerRef = useRef(null);
   const lastAgentRequestAtRef = useRef(0);
   const recentTranscriptKeysRef = useRef(new Map());
   const recentFillerKeysRef = useRef(new Map());
   const recentQueuedAgentKeysRef = useRef(new Map());
   const recentAgentSendKeysRef = useRef(new Map());
-  const runtimeMessageHandlerRef = useRef(null);
   const nextId = () => ++messageIdRef.current;
 
+  // --- Utility Functions ---
   const rememberRecentKey = (storeRef, key, ttl = 4000) => {
     const now = Date.now();
     const store = storeRef.current;
@@ -290,133 +290,6 @@ export default function MeetingPage({
     return parts.join("\n\n");
   };
 
-  const buildAgentMeetingData = () => ({
-    ...meetingData,
-    profileId: meetingData?.profileId || "",
-    profileName: meetingData?.profileName || "",
-    conversionArchitectFileId: meetingData?.conversionArchitectFileId || "",
-    conversionArchitectFileName: meetingData?.conversionArchitectFileName || "",
-    businessDNAResult: trimContext(meetingData?.businessDNAResult),
-    psychAnalyzerResult: trimContext(meetingData?.psychAnalyzerResult),
-    conversionArchitectAnalysis: trimContext(
-      meetingData?.conversionArchitectAnalysis,
-      3500
-    ),
-    conversionArchitectChatOutput: trimContext(
-      meetingData?.conversionArchitectChatOutput,
-      3500
-    ),
-    meetingNote: trimContext(meetingData?.meetingNote),
-    meetingMessage: trimContext(meetingData?.meetingMessage),
-    meetingEmail: trimContext(meetingData?.meetingEmail),
-    cognitiveCloneTone: trimContext(
-      meetingData?.cognitiveCloneTone || readStoredCognitiveCloneTone(),
-      2500
-    ),
-    entity_name: meetingData?.userName || meetingData?.userNameAndRole || inferredSelfName,
-    strategic_context: trimContext(buildStrategicContext(), 3500),
-    cognitive_clone_tone: trimContext(
-      meetingData?.cognitiveCloneTone || readStoredCognitiveCloneTone(),
-      2500
-    ),
-    conversionArchitectDossier: effectiveDossierText,
-    conversion_architect_dossier: effectiveDossierText,
-    conversion_architect_dossier_json:
-      parseConversionArchitectDossier(effectiveDossierText),
-    meeting_goal: trimContext(meetingData?.meetingGoal),
-    strategic_directive: trimContext(
-      meetingData?.meetingGoal || meetingData?.meetingNote
-    ),
-  });
-
-  const removeThinkingMessage = (requestId) => {
-    setChatMessages((prev) =>
-      prev.filter(
-        (msg) => !(msg.isThinking && msg.requestId === requestId)
-      )
-    );
-  };
-
-  const ensureThinkingMessage = (requestId, fallbackText = "Thinking...") => {
-    setChatMessages((prev) => {
-      const exists = prev.some(
-        (msg) => msg.isThinking && msg.requestId === requestId
-      );
-      if (exists) return prev;
-      return [
-        ...prev,
-        {
-          id: nextId(),
-          speaker: "Agent",
-          text: fallbackText,
-          isAgent: true,
-          isTemp: false,
-          isThinking: true,
-          requestId,
-        },
-      ];
-    });
-  };
-
-  const requestThinkingFiller = (requestId, newMessage, log) => {
-    const overrideCommand = newMessage?.isOverride
-      ? String(newMessage?.text || "").trim()
-      : "";
-    chrome.runtime.sendMessage(
-      {
-        type: "SEND_FILLER_REQUEST",
-        payload: {
-          meetingData: buildAgentMeetingData(),
-          log,
-          requestId,
-          finalizedMessage: newMessage,
-          overrideCommand,
-        },
-      },
-      () => {}
-    );
-  };
-
-  const markAgentDone = (requestId) => {
-    const entry = activeAgentsRef.current.get(requestId);
-    if (!entry) return;
-    if (entry.watchdogTimer) clearTimeout(entry.watchdogTimer);
-    activeAgentsRef.current.delete(requestId);
-    inFlightCountRef.current = Math.max(0, inFlightCountRef.current - 1);
-    lastAgentRequestAtRef.current = Date.now();
-  };
-
-  useEffect(() => {
-    setMeetingLog([]);
-    setChatMessages([]);
-    setCaptionStatus(null);
-    setLastTranscriptAt(null);
-    transcriptIdRef.current = null;
-  }, [meetingData?._id, meetingData?.id]);
-
-  useEffect(() => {
-    meetingLogRef.current = meetingLog;
-  }, [meetingLog]);
-
-  useEffect(() => {
-    return () => {
-      if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
-      // Clear all per-speaker debounce timers.
-      for (const { timer } of pendingBySpeakerRef.current.values()) {
-        if (timer) clearTimeout(timer);
-      }
-      // Clear all per-request watchdog timers.
-      for (const entry of activeAgentsRef.current.values()) {
-        if (entry.watchdogTimer) clearTimeout(entry.watchdogTimer);
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    const interval = setInterval(() => setNowTick(Date.now()), 3000);
-    return () => clearInterval(interval);
-  }, []);
-
   const normalizeSpeaker = (value) => {
     let normalized = String(value || "").trim().toLowerCase();
     try {
@@ -487,7 +360,13 @@ export default function MeetingPage({
       }),
       5000
     );
-  }, [inferredSelfName, meetingData]);
+  }, [
+    inferredSelfName,
+    meetingData?.conversionArchitectDossier,
+    meetingData?.conversion_architect_dossier,
+    meetingData?.meetingTranscript,
+    meetingData?.meeting_transcript
+  ]);
 
   const mySpeakerAliases = useMemo(() => {
     const aliases = new Set();
@@ -508,6 +387,115 @@ export default function MeetingPage({
     selfDisplayName,
     inferredSelfName,
   ]);
+
+  const buildAgentMeetingData = React.useCallback(() => ({
+    ...meetingData,
+    profileId: meetingData?.profileId || "",
+    profileName: meetingData?.profileName || "",
+    conversionArchitectFileId: meetingData?.conversionArchitectFileId || "",
+    conversionArchitectFileName: meetingData?.conversionArchitectFileName || "",
+    businessDNAResult: trimContext(meetingData?.businessDNAResult),
+    psychAnalyzerResult: trimContext(meetingData?.psychAnalyzerResult),
+    conversionArchitectAnalysis: trimContext(
+      meetingData?.conversionArchitectAnalysis,
+      3500
+    ),
+    conversionArchitectChatOutput: trimContext(
+      meetingData?.conversionArchitectChatOutput,
+      3500
+    ),
+    meetingNote: trimContext(meetingData?.meetingNote),
+    meetingMessage: trimContext(meetingData?.meetingMessage),
+    meetingEmail: trimContext(meetingData?.meetingEmail),
+    cognitiveCloneTone: trimContext(
+      meetingData?.cognitiveCloneTone || readStoredCognitiveCloneTone(),
+      2500
+    ),
+    entity_name: meetingData?.userName || meetingData?.userNameAndRole || inferredSelfName,
+    strategic_context: trimContext(buildStrategicContext(), 3500),
+    cognitive_clone_tone: trimContext(
+      meetingData?.cognitiveCloneTone || readStoredCognitiveCloneTone(),
+      2500
+    ),
+    conversionArchitectDossier: effectiveDossierText,
+    conversion_architect_dossier: effectiveDossierText,
+    conversion_architect_dossier_json:
+      parseConversionArchitectDossier(effectiveDossierText),
+    meeting_goal: trimContext(meetingData?.meetingGoal),
+    strategic_directive: trimContext(
+      meetingData?.meetingGoal || meetingData?.meetingNote
+    ),
+  }), [meetingData, inferredSelfName, effectiveDossierText]);
+
+  const removeThinkingMessage = (requestId) => {
+    setChatMessages((prev) =>
+      prev.filter(
+        (msg) => !(msg.isThinking && msg.requestId === requestId)
+      )
+    );
+  };
+
+  const ensureThinkingMessage = (requestId, fallbackText = "Thinking...") => {
+    setChatMessages((prev) => {
+      const exists = prev.some(
+        (msg) => msg.isThinking && msg.requestId === requestId
+      );
+      if (exists) return prev;
+      return [
+        ...prev,
+        {
+          id: nextId(),
+          speaker: "Agent",
+          text: fallbackText,
+          isAgent: true,
+          isTemp: false,
+          isThinking: true,
+          requestId,
+        },
+      ];
+    });
+  };
+
+  const markAgentDone = (requestId) => {
+    const entry = activeAgentsRef.current.get(requestId);
+    if (!entry) return;
+    if (entry.watchdogTimer) clearTimeout(entry.watchdogTimer);
+    activeAgentsRef.current.delete(requestId);
+    inFlightCountRef.current = Math.max(0, inFlightCountRef.current - 1);
+    lastAgentRequestAtRef.current = Date.now();
+  };
+
+  useEffect(() => {
+    setMeetingLog([]);
+    setChatMessages([]);
+    setCaptionStatus(null);
+    setLastTranscriptAt(null);
+    transcriptIdRef.current = null;
+  }, [meetingData?._id, meetingData?.id]);
+
+  useEffect(() => {
+    meetingLogRef.current = meetingLog;
+  }, [meetingLog]);
+
+  useEffect(() => {
+    return () => {
+      if (pendingTimerRef.current) clearTimeout(pendingTimerRef.current);
+      // Clear all per-speaker debounce timers.
+      for (const { timer } of pendingBySpeakerRef.current.values()) {
+        if (timer) clearTimeout(timer);
+      }
+      // Clear all per-request watchdog timers.
+      for (const entry of activeAgentsRef.current.values()) {
+        if (entry.watchdogTimer) clearTimeout(entry.watchdogTimer);
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    // Keep internal clock/state updated via side effects instead of blind polling
+  }, []);
+
+
 
   useEffect(() => {
     const directNameSelectors = [
@@ -588,14 +576,27 @@ export default function MeetingPage({
 
       const [firstMatch] = [...visibleTextMatches];
       if (firstMatch) {
-        setSelfDisplayName((prev) => prev || firstMatch);
+        setSelfDisplayName((prev) => {
+          if (!prev && firstMatch) {
+             console.log("Found self display name:", firstMatch);
+          }
+          return prev || firstMatch;
+        });
       }
     };
 
+    if (selfDisplayName) return;
+
     extractSelfDisplayNameFromDom();
-    const interval = setInterval(extractSelfDisplayNameFromDom, 3000);
+    const interval = setInterval(() => {
+      if (selfDisplayName) {
+        clearInterval(interval);
+        return;
+      }
+      extractSelfDisplayNameFromDom();
+    }, 3000);
     return () => clearInterval(interval);
-  }, [meetingData?.userName, inferredSelfName, emailLocalPart]);
+  }, [meetingData?.userName, inferredSelfName, emailLocalPart, selfDisplayName]);
 
   const resolveSpeaker = (rawSpeaker) => {
     const raw = String(rawSpeaker || "").trim() || "Speaker";
@@ -1002,7 +1003,7 @@ export default function MeetingPage({
 
     setChatMessages((prev) => [...prev, tempMsg]);
     ensureThinkingMessage(requestId);
-    requestThinkingFiller(requestId, newMessage, log);
+    // REMOVED redundant HTTP Filler request for cleaner pipeline and better bandwidth.
 
     const inferredLanguage = detectLanguage(newMessage?.text || "");
     const responseLanguage =
@@ -1036,7 +1037,6 @@ export default function MeetingPage({
                   responseComplexity: fastMode ? "low" : "normal",
                   latencyHint: fastMode ? "fast" : "normal",
                 },
-                chatHistory: [],
                 log: trimmedLog,
                 requestId,
                 finalizedMessage: newMessage,
@@ -1060,7 +1060,6 @@ export default function MeetingPage({
           return;
         }
 
-        const timerNow = await getTimerFromBG();
         chrome.runtime.sendMessage(
           {
             type: "SEND_MESSAGE_TO_AGENT",
@@ -1072,11 +1071,9 @@ export default function MeetingPage({
                 responseComplexity: fastMode ? "low" : "normal",
                 latencyHint: fastMode ? "fast" : "normal",
               },
-              chatHistory: [],
               log: trimmedLog,
               requestId,
               finalizedMessage: newMessage,
-              uiTimer: timerNow,
               overrideCommand,
             },
           },
@@ -1521,7 +1518,7 @@ export default function MeetingPage({
         const updatedLog = [...meetingLogRef.current, newLogEntry];
         meetingLogRef.current = updatedLog;
         setMeetingLog(updatedLog);
-        saveOrUpdateMeeting(updatedLog);
+        // REMOVED: saveOrUpdateMeeting(updatedLog); // Throttled saving handled by useEffect instead.
 
         if (!resolvedSpeaker.isSelf) {
           const finalizedLooksLikeSelfName =
@@ -1556,6 +1553,25 @@ export default function MeetingPage({
       }
     };
 
+  // --- Throttled saving mechanism (Every 10 seconds) ---
+  const lastSavedLogRef = useRef([]);
+  useEffect(() => {
+    const autoSaveEnabled = localStorage.getItem("autoSaveEnabled") === "true";
+    if (!autoSaveEnabled) return;
+
+    const interval = setInterval(() => {
+      const currentLog = meetingLogRef.current;
+      if (currentLog.length > 0 && currentLog.length !== lastSavedLogRef.current.length) {
+        console.log("Throttled save: Syncing transcript to backend...");
+        saveOrUpdateMeeting(currentLog);
+        lastSavedLogRef.current = currentLog;
+      }
+    }, 10000); // 10s throttle
+
+    return () => clearInterval(interval);
+  }, [decodedCookieEmail]);
+  // -----------------------------------------------------
+
   useEffect(() => {
     const handleMessage = (message) => {
       runtimeMessageHandlerRef.current?.(message);
@@ -1569,6 +1585,7 @@ export default function MeetingPage({
     chrome.runtime.sendMessage({ type: "GET_TIMER" }, () => {});
   }, []);
 
+  const nowTick = Date.now();
   const hasRecentTranscript =
     lastRealTranscriptAt && nowTick - lastRealTranscriptAt < 20000;
   const captionsDetected =

@@ -7,6 +7,11 @@ let meeting_log = [];
 let lastFinalized = {};
 const SPEAKER_TIMEOUT = 1200;
 let lastFinalizedText = {};
+// Tracks the last named speaker identified by the main extraction path.
+// Used to re-attribute text when the live-region fallback can't find a name.
+let lastKnownSpeaker = "";
+let lastKnownSpeakerAt = 0;
+const SPEAKER_ATTRIBUTION_TTL_MS = 8000; // re-use lastKnownSpeaker within 8 s
 let captionDetectedNotified = false;
 let deepContainersCache = [];
 let lastDeepScanAt = 0;
@@ -838,18 +843,66 @@ function finalizeSentence(speaker, sentence) {
   if (!sentence) return;
   if (isSystemCaptionText(speaker, sentence)) return;
 
-  const prev = lastFinalizedText[speaker] || "";
-  const delta = getDelta(prev, sentence);
+  // Use original speaker key for per-speaker delta tracking.
+  const trackingKey = speaker;
+  const prev = lastFinalizedText[trackingKey] || "";
+  let delta = getDelta(prev, sentence);
 
   if (!delta || delta.length < 2) return;
+
+  // ─── Fix: handle the generic "Speaker" fallback path ────────────────────────
+  // This path is triggered by handleLiveRegions when the DOM structure doesn't
+  // expose a speaker label (ARIA live-region text is label-free).  The live
+  // region accumulates text across pauses, so it often contains "sentence1
+  // sentence2" where sentence1 was already correctly finalized under the real
+  // speaker name (e.g. "Billy Tea").  We must:
+  //  1. Strip any already-finalized prefix so we don't re-send sentence1.
+  //  2. Re-attribute the remaining new text to the last known named speaker
+  //     instead of emitting it as "Unknown Speaker".
+  let emitSpeaker = speaker;
+  if (speaker === "Speaker") {
+    // 1. Strip finalized prefixes (iteratively, handles multiple prepended sentences).
+    const normDelta = delta.trim().replace(/\s+/g, " ").toLowerCase();
+    let remaining = normDelta;
+    let stripped = false;
+    for (let pass = 0; pass < 8; pass++) {
+      let found = false;
+      for (const key of recentFinalizedCache.keys()) {
+        if (key.length < 3) continue;
+        if (remaining === key || remaining.startsWith(key + " ")) {
+          remaining = remaining.slice(key.length).trim();
+          stripped = true;
+          found = true;
+          break;
+        }
+      }
+      if (!found) break;
+    }
+    if (stripped) {
+      if (!remaining || remaining.length < 2) return; // entirely duplicate — skip
+      // Reconstruct original-cased text: find the stripped suffix in the raw delta.
+      const origIdx = delta.toLowerCase().indexOf(remaining);
+      delta = origIdx >= 0 ? delta.slice(origIdx).trim() : remaining;
+    }
+
+    // 2. Re-attribute to the last named speaker if they spoke recently.
+    if (
+      lastKnownSpeaker &&
+      Date.now() - lastKnownSpeakerAt < SPEAKER_ATTRIBUTION_TTL_MS
+    ) {
+      emitSpeaker = lastKnownSpeaker;
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────────────
+
   if (wasRecentlyFinalized(delta)) return;
 
   safeSendMessage({
     type: "LIVE_TRANSCRIPT",
-    payload: { action: "finalize", speaker, finalized: delta },
+    payload: { action: "finalize", speaker: emitSpeaker, finalized: delta },
   });
 
-  lastFinalizedText[speaker] = sentence;
+  lastFinalizedText[trackingKey] = sentence;
 }
 
 function finalizeSpeech(speaker) {
@@ -921,6 +974,12 @@ function handleCaptions() {
     if (currentSpeech[speaker] === fullMessage) return;
 
     currentSpeech[speaker] = fullMessage;
+    // Track the last real speaker name so the live-region fallback can
+    // re-attribute text to the correct person instead of "Unknown Speaker".
+    if (speaker && speaker !== "Speaker") {
+      lastKnownSpeaker = speaker;
+      lastKnownSpeakerAt = Date.now();
+    }
     sendUpdateLive();
 
     if (speakerTimers[speaker]) clearTimeout(speakerTimers[speaker]);

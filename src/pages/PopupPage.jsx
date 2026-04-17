@@ -48,6 +48,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
   const [conversionArchitectArtifacts, setConversionArchitectArtifacts] = useState([]);
   const [artifactsLoading, setArtifactsLoading] = useState(false);
   const [artifactsError, setArtifactsError] = useState("");
+  const [showArchitectPreview, setShowArchitectPreview] = useState(false);
   const decodedCookieEmail = decodeURIComponent(cookieUserName || "");
   const [tab, setTab] = useState("schedule");
   const selectedProfile = profiles.find(
@@ -262,6 +263,7 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
         const artifact = detailArtifacts[0] || fallbackArtifact;
         if (!artifact) return;
         setFormData((prev) => mergeArtifactIntoFormData(prev, artifact));
+        setShowArchitectPreview(true); // auto-open preview after file loaded
       }
     );
   };
@@ -456,6 +458,111 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
                   </select>
                   {artifactsError ? <div className="error-text">{artifactsError}</div> : null}
                 </div>
+
+                {/* ── Architect Preview Card ─────────────────────────────── */}
+                {formData.conversionArchitectFileId && (() => {
+                  let dossier = null;
+                  try { dossier = JSON.parse(formData.conversionArchitectDossier || ""); } catch {}
+
+                  const sentimentColor =
+                    dossier?.current_sentiment === "Positive" ? "#22c55e"
+                    : dossier?.current_sentiment === "Skeptical" ? "#f87171"
+                    : "#facc15";
+
+                  const hasData = dossier || formData.conversionArchitectAnalysis;
+
+                  return hasData ? (
+                    <div className="architect-preview-card">
+                      <button
+                        className="architect-preview-toggle"
+                        onClick={() => setShowArchitectPreview((v) => !v)}
+                        type="button"
+                      >
+                        <span>📊 Architect Summary</span>
+                        <span className="architect-preview-chevron">{showArchitectPreview ? "▲" : "▼"}</span>
+                      </button>
+
+                      {showArchitectPreview && (
+                        <div className="architect-preview-body">
+
+                          {/* Sentiment badge */}
+                          {dossier?.current_sentiment && (
+                            <div className="architect-preview-row">
+                              <span className="architect-preview-label">Sentiment</span>
+                              <span className="architect-preview-badge" style={{ background: sentimentColor }}>
+                                {dossier.current_sentiment}
+                              </span>
+                            </div>
+                          )}
+
+                          {/* Prospect summary */}
+                          {dossier?.prospect_summary && (
+                            <div className="architect-preview-section">
+                              <div className="architect-preview-section-title">Prospect Summary</div>
+                              <div className="architect-preview-text">{dossier.prospect_summary}</div>
+                            </div>
+                          )}
+
+                          {/* Remaining friction */}
+                          {dossier?.remaining_friction && (
+                            <div className="architect-preview-section">
+                              <div className="architect-preview-section-title">🔥 Remaining Friction</div>
+                              <div className="architect-preview-text">{dossier.remaining_friction}</div>
+                            </div>
+                          )}
+
+                          {/* Next objective */}
+                          {dossier?.next_strategic_objective && (
+                            <div className="architect-preview-section">
+                              <div className="architect-preview-section-title">🎯 Next Objective</div>
+                              <div className="architect-preview-text architect-preview-highlight">
+                                {dossier.next_strategic_objective}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Narrative arc */}
+                          {Array.isArray(dossier?.narrative_arc) && dossier.narrative_arc.length > 0 && (
+                            <div className="architect-preview-section">
+                              <div className="architect-preview-section-title">🗺 Narrative Arc</div>
+                              {dossier.narrative_arc.map((turn, idx) => (
+                                <div className="architect-arc-turn" key={idx}>
+                                  <span className="architect-arc-stage">{turn.stage}</span>
+                                  <div className="architect-arc-event">{turn.event}</div>
+                                  <div className="architect-arc-outcome">{turn.outcome}</div>
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Analysis text (truncated) */}
+                          {formData.conversionArchitectAnalysis && (
+                            <div className="architect-preview-section">
+                              <div className="architect-preview-section-title">📄 Analysis Sent to Agent</div>
+                              <pre className="architect-preview-raw">
+                                {formData.conversionArchitectAnalysis.slice(0, 800)}
+                                {formData.conversionArchitectAnalysis.length > 800 ? "\n…[truncated]" : ""}
+                              </pre>
+                            </div>
+                          )}
+
+                          {/* Chat output (truncated) */}
+                          {formData.conversionArchitectChatOutput && (
+                            <div className="architect-preview-section">
+                              <div className="architect-preview-section-title">💬 Chat Output Sent</div>
+                              <pre className="architect-preview-raw">
+                                {formData.conversionArchitectChatOutput.slice(0, 600)}
+                                {formData.conversionArchitectChatOutput.length > 600 ? "\n…[truncated]" : ""}
+                              </pre>
+                            </div>
+                          )}
+
+                        </div>
+                      )}
+                    </div>
+                  ) : null;
+                })()}
+                {/* ─────────────────────────────────────────────────────── */}
                 {renderInput("userName", "Your Name - Role/Title", "text", "Your name - Role/Title")}
                 {renderInput("userCompanyName", "Company Name", "text", "Your Company Name")}
                 {renderTextarea(

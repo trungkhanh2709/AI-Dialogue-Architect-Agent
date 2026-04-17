@@ -690,30 +690,42 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ ok: true, ignored: true, duplicate: true });
         return true;
       }
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs[0]?.id) {
-          sendResponse({ ok: false, error: "No active tab" });
-          return;
-        }
-        chrome.tabs.sendMessage(tabs[0].id, msg, () => {
+      if (sender?.tab?.id) {
+        chrome.tabs.sendMessage(sender.tab.id, msg, () => {
           sendResponse({ ok: true });
         });
-      });
+      } else {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, msg, () => {
+              sendResponse({ ok: true });
+            });
+          } else {
+            sendResponse({ ok: false, error: "No target tab found" });
+          }
+        });
+      }
       return true;
     case "CAPTION_STATUS":
       if (!shouldForwardCaptionMessage(sender, "CAPTION_STATUS", msg.payload)) {
         sendResponse({ ok: true, ignored: true });
         return true;
       }
-      chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-        if (!tabs[0]?.id) {
-          sendResponse({ ok: false, error: "No active tab" });
-          return;
-        }
-        chrome.tabs.sendMessage(tabs[0].id, msg, () => {
+      if (sender?.tab?.id) {
+        chrome.tabs.sendMessage(sender.tab.id, msg, () => {
           sendResponse({ ok: true });
         });
-      });
+      } else {
+        chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+          if (tabs[0]?.id) {
+            chrome.tabs.sendMessage(tabs[0].id, msg, () => {
+              sendResponse({ ok: true });
+            });
+          } else {
+            sendResponse({ ok: false, error: "No target tab found" });
+          }
+        });
+      }
       return true;
     case "REPORT_ERROR":
       reportExtensionError(msg.payload || {});
@@ -1114,18 +1126,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
           const data = await res.json();
           sendResponse({ data });
-
-          // update local state: fetch lại blocks
-          const res2 = await fetch(
-            `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
-              email
-            )}`
-          );
-          const newData = await res2.json();
-          chrome.runtime.sendMessage({
-            type: "REFRESH_BLOCKS",
-            payload: newData.meeting?.meetings || [],
-          });
         } catch (err) {
           sendResponse({ error: err.message });
         }
@@ -1439,78 +1439,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       })();
       return true;
 
-    case "SEND_FILLER_REQUEST":
-      (async () => {
-        try {
-          // đảm bảo đang ở tab Meet
-          chrome.tabs.query(
-            {
-              url: "https://meet.google.com/*",
-              active: true,
-              currentWindow: true,
-            },
-            async (tabs) => {
-              if (!tabs.length) {
-                sendResponse({ ok: false, error: "Not on a Google Meet tab" });
-                return;
-              }
-
-              const activeTabId = tabs[0].id;
-              const {
-                meetingData,
-                log,
-                requestId,
-                finalizedMessage,
-                overrideCommand,
-              } = msg.payload;
-
-              const payload = {
-                ...meetingData,
-                meetingLog: Array.isArray(log)
-                  ? log.join("\n")
-                  : String(log || ""),
-                finalizedMessage,
-                overrideCommand,
-                user_override: Boolean(overrideCommand),
-              };
-
-              const res = await fetch(
-                `${VITE_URL_BACKEND}/api/ai_dialogue_architect_agent/filler`,
-                {
-                  method: "POST",
-                  headers: { "Content-Type": "application/json" },
-                  body: JSON.stringify(payload),
-                }
-              );
-
-              const raw = await res.text();
-              let data;
-              try {
-                data = JSON.parse(raw);
-              } catch {
-                data = raw;
-              }
-
-              // tuỳ BE trả về field nào, chỉnh lại cho đúng
-              const fillerText =
-                data?.filler || data?.text || data?.content || data;
-
-              // bắn về content script (MeetingPage) để show lên ChatUI
-              chrome.tabs.sendMessage(activeTabId, {
-                type: "AGENT_FILLER",
-                payload: { text: fillerText, requestId },
-              });
-
-              sendResponse({ ok: true, data });
-            }
-          );
-        } catch (err) {
-          console.error("[SEND_FILLER_REQUEST] error:", err);
-          sendResponse({ ok: false, error: String(err) });
-        }
-      })();
-      return true;
-
     case "SAVE_MEETING_TRANSCRIPT":
       (async function() {
         try {
@@ -1538,25 +1466,6 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
           const data = await res.json();
           sendResponse({ data });
-
-          // fetch lại list meeting + REFRESH_BLOCKS
-          try {
-            const res2 = await fetch(
-              `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
-                email
-              )}`
-            );
-            const newData = await res2.json();
-            chrome.runtime.sendMessage({
-              type: "REFRESH_BLOCKS",
-              payload: newData.meeting?.meetings || [],
-            });
-          } catch (err2) {
-            console.warn(
-              "[SAVE_MEETING_TRANSCRIPT] refresh blocks failed:",
-              err2
-            );
-          }
         } catch (err) {
           sendResponse({ error: err.message });
         }
