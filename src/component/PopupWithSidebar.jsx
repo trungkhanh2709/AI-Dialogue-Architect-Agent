@@ -9,6 +9,15 @@ import CollapsibleSection from "./CollapsibleSection";
 import ResultModal from "./ResultModal";
 import ResultBlock from "./ResultBlock";
 import AIPsychAnalyzerStep from "./AIPsychAnalyzerStep";
+import {
+  filterArtifactsByProfile,
+  getArtifactOptionLabel,
+  getProfileDisplayName,
+  getProfileId,
+  mergeArtifactIntoFormData,
+  mergeProfileIntoFormData,
+  normalizeConversionArchitectArtifacts,
+} from "../utils/strategistBridge";
 import { signInAndGetCalendarToken } from "../api/authGoogleCalendar"; // 👈 thêm
 
 const LS_PERSONA_KEY = "bm.persona_profile";
@@ -41,6 +50,8 @@ export default function PopupWithSidebar({
   const [selectedBlock, setSelectedBlock] = useState(null);
   const [formData, setFormData] = useState({
     title: "",
+    profileId: "",
+    profileName: "",
     userName: "",
     userCompanyName: "",
     userCompanyServices: "",
@@ -54,6 +65,7 @@ export default function PopupWithSidebar({
     meetingEmail: "",
     meetingMessage: "",
     meetingNote: "",
+    cognitiveCloneTone: "",
     agentModelKey: DEFAULT_AGENT_MODEL_KEY,
     meetingStart: "",
     designatedTime: "",
@@ -66,7 +78,11 @@ export default function PopupWithSidebar({
     psychLanguage: "English",
     psychAnalyzerResult: "",
     businessDNAResult: "",
+    conversionArchitectFileId: "",
+    conversionArchitectFileName: "",
     conversionArchitectDossier: "",
+    conversionArchitectAnalysis: "",
+    conversionArchitectChatOutput: "",
     meetingTranscript: "",
   });
   const [errors, setErrors] = useState({});
@@ -88,6 +104,19 @@ export default function PopupWithSidebar({
 
   // Staged results (đợi user bấm Save trong modal, sẽ tạo block tạm và lưu DB khi handleSave)
   const [stagedResults, setStagedResults] = useState({ psych: "", bdna: "" });
+  const [profiles, setProfiles] = useState([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profilesError, setProfilesError] = useState("");
+  const [conversionArchitectArtifacts, setConversionArchitectArtifacts] = useState([]);
+  const [artifactsLoading, setArtifactsLoading] = useState(false);
+  const [artifactsError, setArtifactsError] = useState("");
+  const selectedProfile = profiles.find(
+    (profile) => getProfileId(profile) === String(formData.profileId || "")
+  );
+  const filteredArtifacts = filterArtifactsByProfile(
+    conversionArchitectArtifacts,
+    selectedProfile
+  );
 
   const imgUrlPsychAnalyzer = chrome.runtime.getURL("images/prospect.jpg");
   const imgUrlBussinessDNA = chrome.runtime.getURL("images/business_dna.jpg");
@@ -113,6 +142,8 @@ export default function PopupWithSidebar({
       setFormData((prev) => ({
         ...prev,
         title: selectedBlock.blockName || "",
+        profileId: selectedBlock.profileId || "",
+        profileName: selectedBlock.profileName || "",
         userName: selectedBlock.userNameAndRole || "",
         userCompanyName: selectedBlock.userCompanyName || "",
         userCompanyServices: selectedBlock.userCompanyServices || "",
@@ -130,6 +161,7 @@ export default function PopupWithSidebar({
         meetingEmail: selectedBlock.meetingEmail || "",
         meetingMessage: selectedBlock.meetingMessage || "",
         meetingNote: selectedBlock.meetingNote || "",
+        cognitiveCloneTone: selectedBlock.cognitiveCloneTone || "",
         agentModelKey:
           selectedBlock.agentModelKey || DEFAULT_AGENT_MODEL_KEY,
         meetingStart: selectedBlock.meetingStart || "",
@@ -145,10 +177,18 @@ export default function PopupWithSidebar({
         psychLanguage: selectedBlock.psychLanguage || "English",
         psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
         businessDNAResult: selectedBlock.businessDNAResult || "",
+        conversionArchitectFileId:
+          selectedBlock.conversionArchitectFileId || "",
+        conversionArchitectFileName:
+          selectedBlock.conversionArchitectFileName || "",
         conversionArchitectDossier:
           selectedBlock.conversionArchitectDossier ||
           selectedBlock.conversion_architect_dossier ||
           "",
+        conversionArchitectAnalysis:
+          selectedBlock.conversionArchitectAnalysis || "",
+        conversionArchitectChatOutput:
+          selectedBlock.conversionArchitectChatOutput || "",
         meetingTranscript:
           selectedBlock.meeting_transcript ||
           selectedBlock.meetingTranscript ||
@@ -166,6 +206,8 @@ export default function PopupWithSidebar({
       setFormData((prev) => ({
         ...prev,
         title: selectedBlock.blockName || "",
+        profileId: selectedBlock.profileId || "",
+        profileName: selectedBlock.profileName || "",
         userName: selectedBlock.userNameAndRole || "",
         userCompanyName: selectedBlock.userCompanyName || "",
         userCompanyServices: selectedBlock.userCompanyServices || "",
@@ -183,6 +225,7 @@ export default function PopupWithSidebar({
         meetingEmail: selectedBlock.meetingEmail || "",
         meetingMessage: selectedBlock.meetingMessage || "",
         meetingNote: selectedBlock.meetingNote || "",
+        cognitiveCloneTone: selectedBlock.cognitiveCloneTone || "",
         agentModelKey:
           selectedBlock.agentModelKey || DEFAULT_AGENT_MODEL_KEY,
         meetingStart: "",
@@ -199,10 +242,18 @@ export default function PopupWithSidebar({
         psychLanguage: selectedBlock.psychLanguage || "English",
         psychAnalyzerResult: selectedBlock.psychAnalyzerResult || "",
         businessDNAResult: selectedBlock.businessDNAResult || "",
+        conversionArchitectFileId:
+          selectedBlock.conversionArchitectFileId || "",
+        conversionArchitectFileName:
+          selectedBlock.conversionArchitectFileName || "",
         conversionArchitectDossier:
           selectedBlock.conversionArchitectDossier ||
           selectedBlock.conversion_architect_dossier ||
           "",
+        conversionArchitectAnalysis:
+          selectedBlock.conversionArchitectAnalysis || "",
+        conversionArchitectChatOutput:
+          selectedBlock.conversionArchitectChatOutput || "",
         meetingTranscript:
           selectedBlock.meeting_transcript ||
           selectedBlock.meetingTranscript ||
@@ -216,6 +267,98 @@ export default function PopupWithSidebar({
   const handleChange = (e) => {
     const { id, value } = e.target;
     setFormData((prev) => ({ ...prev, [id]: value }));
+  };
+
+  const handleProfileSelect = (event) => {
+    const profileId = event.target.value;
+    if (!profileId) {
+      setFormData((prev) => ({
+        ...prev,
+        profileId: "",
+        profileName: "",
+        conversionArchitectFileId: "",
+        conversionArchitectFileName: "",
+        conversionArchitectDossier: "",
+        conversionArchitectAnalysis: "",
+        conversionArchitectChatOutput: "",
+        meetingMessage:
+          prev.meetingMessage === prev.conversionArchitectChatOutput
+            ? ""
+            : prev.meetingMessage,
+      }));
+      return;
+    }
+
+    const profile = profiles.find((item) => getProfileId(item) === profileId);
+    if (!profile) return;
+
+    setFormData((prev) =>
+      mergeProfileIntoFormData(
+        {
+          ...prev,
+          profileId,
+          profileName: getProfileDisplayName(profile),
+          conversionArchitectFileId: "",
+          conversionArchitectFileName: "",
+          conversionArchitectDossier: "",
+          conversionArchitectAnalysis: "",
+          conversionArchitectChatOutput: "",
+          meetingMessage:
+            prev.meetingMessage === prev.conversionArchitectChatOutput
+              ? ""
+              : prev.meetingMessage,
+        },
+        profile
+      )
+    );
+  };
+
+  const handleArtifactSelect = (event) => {
+    const artifactId = event.target.value;
+    if (!artifactId) {
+      setFormData((prev) => ({
+        ...prev,
+        conversionArchitectFileId: "",
+        conversionArchitectFileName: "",
+        conversionArchitectDossier: "",
+        conversionArchitectAnalysis: "",
+        conversionArchitectChatOutput: "",
+        meetingMessage:
+          prev.meetingMessage === prev.conversionArchitectChatOutput
+            ? ""
+            : prev.meetingMessage,
+      }));
+      return;
+    }
+
+    const fallbackArtifact = filteredArtifacts.find((item) => item.id === artifactId);
+
+    setFormData((prev) => ({
+      ...prev,
+      conversionArchitectFileId: artifactId,
+      conversionArchitectFileName: fallbackArtifact?.title || "",
+    }));
+
+    chrome.runtime.sendMessage(
+      {
+        type: "GET_CONVERSION_ARCHITECT_FILE",
+        payload: { fileId: artifactId },
+      },
+      (response) => {
+        if (!response?.ok) {
+          console.error("GET_CONVERSION_ARCHITECT_FILE failed", {
+            response,
+            fileId: artifactId,
+          });
+        }
+        const detailArtifacts = normalizeConversionArchitectArtifacts(
+          response?.data ? [response.data] : []
+        );
+        const artifact = detailArtifacts[0] || fallbackArtifact;
+        if (!artifact) return;
+        setFormData((prev) => mergeArtifactIntoFormData(prev, artifact));
+      }
+    );
   };
 
   const handleUrlChange = (idx, value) => {
@@ -299,6 +442,66 @@ export default function PopupWithSidebar({
   }, [decodedCookieEmail]);
 
   useEffect(() => {
+    if (!decodedCookieEmail) return;
+
+    setProfilesLoading(true);
+    setProfilesError("");
+    chrome.runtime.sendMessage(
+      {
+        type: "GET_PROFILES",
+        payload: { email: decodedCookieEmail },
+      },
+      (response) => {
+        setProfilesLoading(false);
+        if (!response?.ok || !Array.isArray(response?.data)) {
+          setProfiles([]);
+          setProfilesError(response?.error || "Unable to load profiles.");
+          return;
+        }
+        setProfiles(response.data);
+      }
+    );
+  }, [decodedCookieEmail]);
+
+  useEffect(() => {
+    if (!decodedCookieEmail) return;
+
+    setArtifactsLoading(true);
+    setArtifactsError("");
+    chrome.runtime.sendMessage(
+      {
+        type: "GET_CONVERSION_ARCHITECT_FILES",
+        payload: { take: 50 },
+      },
+      (response) => {
+        setArtifactsLoading(false);
+        if (!response?.ok) {
+          setConversionArchitectArtifacts([]);
+          const detailsMsg =
+            response?.data?.message ||
+            response?.data?.detail ||
+            response?.data?.error;
+          const statusPart =
+            typeof response?.status === "number"
+              ? ` (HTTP ${response.status})`
+              : "";
+          console.error("GET_CONVERSION_ARCHITECT_FILES failed", response);
+          setArtifactsError(
+            response?.error ||
+              detailsMsg ||
+              `Unable to load Conversion Architect files${statusPart}.`
+          );
+          return;
+        }
+
+        setConversionArchitectArtifacts(
+          normalizeConversionArchitectArtifacts(response?.data)
+        );
+      }
+    );
+  }, [decodedCookieEmail]);
+
+  useEffect(() => {
     if (!formData.meetingStart) return;
     const startDate = new Date(formData.meetingStart);
     if (isNaN(startDate.getTime())) return;
@@ -307,10 +510,34 @@ export default function PopupWithSidebar({
     setFormData((prev) => ({ ...prev, meetingEnd: endDate.toISOString() }));
   }, [formData.meetingStart, formData.meetingDuration]);
 
+  useEffect(() => {
+    if (!formData.profileId || !formData.conversionArchitectFileId) return;
+    const isStillValid = filteredArtifacts.some(
+      (artifact) => artifact.id === formData.conversionArchitectFileId
+    );
+
+    if (!isStillValid) {
+      setFormData((prev) => ({
+        ...prev,
+        conversionArchitectFileId: "",
+        conversionArchitectFileName: "",
+        conversionArchitectDossier: "",
+        conversionArchitectAnalysis: "",
+        conversionArchitectChatOutput: "",
+        meetingMessage:
+          prev.meetingMessage === prev.conversionArchitectChatOutput
+            ? ""
+            : prev.meetingMessage,
+      }));
+    }
+  }, [filteredArtifacts, formData.profileId, formData.conversionArchitectFileId]);
+
   const handleCreateNew = () => {
     setSelectedBlock(null);
     setFormData({
       title: "",
+      profileId: "",
+      profileName: "",
       userName: "",
       userCompanyName: "",
       userCompanyServices: "",
@@ -326,6 +553,7 @@ export default function PopupWithSidebar({
       meetingEmail: "",
       meetingMessage: "",
       meetingNote: "",
+      cognitiveCloneTone: "",
       agentModelKey: DEFAULT_AGENT_MODEL_KEY,
       meetingStart: "",
       meetingDuration: "15",
@@ -337,7 +565,11 @@ export default function PopupWithSidebar({
       psychLanguage: "English",
       psychAnalyzerResult: "",
       businessDNAResult: "",
+      conversionArchitectFileId: "",
+      conversionArchitectFileName: "",
       conversionArchitectDossier: "",
+      conversionArchitectAnalysis: "",
+      conversionArchitectChatOutput: "",
       meetingTranscript: "",
       eventId: "",
     });
@@ -346,34 +578,14 @@ export default function PopupWithSidebar({
   };
 
   const handleStart = () => {
-    chrome.runtime.sendMessage(
-      {
-        type: "USE_ADDON_SESSION",
-        payload: {
-          email: decodedCookieEmail,
-          add_on_type: "ai_dialogue_architect_agent",
-        },
-      },
-      (data) => {
-        chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
-          chrome.runtime.sendMessage({ type: "START_TIMER" });
-        });
-        if (
-          data?.data?.trial_used === true ||
-          data?.data?.status === "200"
-        ) {
-          onStartMeeting({
-            ...formData,
-            id: selectedBlock?.id,
-            _id: selectedBlock?.id,
-          });
-        } else {
-          alert(
-            "You have run out of sessions. Please purchase an add-on to continue."
-          );
-        }
-      }
-    );
+    chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
+      chrome.runtime.sendMessage({ type: "START_TIMER" });
+    });
+    onStartMeeting({
+      ...formData,
+      id: selectedBlock?.id,
+      _id: selectedBlock?.id,
+    });
   };
 
   // ===== Payload builders =====
@@ -535,6 +747,8 @@ export default function PopupWithSidebar({
 
       const payloadMeeting = {
         blockName: formData.title,
+        profileId: formData.profileId || "",
+        profileName: formData.profileName || "",
         userNameAndRole: formData.userName || "",
         userCompanyName: formData.userCompanyName || "",
         userCompanyServices: formData.userCompanyServices || "",
@@ -550,6 +764,7 @@ export default function PopupWithSidebar({
         meetingEmail: formData.meetingEmail || "",
         meetingMessage: formData.meetingMessage || "",
         meetingNote: formData.meetingNote || "",
+        cognitiveCloneTone: formData.cognitiveCloneTone || "",
         agentModelKey: formData.agentModelKey || DEFAULT_AGENT_MODEL_KEY,
         agentModelLabel:
           AGENT_MODEL_OPTIONS.find(
@@ -573,10 +788,18 @@ export default function PopupWithSidebar({
           formData.psychAnalyzerResult || stagedResults.psych || "",
         businessDNAResult:
           formData.businessDNAResult || stagedResults.bdna || "",
+        conversionArchitectFileId:
+          formData.conversionArchitectFileId || "",
+        conversionArchitectFileName:
+          formData.conversionArchitectFileName || "",
         conversionArchitectDossier:
           formData.conversionArchitectDossier || "",
         conversion_architect_dossier:
           formData.conversionArchitectDossier || "",
+        conversionArchitectAnalysis:
+          formData.conversionArchitectAnalysis || "",
+        conversionArchitectChatOutput:
+          formData.conversionArchitectChatOutput || "",
         meeting_transcript: formData.meetingTranscript || "",
         designatedTime: formData.designatedTime || "",
 
@@ -858,6 +1081,57 @@ export default function PopupWithSidebar({
               openSections={openSections}
               setOpenSections={setOpenSections}
             >
+              <div className="input-group">
+                <label htmlFor="profileId">Profile Library</label>
+                <select
+                  id="profileId"
+                  value={formData.profileId}
+                  onChange={handleProfileSelect}
+                  disabled={!isEditing || profilesLoading}
+                >
+                  <option value="">
+                    {profilesLoading ? "Loading profiles..." : "Select a profile"}
+                  </option>
+                  {profiles.map((profile) => (
+                    <option key={getProfileId(profile)} value={getProfileId(profile)}>
+                      {getProfileDisplayName(profile)}
+                    </option>
+                  ))}
+                </select>
+                {profilesError ? <div className="error-text">{profilesError}</div> : null}
+              </div>
+              <div className="input-group">
+                <label htmlFor="conversionArchitectFileId">
+                  Conversion Architect File
+                </label>
+                <select
+                  id="conversionArchitectFileId"
+                  value={formData.conversionArchitectFileId}
+                  onChange={handleArtifactSelect}
+                  disabled={
+                    !isEditing ||
+                    !formData.profileId ||
+                    artifactsLoading ||
+                    filteredArtifacts.length === 0
+                  }
+                >
+                  <option value="">
+                    {!formData.profileId
+                      ? "Select a profile first"
+                      : artifactsLoading
+                      ? "Loading files..."
+                      : filteredArtifacts.length
+                      ? "Select a generated file"
+                      : "No files available"}
+                  </option>
+                  {filteredArtifacts.map((artifact) => (
+                    <option key={artifact.id} value={artifact.id}>
+                      {getArtifactOptionLabel(artifact)}
+                    </option>
+                  ))}
+                </select>
+                {artifactsError ? <div className="error-text">{artifactsError}</div> : null}
+              </div>
               <InputField
                 id="userName"
                 label="Your Name and Role/Title:"
@@ -1212,6 +1486,26 @@ placeholder="e.g., 15 (minutes)"
                 id="conversionArchitectDossier"
                 label="Conversion Architect Dossier"
                 placeholder="Auto-generated summary from prior meetings. Keep the JSON structure so the Strategist can reuse sentiment, friction, milestones, and narrative arc."
+                maxRows={8}
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+              />
+              <ExpandableTextarea
+                id="conversionArchitectAnalysis"
+                label="Conversion Architect Analysis"
+                placeholder="Imported analysis from the selected Conversion Architect file."
+                maxRows={8}
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+              />
+              <ExpandableTextarea
+                id="conversionArchitectChatOutput"
+                label="Conversion Architect Chat Output"
+                placeholder="Imported architect and prospect chat output from the selected file."
                 maxRows={8}
                 formData={formData}
                 setFormData={setFormData}

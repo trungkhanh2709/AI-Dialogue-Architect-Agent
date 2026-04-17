@@ -3,8 +3,8 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 const DEFAULT_DOCK_RECT = {
   x: null,
   y: 72,
-  width: 720,
-  height: 560,
+  width: 1040,
+  height: 720,
 };
 
 const MIN_DOCK_WIDTH = 360;
@@ -23,12 +23,16 @@ export default function LiveDock({
   onAsk,
   onToast,
   autoCollapseEnabled = true,
+  layout = "dock", // "dock" | "overlay" | "sidepanel"
 }) {
+  const isSidePanel = layout === "sidepanel";
   const [collapsed, setCollapsed] = useState(false);
   const [input, setInput] = useState("");
   const [lastActiveAt, setLastActiveAt] = useState(Date.now());
   const [manualCollapsed, setManualCollapsed] = useState(false);
   const [inputFocused, setInputFocused] = useState(false);
+  const [maximized, setMaximized] = useState(false);
+  const restoreDockRectRef = useRef(null);
   const [dockRect, setDockRect] = useState(() => {
     try {
       const saved = JSON.parse(localStorage.getItem("ada_dock_rect") || "null");
@@ -64,6 +68,7 @@ export default function LiveDock({
 
   useEffect(() => {
     const onPointerMove = (e) => {
+      if (layout !== "dock") return;
       if (dragStateRef.current) {
         const { offsetX, offsetY, width, height } = dragStateRef.current;
         const maxX = window.innerWidth - width - 12;
@@ -127,6 +132,32 @@ export default function LiveDock({
     }
   };
 
+  const toggleMaximize = () => {
+    if (layout !== "dock" || isSidePanel) return;
+    setMaximized((prev) => {
+      const next = !prev;
+      if (next) {
+        restoreDockRectRef.current = dockRect;
+        const nextWidth = Math.floor(window.innerWidth * 0.92);
+        const nextHeight = Math.floor(window.innerHeight * 0.92);
+        setDockRect((current) => ({
+          ...current,
+          x: 12,
+          y: 12,
+          width: clamp(nextWidth, MIN_DOCK_WIDTH, Math.floor(window.innerWidth * MAX_DOCK_WIDTH_RATIO)),
+          height: clamp(
+            nextHeight,
+            MIN_DOCK_HEIGHT,
+            Math.floor(window.innerHeight * MAX_DOCK_HEIGHT_RATIO)
+          ),
+        }));
+      } else if (restoreDockRectRef.current) {
+        setDockRect(restoreDockRectRef.current);
+      }
+      return next;
+    });
+  };
+
   const handleAsk = () => {
     const text = input.trim();
     if (!text) return;
@@ -134,20 +165,12 @@ export default function LiveDock({
     setInput("");
   };
 
-  const handleCopy = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      onToast?.("Copied");
-    } catch {
-      onToast?.("Copy failed", "error");
-    }
-  };
-
   const swallowEvent = (e) => {
     e.stopPropagation();
   };
 
   const startDrag = (e) => {
+    if (layout !== "dock" || isSidePanel) return;
     if (e.target.closest("button")) return;
     const rect = e.currentTarget.parentElement.getBoundingClientRect();
     dragStateRef.current = {
@@ -161,6 +184,7 @@ export default function LiveDock({
   };
 
   const startResize = (e) => {
+    if (layout !== "dock" || isSidePanel) return;
     swallowEvent(e);
     const targetDock = e.currentTarget.closest(".ada-dock");
     if (!targetDock) return;
@@ -191,7 +215,16 @@ export default function LiveDock({
           transform: "none",
         };
 
-  const dockBody = collapsed ? (
+  const overlayContainer =
+    layout === "overlay" && !collapsed ? (
+      <div className="ada-overlay" onMouseMove={markActive} onClick={markActive}>
+        <div className="ada-overlay__inner">
+          {/** dockBody will be injected below */}
+        </div>
+      </div>
+    ) : null;
+
+  const dockBody = collapsed && !isSidePanel ? (
     <div className="ada-dock ada-dock--collapsed" onClick={markActive} onMouseMove={markActive}>
       <div className="ada-collapse-pill">
         <span className="ada-collapse-pill__wave" aria-hidden="true">
@@ -202,29 +235,45 @@ export default function LiveDock({
     </div>
   ) : (
     <div
-      className="ada-dock"
-      style={dockStyle}
+      className={`ada-dock ${layout === "overlay" ? "ada-dock--overlay" : ""} ${isSidePanel ? "ada-dock--sidepanel" : ""}`}
+      style={layout === "dock" && !isSidePanel ? dockStyle : undefined}
       onMouseMove={markActive}
       onFocusCapture={markActive}
     >
       <div
         className="ada-dock-header"
-        onPointerDown={startDrag}
+        onPointerDown={isSidePanel ? undefined : startDrag}
       >
         <div className="ada-dock-title">AI Dialogue Strategist</div>
         <div className="ada-dock-actions">
-          <button
-            type="button"
-            aria-label="Minimize"
-            onMouseDown={swallowEvent}
-            onClick={(e) => {
-              swallowEvent(e);
-              setManualCollapsed(true);
-              setCollapsed(true);
-            }}
-          >
-            -
-          </button>
+          {layout === "dock" && !isSidePanel && (
+            <button
+              type="button"
+              aria-label={maximized ? "Restore" : "Maximize"}
+              title={maximized ? "Restore" : "Maximize"}
+              onMouseDown={swallowEvent}
+              onClick={(e) => {
+                swallowEvent(e);
+                toggleMaximize();
+              }}
+            >
+              {maximized ? "Restore" : "Maximize"}
+            </button>
+          )}
+          {!isSidePanel && (
+            <button
+              type="button"
+              aria-label="Minimize"
+              onMouseDown={swallowEvent}
+              onClick={(e) => {
+                swallowEvent(e);
+                setManualCollapsed(true);
+                setCollapsed(true);
+              }}
+            >
+              -
+            </button>
+          )}
           <button
             type="button"
             aria-label="Close"
@@ -305,26 +354,13 @@ export default function LiveDock({
                     <span />
                   </span>
                 )}
-                {msg.isAgent && !msg.isTemp && !isThinking && (
-                  <button
-                    type="button"
-                    className="ada-copy-btn"
-                    onMouseDown={swallowEvent}
-                    onClick={(e) => {
-                      swallowEvent(e);
-                      handleCopy(msg.text);
-                    }}
-                  >
-                    Copy
-                  </button>
-                )}
               </div>
             </div>
           );
         })}
       </div>
 
-      {!manualCollapsed && (
+      {(!manualCollapsed || isSidePanel) && (
         <div className="ada-input-row">
           <input
             placeholder="Ask Strategist..."
@@ -358,15 +394,25 @@ export default function LiveDock({
           </button>
         </div>
       )}
-      <div
-        className="ada-resize-handle"
-        onPointerDown={startResize}
-        title="Resize"
-      />
+      {layout === "dock" && !isSidePanel && (
+        <div
+          className="ada-resize-handle"
+          onPointerDown={startResize}
+          title="Resize"
+        />
+      )}
     </div>
   );
 
-  return (
-    <>{dockBody}</>
-  );
+  if (layout === "overlay" && !collapsed && !isSidePanel) {
+    return (
+      <div className="ada-overlay" onMouseMove={markActive} onClick={markActive}>
+        <div className="ada-overlay__inner" onClick={swallowEvent} onMouseDown={swallowEvent}>
+          {dockBody}
+        </div>
+      </div>
+    );
+  }
+
+  return <>{dockBody}</>;
 }

@@ -6,6 +6,13 @@ const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=24293459
 const URL_BACKEND_PROD = "https://api-as.reelsightsai.com";
 const URL_BACKEND_BETA = "https://beta.as.reelsightsai.com";
 const URL_BACKEND_LOCAL = "http://localhost:8000";
+const URL_BACKEND_REMOBAY = "https://api.reelsights.com";
+const URL_HISTORY_PROD = "https://api.reelsightsai.com";
+const URL_HISTORY_BETA = "https://beta.hav.reelsightsai.com";
+const URL_HISTORY_LOCAL = "http://localhost:8080";
+const WEBSITE_URL = "https://reelsightsai.com/";
+const WEBSITE_DASHBOARD_URL = "https://reelsightsai.com/dashboard";
+const ACCOUNT_SESSION_STORAGE_KEY = "rsai_account_session_v1";
 // Change this to: "prod" | "beta" | "local"
 const ACTIVE_BACKEND = "beta";
 const VITE_URL_BACKEND =
@@ -14,6 +21,23 @@ const VITE_URL_BACKEND =
     : ACTIVE_BACKEND === "local"
     ? URL_BACKEND_LOCAL
     : URL_BACKEND_BETA;
+const VITE_URL_HISTORY =
+  ACTIVE_BACKEND === "prod"
+    ? URL_HISTORY_PROD
+    : ACTIVE_BACKEND === "local"
+    ? URL_HISTORY_LOCAL
+    : URL_HISTORY_BETA;
+const HISTORY_API_CANDIDATES = [
+  ...new Set([
+    VITE_URL_HISTORY,
+    URL_HISTORY_BETA,
+    URL_HISTORY_PROD,
+  ]),
+];
+const LOGIN_API_CANDIDATES = [...new Set([URL_BACKEND_PROD, VITE_URL_BACKEND])];
+const ACCOUNT_INFO_API_CANDIDATES = [
+  ...new Set([URL_BACKEND_PROD, VITE_URL_BACKEND, URL_BACKEND_REMOBAY]),
+];
 const TELEMETRY_ENDPOINT = "/api/telemetry/extension-error";
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 const ERROR_DEDUP_TTL_MS = 5 * 60 * 1000;
@@ -34,6 +58,405 @@ function getAiDialogueAgentEndpoint(modelKey) {
     AI_DIALOGUE_AGENT_ENDPOINTS[modelKey] ||
     AI_DIALOGUE_AGENT_ENDPOINTS.gemini
   );
+}
+
+function getChromeStorageLocal() {
+  try {
+    if (
+      typeof chrome !== "undefined" &&
+      chrome.storage &&
+      chrome.storage.local
+    ) {
+      return chrome.storage.local;
+    }
+  } catch (error) {
+    console.warn("chrome.storage.local unavailable:", error);
+  }
+
+  return null;
+}
+
+async function loadStoredAccountSession() {
+  const storage = getChromeStorageLocal();
+  if (!storage) {
+    return null;
+  }
+
+  const stored = await storage.get(ACCOUNT_SESSION_STORAGE_KEY);
+  return stored?.[ACCOUNT_SESSION_STORAGE_KEY] || null;
+}
+
+async function saveStoredAccountSession(session) {
+  const storage = getChromeStorageLocal();
+  if (!storage) {
+    throw new Error("Extension storage is unavailable.");
+  }
+
+  await storage.set({ [ACCOUNT_SESSION_STORAGE_KEY]: session });
+}
+
+async function clearStoredAccountSession() {
+  const storage = getChromeStorageLocal();
+  if (!storage) {
+    return;
+  }
+
+  await storage.remove(ACCOUNT_SESSION_STORAGE_KEY);
+}
+
+function readCookie(url, name) {
+  return new Promise((resolve) => {
+    chrome.cookies.get({ url, name }, (cookie) => {
+      resolve(cookie?.value || "");
+    });
+  });
+}
+
+function writeCookie(url, name, value, expirationDate) {
+  return new Promise((resolve, reject) => {
+    chrome.cookies.set(
+      {
+        url,
+        name,
+        value: String(value || ""),
+        path: "/",
+        expirationDate,
+      },
+      (cookie) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve(cookie);
+      }
+    );
+  });
+}
+
+function removeCookie(url, name) {
+  return new Promise((resolve) => {
+    chrome.cookies.remove({ url, name }, () => resolve());
+  });
+}
+
+function normalizeDisplayName(value) {
+  return String(value || "")
+    .trim()
+    .replace(/[_\-.]+/g, " ")
+    .replace(/\s+/g, " ")
+    .replace(/\b\w/g, (char) => char.toUpperCase());
+}
+
+function normalizeAccountSession(session) {
+  const normalized = {
+    loggedIn: Boolean(session?.loggedIn),
+    username: String(session?.username || "").trim(),
+    jwtToken: String(session?.jwtToken || "").trim(),
+    loginType: String(session?.loginType || "account").trim() || "account",
+    name: String(session?.name || "").trim(),
+    creditName: String(session?.creditName || "").trim(),
+    source: String(session?.source || "").trim() || "extension",
+    expiresAt: Number(session?.expiresAt || 0) || null,
+  };
+
+  normalized.loggedIn = Boolean(normalized.username && normalized.jwtToken);
+  return normalized;
+}
+
+function isAccountSessionExpired(session) {
+  const expiresAt = Number(session?.expiresAt || 0);
+  return Boolean(expiresAt && Date.now() >= expiresAt);
+}
+
+async function readWebsiteAuthState() {
+  const [username, jwtToken, loginType, name, creditName] = await Promise.all([
+    readCookie(WEBSITE_DASHBOARD_URL, "username"),
+    readCookie(WEBSITE_DASHBOARD_URL, "jwt_token"),
+    readCookie(WEBSITE_DASHBOARD_URL, "loginType"),
+    readCookie(WEBSITE_DASHBOARD_URL, "name"),
+    readCookie(WEBSITE_DASHBOARD_URL, "creditName"),
+  ]);
+
+  return {
+    loggedIn: Boolean(username && jwtToken),
+    username,
+    jwtToken,
+    loginType,
+    name,
+    creditName,
+    source: "website_cookie",
+    expiresAt: null,
+  };
+}
+
+async function clearWebsiteSessionCookies() {
+  await Promise.all(
+    ["jwt_token", "loginType", "username", "name", "creditName"].map((name) =>
+      removeCookie(WEBSITE_URL, name)
+    )
+  );
+}
+
+async function writeWebsiteSessionCookies({
+  jwtToken,
+  username,
+  loginType = "account",
+  name = "",
+  creditName = "",
+  expiresInSeconds = 30 * 24 * 60 * 60,
+}) {
+  const expirationDate = Math.floor(Date.now() / 1000) + Number(expiresInSeconds || 0);
+
+  await Promise.all([
+    writeCookie(WEBSITE_URL, "jwt_token", jwtToken, expirationDate),
+    writeCookie(WEBSITE_URL, "loginType", loginType, expirationDate),
+    writeCookie(WEBSITE_URL, "username", username, expirationDate),
+    writeCookie(WEBSITE_URL, "name", name, expirationDate),
+    writeCookie(WEBSITE_URL, "creditName", creditName, expirationDate),
+  ]);
+}
+
+async function mirrorWebsiteSessionCookies(session, expiresInSeconds) {
+  try {
+    await writeWebsiteSessionCookies({
+      jwtToken: session?.jwtToken,
+      username: session?.username,
+      loginType: session?.loginType,
+      name: session?.name,
+      creditName: session?.creditName,
+      expiresInSeconds,
+    });
+  } catch (error) {
+    console.warn("writeWebsiteSessionCookies failed:", error);
+  }
+}
+
+async function readAccountAuthState() {
+  const storedSession = normalizeAccountSession(await loadStoredAccountSession());
+  if (storedSession.loggedIn) {
+    if (!isAccountSessionExpired(storedSession)) {
+      return storedSession;
+    }
+
+    await clearStoredAccountSession();
+  }
+
+  const websiteSession = normalizeAccountSession(await readWebsiteAuthState());
+  if (websiteSession.loggedIn) {
+    await saveStoredAccountSession(websiteSession);
+    return websiteSession;
+  }
+
+  return {
+    loggedIn: false,
+    username: "",
+    jwtToken: "",
+    loginType: "",
+    name: "",
+    creditName: "",
+    source: "",
+    expiresAt: null,
+  };
+}
+
+async function postJson(baseUrl, path, payload, extraHeaders = {}) {
+  let response;
+  try {
+    response = await fetch(`${baseUrl}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...extraHeaders,
+      },
+      body: JSON.stringify(payload),
+    });
+  } catch (error) {
+    throw new Error(
+      `[${baseUrl}${path}] ${error?.message || String(error)}`
+    );
+  }
+
+  const raw = await response.text();
+  let data;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    data = raw;
+  }
+
+  return { response, data };
+}
+
+async function fetchHistoryWithFallback(path, options) {
+  let lastResult = null;
+
+  for (const baseUrl of HISTORY_API_CANDIDATES) {
+    let timeoutId = null;
+    try {
+      const url = `${baseUrl}${path}`;
+      const timeoutMs = 12000; // keep background responses snappy to avoid port-close
+
+      const controller = new AbortController();
+      const externalSignal = options?.signal;
+      if (externalSignal) {
+        if (externalSignal.aborted) controller.abort();
+        else externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
+      }
+
+      timeoutId = setTimeout(() => {
+        try {
+          controller.abort(
+            new Error(`History API request timeout after ${timeoutMs}ms`)
+          );
+        } catch {
+          controller.abort();
+        }
+      }, timeoutMs);
+
+      const response = await fetch(url, {
+        ...(options || {}),
+        signal: controller.signal,
+      });
+
+      const raw = await response.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        data = raw;
+      }
+
+      if (response.ok) {
+        return { ok: true, status: response.status, data, baseUrl };
+      }
+
+      // Enrich error so the UI can show a useful message instead of a generic fallback.
+      // Common shapes we might receive: { message }, { detail }, { error }, or plain text.
+      const messageFromData =
+        (data &&
+          typeof data === "object" &&
+          (data?.message || data?.detail || data?.error)) ||
+        (typeof data === "string" ? data : "");
+
+      lastResult = {
+        ok: false,
+        status: response.status,
+        data,
+        baseUrl,
+        error:
+          String(messageFromData || "").trim() ||
+          `History API request failed (HTTP ${response.status})`,
+      };
+
+      // If one host denies access (401/403), other hosts may still allow.
+      // We only hard-stop on "other" statuses where trying another host
+      // is unlikely to help.
+      if (response.status === 404) continue;
+      if (response.status === 401 || response.status === 403) continue;
+      return lastResult;
+    } catch (error) {
+      // If the request is aborted/timeout, treat it as a recoverable error and try next baseUrl.
+      lastResult = {
+        ok: false,
+        status: 0,
+        error: String(error),
+        baseUrl,
+      };
+    } finally {
+      if (timeoutId) clearTimeout(timeoutId);
+    }
+  }
+
+  return lastResult || { ok: false, status: 0, error: "History API unavailable" };
+}
+
+async function resolveAccountEmail(baseUrl, loginUsername, requestId) {
+  let email = "";
+
+  try {
+    const { response, data } = await postJson(
+      baseUrl,
+      "/api/users/get_user_info",
+      {
+        request_id: requestId,
+        username: loginUsername,
+        type: "user_type",
+      }
+    );
+
+    if (!response.ok) {
+      return "";
+    }
+
+    const userType = data?.info;
+    const infoType = userType === "shared" ? "email_owner" : "email";
+    const infoResult = await postJson(baseUrl, "/api/users/get_user_info", {
+      request_id: requestId,
+      username: loginUsername,
+      type: infoType,
+    });
+
+    email = String(infoResult?.data?.info || "").trim();
+  } catch (error) {
+    console.warn("resolveAccountEmail failed:", error);
+  }
+
+  return email;
+}
+
+async function resolveAccountEmailWithFallback(loginUsername, requestId) {
+  for (const baseUrl of ACCOUNT_INFO_API_CANDIDATES) {
+    const email = await resolveAccountEmail(baseUrl, loginUsername, requestId);
+    if (email) return email;
+  }
+  return "";
+}
+
+async function loginAccountWithFallback(payload) {
+  let lastError = null;
+  const diagnostics = [];
+
+  for (const baseUrl of LOGIN_API_CANDIDATES) {
+    try {
+      const result = await postJson(baseUrl, "/api/accounts/login", payload);
+      if (result?.response?.ok) {
+        return { ok: true, baseUrl, ...result };
+      }
+      lastError = { ok: false, baseUrl, ...result };
+      diagnostics.push(
+        `${baseUrl}: HTTP ${result?.response?.status || 0} ${
+          result?.data?.detail || result?.data?.message || "request failed"
+        }`
+      );
+    } catch (error) {
+      lastError = {
+        ok: false,
+        baseUrl,
+        response: { status: 0 },
+        data: { message: String(error) },
+      };
+      diagnostics.push(`${baseUrl}: ${String(error)}`);
+    }
+  }
+
+  if (lastError) {
+    return {
+      ...lastError,
+      data: {
+        ...(typeof lastError?.data === "object" ? lastError.data : {}),
+        message:
+          diagnostics.length > 0
+            ? `Login API unavailable. ${diagnostics.join(" | ")}`
+            : lastError?.data?.message || "Login API unavailable",
+      },
+    };
+  }
+
+  return {
+    ok: false,
+    response: { status: 0 },
+    data: { message: "Login API unavailable" },
+  };
 }
 
 function makeErrorKey(payload) {
@@ -185,6 +608,47 @@ const queryTabs = (query) =>
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   console.log("Background received message:", msg);
   switch (msg.type) {
+    case "OPEN_MEETING_WINDOW":
+      (async () => {
+        try {
+          const meetingData = msg?.payload?.meetingData || null;
+          if (!meetingData || typeof meetingData !== "object") {
+            sendResponse({ ok: false, status: 400, error: "Missing meetingData" });
+            return;
+          }
+
+          try {
+            if (chrome.storage?.session) {
+              await chrome.storage.session.set({
+                ada_detached_meeting_data: meetingData,
+              });
+            } else if (chrome.storage?.local) {
+              await chrome.storage.local.set({
+                ada_detached_meeting_data: meetingData,
+              });
+            }
+          } catch (e) {
+            console.warn("Failed to persist detached meeting data:", e);
+          }
+
+          const url = chrome.runtime.getURL("window.html?view=meeting");
+          chrome.windows.create(
+            {
+              url,
+              type: "popup",
+              width: 1180,
+              height: 820,
+            },
+            () => {
+              sendResponse({ ok: true });
+            }
+          );
+        } catch (err) {
+          sendResponse({ ok: false, status: 0, error: String(err) });
+        }
+      })();
+      return true;
+
     case "RESET_TIMER":
       resetTimer();
       sendResponse({ ok: true });
@@ -263,6 +727,120 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         sendResponse({ ok, url });
       });
       return true;
+    case "GET_ACCOUNT_AUTH":
+      (async () => {
+        try {
+          const authState = await readAccountAuthState();
+          sendResponse(authState);
+        } catch (err) {
+          sendResponse({
+            loggedIn: false,
+            status: 0,
+            error: String(err),
+          });
+        }
+      })();
+      return true;
+    case "LOGIN_ACCOUNT":
+      (async () => {
+        try {
+          const username = String(msg?.payload?.username || "").trim();
+          const password = String(msg?.payload?.password || "");
+          const requestId = Date.now();
+
+          if (!username || !password) {
+            sendResponse({
+              ok: false,
+              status: 400,
+              error: "Username and password are required.",
+            });
+            return;
+          }
+
+          const loginResult = await loginAccountWithFallback({
+            username,
+            password,
+            request_id: requestId,
+          });
+
+          if (!loginResult?.response?.ok) {
+            sendResponse({
+              ok: false,
+              status: loginResult?.response?.status || 0,
+              error:
+                loginResult?.data?.detail ||
+                loginResult?.data?.message ||
+                "Login failed.",
+            });
+            return;
+          }
+
+          const loginPayload =
+            loginResult?.data && typeof loginResult.data === "object"
+              ? loginResult.data
+              : {};
+          const accessToken = String(
+            loginPayload?.access_token || loginPayload?.token || ""
+          ).trim();
+          const loginSucceeded =
+            loginPayload?.login === true || Boolean(accessToken);
+
+          if (!loginSucceeded || !accessToken) {
+            sendResponse({
+              ok: false,
+              status: 401,
+              error: loginPayload?.message || "Wrong username or password.",
+            });
+            return;
+          }
+
+          const email =
+            String(loginPayload?.email || "").trim() ||
+            (await resolveAccountEmailWithFallback(username, requestId)) ||
+            username;
+          const displayName = normalizeDisplayName(username);
+          const expiresInSeconds = Number(loginPayload?.expires_in || 0) || null;
+          const accountSession = normalizeAccountSession({
+            loggedIn: true,
+            username: email,
+            jwtToken: accessToken,
+            loginType: "account",
+            name: displayName,
+            creditName: username,
+            source: "extension",
+            expiresAt: expiresInSeconds
+              ? Date.now() + expiresInSeconds * 1000
+              : null,
+          });
+
+          await saveStoredAccountSession(accountSession);
+          await mirrorWebsiteSessionCookies(accountSession, expiresInSeconds);
+
+          sendResponse({
+            ok: true,
+            status: 200,
+            data: accountSession,
+          });
+        } catch (err) {
+          sendResponse({
+            ok: false,
+            status: 0,
+            error: String(err),
+          });
+        }
+      })();
+      return true;
+    case "LOGOUT_ACCOUNT":
+      (async () => {
+        try {
+          await clearStoredAccountSession();
+          await clearWebsiteSessionCookies();
+          sendResponse({ ok: true });
+        } catch (err) {
+          sendResponse({ ok: false, status: 0, error: String(err) });
+        }
+      })();
+      return true;
     case "GET_USER_CLONE":
       (async () => {
         try {
@@ -318,6 +896,95 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             status: 404,
             error: "check-intel endpoint not available",
           });
+        } catch (err) {
+          sendResponse({ ok: false, status: 0, error: String(err) });
+        }
+      })();
+      return true;
+    case "GET_CONVERSION_ARCHITECT_FILES":
+      (async () => {
+        try {
+          const authState = await readAccountAuthState();
+          console.log("GET_CONVERSION_ARCHITECT_FILES authState:", {
+            loggedIn: authState?.loggedIn,
+            username: authState?.username,
+            loginType: authState?.loginType,
+          });
+          if (!authState?.username || !authState?.jwtToken) {
+            sendResponse({
+              ok: false,
+              status: 401,
+              error: "Please sign in first.",
+            });
+            return;
+          }
+
+          const take = Number(msg?.payload?.take || 50);
+          const result = await fetchHistoryWithFallback("/api/v1/tool-history/get", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${authState.jwtToken}`,
+              username: authState.username,
+            },
+            body: JSON.stringify({
+              take,
+              skip: 0,
+              filterToolName: [
+                "Conversion Architect",
+                "AI Conversion Architect",
+                "Sales Trinity",
+              ],
+            }),
+          });
+
+          sendResponse(result);
+        } catch (err) {
+          sendResponse({ ok: false, status: 0, error: String(err) });
+        }
+      })();
+      return true;
+    case "GET_CONVERSION_ARCHITECT_FILE":
+      (async () => {
+        try {
+          const fileId = String(msg?.payload?.fileId || "").trim();
+          const authState = await readAccountAuthState();
+          console.log("GET_CONVERSION_ARCHITECT_FILE authState:", {
+            loggedIn: authState?.loggedIn,
+            username: authState?.username,
+            loginType: authState?.loginType,
+          });
+
+          if (!fileId) {
+            sendResponse({
+              ok: false,
+              status: 400,
+              error: "Missing fileId",
+            });
+            return;
+          }
+
+          if (!authState?.username || !authState?.jwtToken) {
+            sendResponse({
+              ok: false,
+              status: 401,
+              error: "Please sign in first.",
+            });
+            return;
+          }
+
+          const result = await fetchHistoryWithFallback(
+            `/api/v1/tool-history/get/${encodeURIComponent(fileId)}`,
+            {
+              method: "GET",
+              headers: {
+                Authorization: `Bearer ${authState.jwtToken}`,
+                username: authState.username,
+              },
+            }
+          );
+
+          sendResponse(result);
         } catch (err) {
           sendResponse({ ok: false, status: 0, error: String(err) });
         }
@@ -1221,16 +1888,14 @@ case "REFRESH_MEET_CAPTION_DOM":
         sendResponse({ captions: sharedCaptions });
         return true;
       } else if (msg.action === "CHECK_COOKIE") {
-        chrome.cookies.get(
-          { url: "https://reelsightsai.com/dashboard", name: "username" },
-          (cookie) => {
-            sendResponse(
-              cookie
-                ? { loggedIn: true, username: cookie.value }
-                : { loggedIn: false }
-            );
-          }
-        );
+        (async () => {
+          const authState = await readAccountAuthState();
+          sendResponse(
+            authState?.loggedIn
+              ? { loggedIn: true, username: authState.username }
+              : { loggedIn: false }
+          );
+        })();
         return true;
       }
       return true;

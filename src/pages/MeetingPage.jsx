@@ -238,6 +238,10 @@ export default function MeetingPage({
 
   const buildStrategicContext = () => {
     const parts = [
+      meetingData?.profileName ? `Selected Profile: ${meetingData.profileName}` : "",
+      meetingData?.conversionArchitectFileName
+        ? `Conversion Architect File: ${meetingData.conversionArchitectFileName}`
+        : "",
       meetingData?.userCompanyName
         ? `Company: ${meetingData.userCompanyName}`
         : "",
@@ -246,6 +250,16 @@ export default function MeetingPage({
         : "",
       meetingData?.meetingGoal ? `Meeting Goal: ${meetingData.meetingGoal}` : "",
       meetingData?.meetingNote ? `Strategic Notes: ${meetingData.meetingNote}` : "",
+      meetingData?.meetingEmail ? `Email Thread: ${meetingData.meetingEmail}` : "",
+      meetingData?.meetingMessage
+        ? `Prior Message History: ${meetingData.meetingMessage}`
+        : "",
+      meetingData?.conversionArchitectAnalysis
+        ? `Conversion Architect Analysis: ${meetingData.conversionArchitectAnalysis}`
+        : "",
+      meetingData?.conversionArchitectChatOutput
+        ? `Conversion Architect Chat Output: ${meetingData.conversionArchitectChatOutput}`
+        : "",
       meetingData?.businessDNAResult
         ? `Business DNA: ${meetingData.businessDNAResult}`
         : "",
@@ -259,10 +273,27 @@ export default function MeetingPage({
 
   const buildAgentMeetingData = () => ({
     ...meetingData,
+    profileId: meetingData?.profileId || "",
+    profileName: meetingData?.profileName || "",
+    conversionArchitectFileId: meetingData?.conversionArchitectFileId || "",
+    conversionArchitectFileName: meetingData?.conversionArchitectFileName || "",
     businessDNAResult: trimContext(meetingData?.businessDNAResult),
     psychAnalyzerResult: trimContext(meetingData?.psychAnalyzerResult),
+    conversionArchitectAnalysis: trimContext(
+      meetingData?.conversionArchitectAnalysis,
+      3500
+    ),
+    conversionArchitectChatOutput: trimContext(
+      meetingData?.conversionArchitectChatOutput,
+      3500
+    ),
     meetingNote: trimContext(meetingData?.meetingNote),
     meetingMessage: trimContext(meetingData?.meetingMessage),
+    meetingEmail: trimContext(meetingData?.meetingEmail),
+    cognitiveCloneTone: trimContext(
+      meetingData?.cognitiveCloneTone || readStoredCognitiveCloneTone(),
+      2500
+    ),
     entity_name: meetingData?.userName || meetingData?.userNameAndRole || inferredSelfName,
     strategic_context: trimContext(buildStrategicContext(), 3500),
     cognitive_clone_tone: trimContext(
@@ -814,6 +845,8 @@ export default function MeetingPage({
 
     return {
       blockName: meetingData?.title || meetingData?.blockName || "Untitled Meeting",
+      profileId: meetingData?.profileId || "",
+      profileName: meetingData?.profileName || "",
       userNameAndRole: meetingData?.userNameAndRole || meetingData?.userName || "",
       userCompanyName: meetingData?.userCompanyName || "",
       userCompanyServices: meetingData?.userCompanyServices || "",
@@ -829,6 +862,8 @@ export default function MeetingPage({
       meetingEmail: meetingData?.meetingEmail || "",
       meetingMessage: meetingData?.meetingMessage || "",
       meetingNote: meetingData?.meetingNote || "",
+      cognitiveCloneTone:
+        meetingData?.cognitiveCloneTone || readStoredCognitiveCloneTone(),
       agentModelKey: meetingData?.agentModelKey || "groq",
       agentModelLabel: meetingData?.agentModelLabel || "",
       meetingStart: meetingData?.meetingStart || "",
@@ -843,8 +878,13 @@ export default function MeetingPage({
       psychLanguage: meetingData?.psychLanguage || "English",
       psychAnalyzerResult: meetingData?.psychAnalyzerResult || "",
       businessDNAResult: meetingData?.businessDNAResult || "",
+      conversionArchitectFileId: meetingData?.conversionArchitectFileId || "",
+      conversionArchitectFileName: meetingData?.conversionArchitectFileName || "",
       conversionArchitectDossier: dossierText || effectiveDossierText || "",
       conversion_architect_dossier: dossierText || effectiveDossierText || "",
+      conversionArchitectAnalysis: meetingData?.conversionArchitectAnalysis || "",
+      conversionArchitectChatOutput:
+        meetingData?.conversionArchitectChatOutput || "",
       meeting_transcript: transcriptText,
       designatedTime: meetingData?.designatedTime || "",
     };
@@ -1491,6 +1531,7 @@ export default function MeetingPage({
           setTimeout(() => setToast(null), 3000);
         }}
         autoCollapseEnabled={autoCollapseEnabled}
+        layout="dock"
       />
 
       {showEndConfirm && (

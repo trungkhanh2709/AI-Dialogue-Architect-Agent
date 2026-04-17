@@ -3,6 +3,15 @@ import PopupWithSidebar from "../component/PopupWithSidebar.jsx";
 import ExpandableTextarea from "../component/ExpandableTextarea.jsx";
 import SettingLineLight from "../assets/Setting_line_light.svg?react";
 import SettingsPage from "../component/SettingsPage.jsx";
+import {
+  filterArtifactsByProfile,
+  getArtifactOptionLabel,
+  getProfileDisplayName,
+  getProfileId,
+  mergeArtifactIntoFormData,
+  mergeProfileIntoFormData,
+  normalizeConversionArchitectArtifacts,
+} from "../utils/strategistBridge";
 
 const DEFAULT_AGENT_MODEL_KEY = "groq";
 
@@ -10,9 +19,12 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
   const [remainSessions, setRemainSessions] = useState(null);
   const [step, setStep] = useState(1);
   const [formData, setFormData] = useState({
+    profileId: "",
+    profileName: "",
     userName: "",
     userCompanyName: "",
     userCompanyServices: "",
+    cognitiveCloneTone: "",
     prospectName: "",
     customerCompanyName: "",
     customerCompanyServices: "",
@@ -20,12 +32,31 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
     meetingEmail: "",
     meetingMessage: "",
     meetingNote: "",
+    conversionArchitectFileId: "",
+    conversionArchitectFileName: "",
+    psychAnalyzerResult: "",
+    businessDNAResult: "",
     conversionArchitectDossier: "",
+    conversionArchitectAnalysis: "",
+    conversionArchitectChatOutput: "",
     agentModelKey: DEFAULT_AGENT_MODEL_KEY,
   });
   const [errors, setErrors] = useState({});
+  const [profiles, setProfiles] = useState([]);
+  const [profilesLoading, setProfilesLoading] = useState(false);
+  const [profilesError, setProfilesError] = useState("");
+  const [conversionArchitectArtifacts, setConversionArchitectArtifacts] = useState([]);
+  const [artifactsLoading, setArtifactsLoading] = useState(false);
+  const [artifactsError, setArtifactsError] = useState("");
   const decodedCookieEmail = decodeURIComponent(cookieUserName || "");
   const [tab, setTab] = useState("schedule");
+  const selectedProfile = profiles.find(
+    (profile) => getProfileId(profile) === String(formData.profileId || "")
+  );
+  const filteredArtifacts = filterArtifactsByProfile(
+    conversionArchitectArtifacts,
+    selectedProfile
+  );
 
   useEffect(() => {
     if (!decodedCookieEmail) return;
@@ -45,6 +76,66 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
         }
         const { value, trial } = res.data.content || {};
         setRemainSessions(trial ? `${value} sessions + Trial` : `${value} sessions`);
+      }
+    );
+  }, [decodedCookieEmail]);
+
+  useEffect(() => {
+    if (!decodedCookieEmail) return;
+
+    setProfilesLoading(true);
+    setProfilesError("");
+    chrome.runtime.sendMessage(
+      {
+        type: "GET_PROFILES",
+        payload: { email: decodedCookieEmail },
+      },
+      (response) => {
+        setProfilesLoading(false);
+        if (!response?.ok || !Array.isArray(response?.data)) {
+          setProfiles([]);
+          setProfilesError(response?.error || "Unable to load profiles.");
+          return;
+        }
+        setProfiles(response.data);
+      }
+    );
+  }, [decodedCookieEmail]);
+
+  useEffect(() => {
+    if (!decodedCookieEmail) return;
+
+    setArtifactsLoading(true);
+    setArtifactsError("");
+    chrome.runtime.sendMessage(
+      {
+        type: "GET_CONVERSION_ARCHITECT_FILES",
+        payload: { take: 50 },
+      },
+      (response) => {
+        setArtifactsLoading(false);
+        if (!response?.ok) {
+          setConversionArchitectArtifacts([]);
+          const detailsMsg =
+            response?.data?.message ||
+            response?.data?.detail ||
+            response?.data?.error;
+          const statusPart =
+            typeof response?.status === "number"
+              ? ` (HTTP ${response.status})`
+              : "";
+          console.error("GET_CONVERSION_ARCHITECT_FILES failed", response);
+          setArtifactsError(
+            response?.error ||
+              detailsMsg ||
+              `Unable to load Conversion Architect files${statusPart}.`
+          );
+          return;
+        }
+
+        setConversionArchitectArtifacts(
+          normalizeConversionArchitectArtifacts(response?.data)
+        );
       }
     );
   }, [decodedCookieEmail]);
@@ -77,6 +168,104 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
     setFormData((prev) => ({ ...prev, [id]: value }));
   };
 
+  const handleProfileSelect = (event) => {
+    const profileId = event.target.value;
+    if (!profileId) {
+      setFormData((prev) => ({
+        ...prev,
+        profileId: "",
+        profileName: "",
+        psychAnalyzerResult: "",
+        businessDNAResult: "",
+        conversionArchitectFileId: "",
+        conversionArchitectFileName: "",
+        conversionArchitectDossier: "",
+        conversionArchitectAnalysis: "",
+        conversionArchitectChatOutput: "",
+        meetingMessage:
+          prev.meetingMessage === prev.conversionArchitectChatOutput
+            ? ""
+            : prev.meetingMessage,
+      }));
+      return;
+    }
+
+    const profile = profiles.find((item) => getProfileId(item) === profileId);
+    if (!profile) return;
+
+    setFormData((prev) =>
+      mergeProfileIntoFormData(
+        {
+          ...prev,
+          profileId,
+          profileName: getProfileDisplayName(profile),
+          psychAnalyzerResult: "",
+          businessDNAResult: "",
+          conversionArchitectFileId: "",
+          conversionArchitectFileName: "",
+          conversionArchitectDossier: "",
+          conversionArchitectAnalysis: "",
+          conversionArchitectChatOutput: "",
+          meetingMessage:
+            prev.meetingMessage === prev.conversionArchitectChatOutput
+              ? ""
+              : prev.meetingMessage,
+        },
+        profile
+      )
+    );
+  };
+
+  const handleArtifactSelect = (event) => {
+    const artifactId = event.target.value;
+    if (!artifactId) {
+      setFormData((prev) => ({
+        ...prev,
+        psychAnalyzerResult: "",
+        businessDNAResult: "",
+        conversionArchitectFileId: "",
+        conversionArchitectFileName: "",
+        conversionArchitectDossier: "",
+        conversionArchitectAnalysis: "",
+        conversionArchitectChatOutput: "",
+        meetingMessage:
+          prev.meetingMessage === prev.conversionArchitectChatOutput
+            ? ""
+            : prev.meetingMessage,
+      }));
+      return;
+    }
+
+    const fallbackArtifact = filteredArtifacts.find((item) => item.id === artifactId);
+
+    setFormData((prev) => ({
+      ...prev,
+      conversionArchitectFileId: artifactId,
+      conversionArchitectFileName: fallbackArtifact?.title || "",
+    }));
+
+    chrome.runtime.sendMessage(
+      {
+        type: "GET_CONVERSION_ARCHITECT_FILE",
+        payload: { fileId: artifactId },
+      },
+      (response) => {
+        if (!response?.ok) {
+          console.error("GET_CONVERSION_ARCHITECT_FILE failed", {
+            response,
+            fileId: artifactId,
+          });
+        }
+        const detailArtifacts = normalizeConversionArchitectArtifacts(
+          response?.data ? [response.data] : []
+        );
+        const artifact = detailArtifacts[0] || fallbackArtifact;
+        if (!artifact) return;
+        setFormData((prev) => mergeArtifactIntoFormData(prev, artifact));
+      }
+    );
+  };
+
   const handleNext = () => {
     if (validateStep()) setStep((prev) => prev + 1);
   };
@@ -85,33 +274,10 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
 
   const handleStart = () => {
     if (!validateStep()) return;
-
-    chrome.runtime.sendMessage(
-      {
-        type: "USE_ADDON_SESSION",
-        payload: {
-          email: decodedCookieEmail,
-          add_on_type: "ai_dialogue_architect_agent",
-        },
-      },
-      (res) => {
-        if (!res || res.error || !res.data) {
-          alert("An error occurred while calling the API");
-          return;
-        }
-
-        chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
-          chrome.runtime.sendMessage({ type: "START_TIMER" });
-        });
-
-        const data = res.data;
-        if (data.trial_used === true || data.status === "200") {
-          onStartMeeting(formData);
-        } else {
-          alert("You have run out of sessions. Please purchase an add-on to continue.");
-        }
-      }
-    );
+    chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
+      chrome.runtime.sendMessage({ type: "START_TIMER" });
+    });
+    onStartMeeting(formData);
   };
 
   const renderTextarea = (id, label, rows = 3, placeholder) => {
@@ -163,6 +329,30 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
   useEffect(() => {
     setStep(tab === "instant" ? 1 : 0);
   }, [tab]);
+
+  useEffect(() => {
+    if (!formData.profileId || !formData.conversionArchitectFileId) return;
+    const isStillValid = filteredArtifacts.some(
+      (artifact) => artifact.id === formData.conversionArchitectFileId
+    );
+
+    if (!isStillValid) {
+      setFormData((prev) => ({
+        ...prev,
+        psychAnalyzerResult: "",
+        businessDNAResult: "",
+        conversionArchitectFileId: "",
+        conversionArchitectFileName: "",
+        conversionArchitectDossier: "",
+        conversionArchitectAnalysis: "",
+        conversionArchitectChatOutput: "",
+        meetingMessage:
+          prev.meetingMessage === prev.conversionArchitectChatOutput
+            ? ""
+            : prev.meetingMessage,
+      }));
+    }
+  }, [filteredArtifacts, formData.profileId, formData.conversionArchitectFileId]);
 
   return (
     <div className="extension-container">
@@ -216,6 +406,56 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
             {step === 1 && (
               <>
                 <div className="section-title">User A - Your Info</div>
+                <div className="input-group">
+                  <label htmlFor="profileId">Profile Library</label>
+                  <select
+                    id="profileId"
+                    value={formData.profileId}
+                    onChange={handleProfileSelect}
+                    disabled={profilesLoading}
+                  >
+                    <option value="">
+                      {profilesLoading ? "Loading profiles..." : "Select a profile"}
+                    </option>
+                    {profiles.map((profile) => (
+                      <option key={getProfileId(profile)} value={getProfileId(profile)}>
+                        {getProfileDisplayName(profile)}
+                      </option>
+                    ))}
+                  </select>
+                  {profilesError ? <div className="error-text">{profilesError}</div> : null}
+                </div>
+                <div className="input-group">
+                  <label htmlFor="conversionArchitectFileId">
+                    Conversion Architect File
+                  </label>
+                  <select
+                    id="conversionArchitectFileId"
+                    value={formData.conversionArchitectFileId}
+                    onChange={handleArtifactSelect}
+                    disabled={
+                      !formData.profileId ||
+                      artifactsLoading ||
+                      filteredArtifacts.length === 0
+                    }
+                  >
+                    <option value="">
+                      {!formData.profileId
+                        ? "Select a profile first"
+                        : artifactsLoading
+                        ? "Loading files..."
+                        : filteredArtifacts.length
+                        ? "Select a generated file"
+                        : "No files available"}
+                    </option>
+                    {filteredArtifacts.map((artifact) => (
+                      <option key={artifact.id} value={artifact.id}>
+                        {getArtifactOptionLabel(artifact)}
+                      </option>
+                    ))}
+                  </select>
+                  {artifactsError ? <div className="error-text">{artifactsError}</div> : null}
+                </div>
                 {renderInput("userName", "Your Name - Role/Title", "text", "Your name - Role/Title")}
                 {renderInput("userCompanyName", "Company Name", "text", "Your Company Name")}
                 {renderTextarea(
@@ -294,6 +534,24 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
                   id="conversionArchitectDossier"
                   label="Conversion Architect Dossier (Optional)"
                   placeholder="Paste the structured dossier from prior meetings if you already have one."
+                  maxRows={8}
+                  formData={formData}
+                  setFormData={setFormData}
+                  errors={errors}
+                />
+                <ExpandableTextarea
+                  id="conversionArchitectAnalysis"
+                  label="Conversion Architect Analysis (Optional)"
+                  placeholder="Imported analysis from the selected Conversion Architect file."
+                  maxRows={8}
+                  formData={formData}
+                  setFormData={setFormData}
+                  errors={errors}
+                />
+                <ExpandableTextarea
+                  id="conversionArchitectChatOutput"
+                  label="Conversion Architect Chat Output (Optional)"
+                  placeholder="Imported architect/prospect chat output from the selected file."
                   maxRows={8}
                   formData={formData}
                   setFormData={setFormData}
