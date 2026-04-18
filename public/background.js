@@ -1313,12 +1313,21 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
               if (selectedModelKey !== "groq") {
                 const agentEndpoint = getAiDialogueAgentEndpoint(selectedModelKey);
+
+                // Immediately notify the frontend that the request has been sent
+                // so the watchdog timer gets reset before the slow await fetch.
+                chrome.tabs.sendMessage(activeTabId, {
+                  type: "AGENT_STREAM_START",
+                  payload: { requestId },
+                });
+
                 const res = await fetch(
                   `${VITE_URL_BACKEND}${agentEndpoint}`,
                   {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
                     body: JSON.stringify(payload),
+                    signal: AbortSignal.timeout(22000),
                   }
                 );
 
@@ -1339,7 +1348,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   });
                   chrome.tabs.sendMessage(activeTabId, {
                     type: "AGENT_STREAM_ERROR",
-                    payload: text || `HTTP ${res.status}`,
+                    payload: { error: text || `HTTP ${res.status}`, requestId },
                     requestId,
                   });
                   sendResponse({ ok: false, error: text });
@@ -1365,12 +1374,19 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 return;
               }
 
+              // Ping frontend so the watchdog timer resets before the fetch starts
+              chrome.tabs.sendMessage(activeTabId, {
+                type: "AGENT_STREAM_START",
+                payload: { requestId },
+              });
+
               const res = await fetch(
                 `${VITE_URL_BACKEND}/api/content-generators/ai_dialogue_architect_agent_stream`,
                 {
                   method: "POST",
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(payload),
+                  signal: AbortSignal.timeout(22000),
                 }
               );
 

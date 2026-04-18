@@ -8,7 +8,7 @@ import {
 const AGENT_DEBOUNCE_MS = 300;
 const AGENT_MIN_INTERVAL_MS = 1800;
 const AGENT_USE_STREAMING = true;
-const AGENT_STREAM_STALL_TIMEOUT_MS = 10000;
+const AGENT_STREAM_STALL_TIMEOUT_MS = 25000;
 const AGENT_MAX_LOG_LINES = 30;
 const AGENT_MAX_LOG_CHARS = 4000;
 const FAST_LOG_LINES = 8;
@@ -388,44 +388,72 @@ export default function MeetingPage({
     inferredSelfName,
   ]);
 
-  const buildAgentMeetingData = React.useCallback(() => ({
-    ...meetingData,
-    profileId: meetingData?.profileId || "",
-    profileName: meetingData?.profileName || "",
-    conversionArchitectFileId: meetingData?.conversionArchitectFileId || "",
-    conversionArchitectFileName: meetingData?.conversionArchitectFileName || "",
-    businessDNAResult: trimContext(meetingData?.businessDNAResult),
-    psychAnalyzerResult: trimContext(meetingData?.psychAnalyzerResult),
-    conversionArchitectAnalysis: trimContext(
-      meetingData?.conversionArchitectAnalysis,
-      3500
-    ),
-    conversionArchitectChatOutput: trimContext(
-      meetingData?.conversionArchitectChatOutput,
-      3500
-    ),
-    meetingNote: trimContext(meetingData?.meetingNote),
-    meetingMessage: trimContext(meetingData?.meetingMessage),
-    meetingEmail: trimContext(meetingData?.meetingEmail),
-    cognitiveCloneTone: trimContext(
+  const buildAgentMeetingData = React.useCallback(() => {
+    const cloneTone = trimContext(
       meetingData?.cognitiveCloneTone || readStoredCognitiveCloneTone(),
-      2500
-    ),
-    entity_name: meetingData?.userName || meetingData?.userNameAndRole || inferredSelfName,
-    strategic_context: trimContext(buildStrategicContext(), 3500),
-    cognitive_clone_tone: trimContext(
-      meetingData?.cognitiveCloneTone || readStoredCognitiveCloneTone(),
-      2500
-    ),
-    conversionArchitectDossier: effectiveDossierText,
-    conversion_architect_dossier: effectiveDossierText,
-    conversion_architect_dossier_json:
-      parseConversionArchitectDossier(effectiveDossierText),
-    meeting_goal: trimContext(meetingData?.meetingGoal),
-    strategic_directive: trimContext(
-      meetingData?.meetingGoal || meetingData?.meetingNote
-    ),
-  }), [meetingData, inferredSelfName, effectiveDossierText]);
+      2000
+    );
+
+    // Extract compact prior-meeting context from parsed dossier
+    // instead of sending the raw dossier text (which can be very large)
+    const dossierParsed = parseConversionArchitectDossier(effectiveDossierText);
+    const priorMeetingParts = [];
+    if (dossierParsed?.prospect_summary) {
+      priorMeetingParts.push(`Prospect: ${trimContext(dossierParsed.prospect_summary, 400)}`);
+    }
+    if (dossierParsed?.current_sentiment) {
+      priorMeetingParts.push(`Sentiment: ${dossierParsed.current_sentiment}`);
+    }
+    if (dossierParsed?.remaining_friction) {
+      priorMeetingParts.push(`Friction: ${trimContext(dossierParsed.remaining_friction, 200)}`);
+    }
+    if (dossierParsed?.next_strategic_objective) {
+      priorMeetingParts.push(`Next Objective: ${trimContext(dossierParsed.next_strategic_objective, 200)}`);
+    }
+    if (Array.isArray(dossierParsed?.narrative_arc) && dossierParsed.narrative_arc.length > 0) {
+      const arcLines = dossierParsed.narrative_arc.slice(-3).map(
+        (turn) => `[${turn.stage}] ${trimContext(turn.event, 80)} → ${trimContext(turn.outcome, 80)}`
+      );
+      priorMeetingParts.push(`Key Moments:\n${arcLines.join("\n")}`);
+    }
+    const prior_meeting_context = priorMeetingParts.length > 0
+      ? priorMeetingParts.join("\n")
+      : "";
+
+    return {
+      ...meetingData,
+      profileId: meetingData?.profileId || "",
+      profileName: meetingData?.profileName || "",
+      conversionArchitectFileId: meetingData?.conversionArchitectFileId || "",
+      conversionArchitectFileName: meetingData?.conversionArchitectFileName || "",
+      businessDNAResult: trimContext(meetingData?.businessDNAResult, 1000),
+      psychAnalyzerResult: trimContext(meetingData?.psychAnalyzerResult, 1000),
+      conversionArchitectAnalysis: trimContext(
+        meetingData?.conversionArchitectAnalysis,
+        2000
+      ),
+      conversionArchitectChatOutput: trimContext(
+        meetingData?.conversionArchitectChatOutput,
+        1500
+      ),
+      meetingNote: trimContext(meetingData?.meetingNote, 1000),
+      meetingMessage: trimContext(meetingData?.meetingMessage, 1000),
+      meetingEmail: trimContext(meetingData?.meetingEmail, 1000),
+      cognitiveCloneTone: cloneTone,
+      cognitive_clone_tone: cloneTone,
+      entity_name: meetingData?.userName || meetingData?.userNameAndRole || inferredSelfName,
+      strategic_context: trimContext(buildStrategicContext(), 1500),
+      // Compact prior-meeting context (replaces raw dossier strings)
+      prior_meeting_context,
+      conversionArchitectDossier: prior_meeting_context,
+      conversion_architect_dossier: prior_meeting_context,
+      meeting_goal: trimContext(meetingData?.meetingGoal, 800),
+      strategic_directive: trimContext(
+        meetingData?.meetingGoal || meetingData?.meetingNote,
+        800
+      ),
+    };
+  }, [meetingData, inferredSelfName, effectiveDossierText]);
 
   const removeThinkingMessage = (requestId) => {
     setChatMessages((prev) =>
@@ -1298,6 +1326,17 @@ export default function MeetingPage({
 
   runtimeMessageHandlerRef.current = (message) => {
       if (message.type === "SESSION_EXPIRED") {
+        return;
+      }
+
+      if (message.type === "AGENT_STREAM_START") {
+        // Backend confirmed request received — reset watchdog immediately.
+        const { requestId: startReqId } = message.payload || {};
+        const startEntry = activeAgentsRef.current.get(startReqId);
+        if (startEntry) {
+          startEntry.lastChunkAt = Date.now();
+          resetAgentStreamWatchdog(startReqId);
+        }
         return;
       }
 
