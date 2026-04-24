@@ -58,6 +58,40 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
     conversionArchitectArtifacts,
     selectedProfile
   );
+const [brandDNA, setBrandDNA] = useState(null);
+const isCognitiveActive = !!brandDNA?.data?.cognitive_clone_tone?.trim();
+
+useEffect(() => {
+  if (!decodedCookieEmail) return;
+
+  chrome.runtime.sendMessage(
+    {
+      type: "GET_BRAND_DNA",
+      payload: { email: decodedCookieEmail },
+    },
+    (res) => {
+      if (res?.ok && res.data?.length) {
+        const primary = res.data.find(
+          (x) => x.data?.is_primary
+        ) || res.data[0];
+
+        setBrandDNA(primary);
+      }
+    }
+  );
+}, [decodedCookieEmail]);
+
+useEffect(() => {
+  chrome.storage.local.get("brandDNA", (result) => {
+    if (result.brandDNA?.length) {
+      const primary =
+        result.brandDNA.find((x) => x.data?.is_primary) ||
+        result.brandDNA[0];
+
+      setBrandDNA(primary);
+    }
+  });
+}, []);
 
   useEffect(() => {
     if (!decodedCookieEmail) return;
@@ -391,302 +425,72 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
         Remaining Sessions: {remainSessions || "Loading..."}
       </div>
 
-      {tab === "instant" && (
-        <>
-          <div className="step-indicator">
-            {[1, 2, 3].map((num, idx) => (
-              <React.Fragment key={num}>
-                <div className={`step-circle ${step >= num ? "active" : ""}`}>{num}</div>
-                {idx < 2 && (
-                  <div className={`step-line ${step > num ? "active" : ""}`}></div>
-                )}
-              </React.Fragment>
-            ))}
-          </div>
+     {tab === "instant" && (
+  <div className="instant-container">
 
-          <div className="section-card">
-            {step === 1 && (
-              <>
-                <div className="section-title">User A - Your Info</div>
-                <div className="input-group">
-                  <label htmlFor="profileId">Profile Library</label>
-                  <select
-                    id="profileId"
-                    value={formData.profileId}
-                    onChange={handleProfileSelect}
-                    disabled={profilesLoading}
-                  >
-                    <option value="">
-                      {profilesLoading ? "Loading profiles..." : "Select a profile"}
-                    </option>
-                    {profiles.map((profile) => (
-                      <option key={getProfileId(profile)} value={getProfileId(profile)}>
-                        {getProfileDisplayName(profile)}
-                      </option>
-                    ))}
-                  </select>
-                  {profilesError ? <div className="error-text">{profilesError}</div> : null}
-                </div>
-                <div className="input-group">
-                  <label htmlFor="conversionArchitectFileId">
-                    Conversion Architect File
-                  </label>
-                  <select
-                    id="conversionArchitectFileId"
-                    value={formData.conversionArchitectFileId}
-                    onChange={handleArtifactSelect}
-                    disabled={
-                      !formData.profileId ||
-                      artifactsLoading ||
-                      filteredArtifacts.length === 0
-                    }
-                  >
-                    <option value="">
-                      {!formData.profileId
-                        ? "Select a profile first"
-                        : artifactsLoading
-                        ? "Loading files..."
-                        : filteredArtifacts.length
-                        ? "Select a generated file"
-                        : "No files available"}
-                    </option>
-                    {filteredArtifacts.map((artifact) => (
-                      <option key={artifact.id} value={artifact.id}>
-                        {getArtifactOptionLabel(artifact)}
-                      </option>
-                    ))}
-                  </select>
-                  {artifactsError ? <div className="error-text">{artifactsError}</div> : null}
-                </div>
+    {/* STATUS BAR */}
+    <div className="top-bar">
+      <div className="title">⚡ STRATEGY LAB</div>
 
-                {/* ── Architect Preview Card ─────────────────────────────── */}
-                {formData.conversionArchitectFileId && (() => {
-                  let dossier = null;
-                  try { dossier = JSON.parse(formData.conversionArchitectDossier || ""); } catch {}
+      <div className="status-pills">
+<span className={`pill ${isCognitiveActive ? "active" : "inactive"}`}>
+  ▦ Cognitive Clone: {isCognitiveActive ? "Active" : "Inactive"}
+</span>
+        <span className="pill">⚡ Skills: NEPQ + Negotiation + Psychology</span>
+      </div>
+    </div>
 
-                  const sentimentColor =
-                    dossier?.current_sentiment === "Positive" ? "#22c55e"
-                    : dossier?.current_sentiment === "Skeptical" ? "#f87171"
-                    : "#facc15";
+    {/* CONTEXT BAR */}
+<div className="context-bar">
+  ▼ [ ■ ] BRAND DNA: {brandDNA?.data?.nameOfBusiness || "Loading..."}
+</div>
 
-                  const hasData = dossier || formData.conversionArchitectAnalysis;
+    {/* INPUTS */}
+    <div className="section-card">
 
-                  return hasData ? (
-                    <div className="architect-preview-card">
-                      <button
-                        className="architect-preview-toggle"
-                        onClick={() => setShowArchitectPreview((v) => !v)}
-                        type="button"
-                      >
-                        <span>📊 Architect Summary</span>
-                        <span className="architect-preview-chevron">{showArchitectPreview ? "▲" : "▼"}</span>
-                      </button>
+      {/* MEETING GOAL */}
+      <div className="input-group">
+        <label>Meeting Goal</label>
+        <textarea
+          id="meetingGoal"
+          value={formData.meetingGoal}
+          onChange={handleChange}
+          placeholder="e.g., Secure partnership"
+          className={errors.meetingGoal ? "input-error" : ""}
+        />
+        {errors.meetingGoal && (
+          <div className="error-text">{errors.meetingGoal}</div>
+        )}
+      </div>
 
-                      {showArchitectPreview && (
-                        <div className="architect-preview-body">
+      {/* ADDITIONAL CONTEXT */}
+      <div className="input-group">
+        <label>Additional Context (Message History / Psych Insights)</label>
+        <textarea
+          id="meetingNote"
+          value={formData.meetingNote}
+          onChange={handleChange}
+          placeholder="Paste email threads, social messages, insights..."
+        />
+      </div>
 
-                          {/* Sentiment badge */}
-                          {dossier?.current_sentiment && (
-                            <div className="architect-preview-row">
-                              <span className="architect-preview-label">Sentiment</span>
-                              <span className="architect-preview-badge" style={{ background: sentimentColor }}>
-                                {dossier.current_sentiment}
-                              </span>
-                            </div>
-                          )}
+      {/* DOSSIER */}
+      <div className="dossier-section">
+        <button className="btn-dossier">
+          ◪ ATTACH DOSSIER
+        </button>
+        <div className="dossier-hint">
+          Loads Conversion Architect + Psych/Business DNA
+        </div>
+      </div>
+    </div>
 
-                          {/* Prospect summary */}
-                          {dossier?.prospect_summary && (
-                            <div className="architect-preview-section">
-                              <div className="architect-preview-section-title">Prospect Summary</div>
-                              <div className="architect-preview-text">{dossier.prospect_summary}</div>
-                            </div>
-                          )}
-
-                          {/* Remaining friction */}
-                          {dossier?.remaining_friction && (
-                            <div className="architect-preview-section">
-                              <div className="architect-preview-section-title">🔥 Remaining Friction</div>
-                              <div className="architect-preview-text">{dossier.remaining_friction}</div>
-                            </div>
-                          )}
-
-                          {/* Next objective */}
-                          {dossier?.next_strategic_objective && (
-                            <div className="architect-preview-section">
-                              <div className="architect-preview-section-title">🎯 Next Objective</div>
-                              <div className="architect-preview-text architect-preview-highlight">
-                                {dossier.next_strategic_objective}
-                              </div>
-                            </div>
-                          )}
-
-                          {/* Narrative arc */}
-                          {Array.isArray(dossier?.narrative_arc) && dossier.narrative_arc.length > 0 && (
-                            <div className="architect-preview-section">
-                              <div className="architect-preview-section-title">🗺 Narrative Arc</div>
-                              {dossier.narrative_arc.map((turn, idx) => (
-                                <div className="architect-arc-turn" key={idx}>
-                                  <span className="architect-arc-stage">{turn.stage}</span>
-                                  <div className="architect-arc-event">{turn.event}</div>
-                                  <div className="architect-arc-outcome">{turn.outcome}</div>
-                                </div>
-                              ))}
-                            </div>
-                          )}
-
-                          {/* Analysis text (truncated) */}
-                          {formData.conversionArchitectAnalysis && (
-                            <div className="architect-preview-section">
-                              <div className="architect-preview-section-title">📄 Analysis Sent to Agent</div>
-                              <pre className="architect-preview-raw">
-                                {formData.conversionArchitectAnalysis.slice(0, 800)}
-                                {formData.conversionArchitectAnalysis.length > 800 ? "\n…[truncated]" : ""}
-                              </pre>
-                            </div>
-                          )}
-
-                          {/* Chat output (truncated) */}
-                          {formData.conversionArchitectChatOutput && (
-                            <div className="architect-preview-section">
-                              <div className="architect-preview-section-title">💬 Chat Output Sent</div>
-                              <pre className="architect-preview-raw">
-                                {formData.conversionArchitectChatOutput.slice(0, 600)}
-                                {formData.conversionArchitectChatOutput.length > 600 ? "\n…[truncated]" : ""}
-                              </pre>
-                            </div>
-                          )}
-
-                        </div>
-                      )}
-                    </div>
-                  ) : null;
-                })()}
-                {/* ─────────────────────────────────────────────────────── */}
-                {renderInput("userName", "Your Name - Role/Title", "text", "Your name - Role/Title")}
-                {renderInput("userCompanyName", "Company Name", "text", "Your Company Name")}
-                {renderTextarea(
-                  "userCompanyServices",
-                  "Your Company: Business, Products, and Services",
-                  3,
-                  "Please provide clear information about your company, including Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc."
-                )}
-              </>
-            )}
-
-            {step === 2 && (
-              <>
-                <div className="section-title">User B - Prospect Info</div>
-                {renderInput(
-                  "prospectName",
-                  "Prospect's Name - Role/Title",
-                  "text",
-                  "Prospect's Name - Role/Title"
-                )}
-                {renderInput(
-                  "customerCompanyName",
-                  "Prospect Company Name",
-                  "text",
-                  "Prospect Company Name"
-                )}
-                {renderTextarea(
-                  "customerCompanyServices",
-                  "Prospect Company: Business, Products, and Services",
-                  3,
-                  "Please provide clear information about your prospect company, including its Industry, Products/Services, Target Audience, Market Position, Website Link, News/Press Releases, etc."
-                )}
-              </>
-            )}
-
-            {step === 3 && (
-              <div className="scrollable-step">
-                <div className="section-title">Contextual Information</div>
-                <ExpandableTextarea
-                  id="meetingGoal"
-                  label="Meeting Goal"
-                  placeholder="Describe your objective clearly (e.g., secure a partnership, schedule a demo, explore collaboration, close a sale)."
-                  maxRows={5}
-                  formData={formData}
-                  setFormData={setFormData}
-                  errors={errors}
-                />
-                <ExpandableTextarea
-                  id="meetingEmail"
-                  label="Email (Optional)"
-                  placeholder="Copy and paste the entire email thread with the prospect, including your initial outreach"
-                  maxRows={5}
-                  formData={formData}
-                  setFormData={setFormData}
-                  errors={errors}
-                />
-                <ExpandableTextarea
-                  id="meetingMessage"
-                  label="Social Media Message History (Optional)"
-                  placeholder="Copy and paste any relevant social media conversations (e.g., LinkedIn, Twitter) with the prospect. (Optional)"
-                  maxRows={5}
-                  formData={formData}
-                  setFormData={setFormData}
-                  errors={errors}
-                />
-                <ExpandableTextarea
-                  id="meetingNote"
-                  label="Note (Optional)"
-                  placeholder="For example, additional information useful for the Agent, such as personality analysis results, BusinessDNA insights, key pain points, potential objections, and relationship history with the prospect, etc."
-                  maxRows={5}
-                  formData={formData}
-                  setFormData={setFormData}
-                  errors={errors}
-                />
-                <ExpandableTextarea
-                  id="conversionArchitectDossier"
-                  label="Conversion Architect Dossier (Optional)"
-                  placeholder="Paste the structured dossier from prior meetings if you already have one."
-                  maxRows={8}
-                  formData={formData}
-                  setFormData={setFormData}
-                  errors={errors}
-                />
-                <ExpandableTextarea
-                  id="conversionArchitectAnalysis"
-                  label="Conversion Architect Analysis (Optional)"
-                  placeholder="Imported analysis from the selected Conversion Architect file."
-                  maxRows={8}
-                  formData={formData}
-                  setFormData={setFormData}
-                  errors={errors}
-                />
-                <ExpandableTextarea
-                  id="conversionArchitectChatOutput"
-                  label="Conversion Architect Chat Output (Optional)"
-                  placeholder="Imported architect/prospect chat output from the selected file."
-                  maxRows={8}
-                  formData={formData}
-                  setFormData={setFormData}
-                  errors={errors}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="btn-container">
-            {step > 1 && (
-              <button className="btn back" onClick={handleBack}>
-                Back
-              </button>
-            )}
-            {step < 3 && (
-              <button className="btn next" onClick={handleNext}>
-                Next →
-              </button>
-            )}
-            {step === 3 && (
-              <button className="btn start" onClick={handleStart}>
-                Start
-              </button>
-            )}
-          </div>
-        </>
-      )}
+    {/* CTA */}
+    <button className="btn-start-full" onClick={handleStart}>
+      ◪ START REAL-TIME STRATEGY
+    </button>
+  </div>
+)}
 
       {tab === "schedule" && (
         <div className="schedule-container">

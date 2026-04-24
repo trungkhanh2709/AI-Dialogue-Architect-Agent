@@ -28,12 +28,9 @@ const VITE_URL_HISTORY =
     ? URL_HISTORY_LOCAL
     : URL_HISTORY_BETA;
 const HISTORY_API_CANDIDATES = [
-  ...new Set([
-    VITE_URL_HISTORY,
-    URL_HISTORY_BETA,
-    URL_HISTORY_PROD,
-  ]),
+  ...new Set([VITE_URL_HISTORY, URL_HISTORY_BETA, URL_HISTORY_PROD]),
 ];
+const VITE_URL_HAV_BACKEND = "http://localhost:8000";
 const LOGIN_API_CANDIDATES = [...new Set([URL_BACKEND_PROD, VITE_URL_BACKEND])];
 const ACCOUNT_INFO_API_CANDIDATES = [
   ...new Set([URL_BACKEND_PROD, VITE_URL_BACKEND, URL_BACKEND_REMOBAY]),
@@ -55,8 +52,7 @@ const AI_DIALOGUE_AGENT_ENDPOINTS = {
 
 function getAiDialogueAgentEndpoint(modelKey) {
   return (
-    AI_DIALOGUE_AGENT_ENDPOINTS[modelKey] ||
-    AI_DIALOGUE_AGENT_ENDPOINTS.gemini
+    AI_DIALOGUE_AGENT_ENDPOINTS[modelKey] || AI_DIALOGUE_AGENT_ENDPOINTS.gemini
   );
 }
 
@@ -128,7 +124,7 @@ function writeCookie(url, name, value, expirationDate) {
           return;
         }
         resolve(cookie);
-      }
+      },
     );
   });
 }
@@ -192,8 +188,8 @@ async function readWebsiteAuthState() {
 async function clearWebsiteSessionCookies() {
   await Promise.all(
     ["jwt_token", "loginType", "username", "name", "creditName"].map((name) =>
-      removeCookie(WEBSITE_URL, name)
-    )
+      removeCookie(WEBSITE_URL, name),
+    ),
   );
 }
 
@@ -205,7 +201,8 @@ async function writeWebsiteSessionCookies({
   creditName = "",
   expiresInSeconds = 30 * 24 * 60 * 60,
 }) {
-  const expirationDate = Math.floor(Date.now() / 1000) + Number(expiresInSeconds || 0);
+  const expirationDate =
+    Math.floor(Date.now() / 1000) + Number(expiresInSeconds || 0);
 
   await Promise.all([
     writeCookie(WEBSITE_URL, "jwt_token", jwtToken, expirationDate),
@@ -232,7 +229,9 @@ async function mirrorWebsiteSessionCookies(session, expiresInSeconds) {
 }
 
 async function readAccountAuthState() {
-  const storedSession = normalizeAccountSession(await loadStoredAccountSession());
+  const storedSession = normalizeAccountSession(
+    await loadStoredAccountSession(),
+  );
   if (storedSession.loggedIn) {
     if (!isAccountSessionExpired(storedSession)) {
       return storedSession;
@@ -271,9 +270,7 @@ async function postJson(baseUrl, path, payload, extraHeaders = {}) {
       body: JSON.stringify(payload),
     });
   } catch (error) {
-    throw new Error(
-      `[${baseUrl}${path}] ${error?.message || String(error)}`
-    );
+    throw new Error(`[${baseUrl}${path}] ${error?.message || String(error)}`);
   }
 
   const raw = await response.text();
@@ -300,13 +297,16 @@ async function fetchHistoryWithFallback(path, options) {
       const externalSignal = options?.signal;
       if (externalSignal) {
         if (externalSignal.aborted) controller.abort();
-        else externalSignal.addEventListener("abort", () => controller.abort(), { once: true });
+        else
+          externalSignal.addEventListener("abort", () => controller.abort(), {
+            once: true,
+          });
       }
 
       timeoutId = setTimeout(() => {
         try {
           controller.abort(
-            new Error(`History API request timeout after ${timeoutMs}ms`)
+            new Error(`History API request timeout after ${timeoutMs}ms`),
           );
         } catch {
           controller.abort();
@@ -367,7 +367,9 @@ async function fetchHistoryWithFallback(path, options) {
     }
   }
 
-  return lastResult || { ok: false, status: 0, error: "History API unavailable" };
+  return (
+    lastResult || { ok: false, status: 0, error: "History API unavailable" }
+  );
 }
 
 async function resolveAccountEmail(baseUrl, loginUsername, requestId) {
@@ -381,7 +383,7 @@ async function resolveAccountEmail(baseUrl, loginUsername, requestId) {
         request_id: requestId,
         username: loginUsername,
         type: "user_type",
-      }
+      },
     );
 
     if (!response.ok) {
@@ -424,9 +426,10 @@ async function loginAccountWithFallback(payload) {
       }
       lastError = { ok: false, baseUrl, ...result };
       diagnostics.push(
-        `${baseUrl}: HTTP ${result?.response?.status || 0} ${
-          result?.data?.detail || result?.data?.message || "request failed"
-        }`
+        `${baseUrl}: HTTP ${result?.response?.status || 0} ${result?.data
+          ?.detail ||
+          result?.data?.message ||
+          "request failed"}`,
       );
     } catch (error) {
       lastError = {
@@ -601,7 +604,7 @@ function startTimer() {
         chrome.tabs.sendMessage(
           tab.id,
           { type: "TIMER_UPDATE", payload: { minutes, seconds } },
-          () => {}
+          () => {},
         );
       });
     });
@@ -617,7 +620,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         try {
           const meetingData = msg?.payload?.meetingData || null;
           if (!meetingData || typeof meetingData !== "object") {
-            sendResponse({ ok: false, status: 400, error: "Missing meetingData" });
+            sendResponse({
+              ok: false,
+              status: 400,
+              error: "Missing meetingData",
+            });
             return;
           }
 
@@ -645,7 +652,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             },
             () => {
               sendResponse({ ok: true });
-            }
+            },
           );
         } catch (err) {
           sendResponse({ ok: false, status: 0, error: String(err) });
@@ -682,7 +689,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       return true;
 
     case "LIVE_TRANSCRIPT":
-      if (!shouldForwardCaptionMessage(sender, "LIVE_TRANSCRIPT", msg.payload)) {
+      if (
+        !shouldForwardCaptionMessage(sender, "LIVE_TRANSCRIPT", msg.payload)
+      ) {
         sendResponse({ ok: true, ignored: true });
         return true;
       }
@@ -796,7 +805,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               ? loginResult.data
               : {};
           const accessToken = String(
-            loginPayload?.access_token || loginPayload?.token || ""
+            loginPayload?.access_token || loginPayload?.token || "",
           ).trim();
           const loginSucceeded =
             loginPayload?.login === true || Boolean(accessToken);
@@ -815,7 +824,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             (await resolveAccountEmailWithFallback(username, requestId)) ||
             username;
           const displayName = normalizeDisplayName(username);
-          const expiresInSeconds = Number(loginPayload?.expires_in || 0) || null;
+          const expiresInSeconds =
+            Number(loginPayload?.expires_in || 0) || null;
           const accountSession = normalizeAccountSession({
             loggedIn: true,
             username: email,
@@ -904,7 +914,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         try {
           const { profileId, email } = msg.payload || {};
           if (!profileId) {
-            sendResponse({ ok: false, status: 400, error: "Missing profileId" });
+            sendResponse({
+              ok: false,
+              status: 400,
+              error: "Missing profileId",
+            });
             return;
           }
           sendResponse({
@@ -936,23 +950,26 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
 
           const take = Number(msg?.payload?.take || 50);
-          const result = await fetchHistoryWithFallback("/api/v1/tool-history/get", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              Authorization: `Bearer ${authState.jwtToken}`,
-              username: authState.username,
+          const result = await fetchHistoryWithFallback(
+            "/api/v1/tool-history/get",
+            {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${authState.jwtToken}`,
+                username: authState.username,
+              },
+              body: JSON.stringify({
+                take,
+                skip: 0,
+                filterToolName: [
+                  "Conversion Architect",
+                  "AI Conversion Architect",
+                  "Sales Trinity",
+                ],
+              }),
             },
-            body: JSON.stringify({
-              take,
-              skip: 0,
-              filterToolName: [
-                "Conversion Architect",
-                "AI Conversion Architect",
-                "Sales Trinity",
-              ],
-            }),
-          });
+          );
 
           sendResponse(result);
         } catch (err) {
@@ -997,7 +1014,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 Authorization: `Bearer ${authState.jwtToken}`,
                 username: authState.username,
               },
-            }
+            },
           );
 
           sendResponse(result);
@@ -1017,7 +1034,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ email, add_on_type }),
-              }
+              },
             );
             const fallbackRaw = await fallbackRes.text();
             let fallbackData;
@@ -1052,7 +1069,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
           const m = redirectUrl.match(/access_token=([^&]+)/);
           sendResponse({ token: m ? m[1] : null });
-        }
+        },
       );
       return true;
 
@@ -1087,8 +1104,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
       const { email: meetingEmail } = msg.payload;
       fetch(
         `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
-          meetingEmail
-        )}`
+          meetingEmail,
+        )}`,
       )
         .then((res) => res.json())
         .then((data) => {
@@ -1102,7 +1119,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           sendResponse({
             data: { meeting: { meetings: [] } },
             error: err.message,
-          })
+          }),
         );
 
       return true; // giữ sendResponse mở
@@ -1113,13 +1130,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const { email, meetingId, payload } = msg.payload;
           const res = await fetch(
             `${VITE_URL_BACKEND}/api/meeting_prepare/update_meeting_prepare/${encodeURIComponent(
-              email
+              email,
             )}/${meetingId}`,
             {
               method: "PUT",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ meetings: [payload] }),
-            }
+            },
           );
 
           if (!res.ok) throw new Error("Update failed: " + res.status);
@@ -1138,9 +1155,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const { email, meetingId } = msg.payload;
           const res = await fetch(
             `${VITE_URL_BACKEND}/api/meeting_prepare/delete_meeting_prepare/${encodeURIComponent(
-              email
+              email,
             )}/${meetingId}`,
-            { method: "DELETE" }
+            { method: "DELETE" },
           );
 
           if (!res.ok) throw new Error("Delete failed: " + res.status);
@@ -1151,8 +1168,8 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           // Sau khi xoá thì fetch lại danh sách mới
           const res2 = await fetch(
             `${VITE_URL_BACKEND}/api/meeting_prepare/get_meeting_prepare/${encodeURIComponent(
-              email
-            )}`
+              email,
+            )}`,
           );
           const newData = await res2.json();
           chrome.runtime.sendMessage({
@@ -1171,13 +1188,13 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const { email, payload } = msg.payload;
           const res = await fetch(
             `${VITE_URL_BACKEND}/api/meeting_prepare/create_meeting_prepare/${encodeURIComponent(
-              email
+              email,
             )}`,
             {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({ username: email, meetings: [payload] }),
-            }
+            },
           );
 
           if (!res.ok) throw new Error("Create failed: " + res.status);
@@ -1188,6 +1205,32 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           sendResponse({ error: err.message });
         }
       })();
+      return true;
+
+    case "GET_BRAND_DNA":
+      (async () => {
+        try {
+          const { email } = msg.payload || {};
+
+          const res = await fetch(
+            `${VITE_URL_HAV_BACKEND}/api/context/autofill/brand-dna`,
+            {
+              method: "GET",
+              headers: email ? { username: email } : {},
+            },
+          );
+
+          const data = await res.json();
+
+          // lưu vào storage
+          chrome.storage.local.set({ brandDNA: data });
+
+          sendResponse({ ok: true, data });
+        } catch (err) {
+          sendResponse({ ok: false, error: String(err) });
+        }
+      })();
+
       return true;
 
     case "SEND_MESSAGE_TO_AGENT":
@@ -1216,8 +1259,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             finalizedMessage,
             uiTimer,
             overrideCommand,
-          } =
-            msg.payload || {};
+          } = msg.payload || {};
 
           const payload = {
             ...meetingData,
@@ -1231,14 +1273,11 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const selectedModelKey = meetingData?.agentModelKey || "gemini";
           const agentEndpoint = getAiDialogueAgentEndpoint(selectedModelKey);
 
-          const response = await fetch(
-            `${VITE_URL_BACKEND}${agentEndpoint}`,
-            {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(payload),
-            }
-          );
+          const response = await fetch(`${VITE_URL_BACKEND}${agentEndpoint}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
 
           // nếu BE lỗi thì vẫn đọc text để trả về UI debug nhanh
           if (!response.ok) {
@@ -1312,7 +1351,9 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               const selectedModelKey = meetingData?.agentModelKey || "gemini";
 
               if (selectedModelKey !== "groq") {
-                const agentEndpoint = getAiDialogueAgentEndpoint(selectedModelKey);
+                const agentEndpoint = getAiDialogueAgentEndpoint(
+                  selectedModelKey,
+                );
 
                 // Immediately notify the frontend that the request has been sent
                 // so the watchdog timer gets reset before the slow await fetch.
@@ -1321,15 +1362,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   payload: { requestId },
                 });
 
-                const res = await fetch(
-                  `${VITE_URL_BACKEND}${agentEndpoint}`,
-                  {
-                    method: "POST",
-                    headers: { "Content-Type": "application/json" },
-                    body: JSON.stringify(payload),
-                    signal: AbortSignal.timeout(22000),
-                  }
-                );
+                const res = await fetch(`${VITE_URL_BACKEND}${agentEndpoint}`, {
+                  method: "POST",
+                  headers: { "Content-Type": "application/json" },
+                  body: JSON.stringify(payload),
+                  signal: AbortSignal.timeout(22000),
+                });
 
                 if (!res.ok) {
                   const text = await res.text().catch(() => "");
@@ -1357,10 +1395,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
                 const data = await res.json().catch(() => ({}));
                 const content =
-                  data?.content ??
-                  data?.data?.content ??
-                  data?.text ??
-                  "";
+                  data?.content ?? data?.data?.content ?? data?.text ?? "";
 
                 chrome.tabs.sendMessage(activeTabId, {
                   type: "AGENT_STREAM_CHUNK",
@@ -1387,7 +1422,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   headers: { "Content-Type": "application/json" },
                   body: JSON.stringify(payload),
                   signal: AbortSignal.timeout(22000),
-                }
+                },
               );
 
               if (!res.ok || !res.body) {
@@ -1440,7 +1475,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               });
 
               sendResponse({ ok: true });
-            }
+            },
           );
         } catch (err) {
           reportExtensionError({
@@ -1466,7 +1501,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
 
           const res = await fetch(
             `${VITE_URL_BACKEND}/api/meeting_prepare/upsert_transcript/${encodeURIComponent(
-              email
+              email,
             )}/${meetingId}`,
             {
               method: "POST",
@@ -1475,7 +1510,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                 meeting_transcript: transcriptText,
                 transcript_id: transcriptId || null,
               }),
-            }
+            },
           );
 
           if (!res.ok) throw new Error("Save meeting failed");
@@ -1507,7 +1542,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
                   payload?.socialMediaUrl?.map((x) => x.socialMediaUrl) || [],
                 msg: payload?.msg || [],
               }),
-            }
+            },
           );
 
           const raw = await res.text();
@@ -1588,7 +1623,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
               headers: {
                 Authorization: `Bearer ${app_token}`,
               },
-            }
+            },
           );
 
           if (!tokRes.ok) {
@@ -1615,7 +1650,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
             "https://www.googleapis.com/oauth2/v3/userinfo",
             {
               headers: { Authorization: `Bearer ${access_token}` },
-            }
+            },
           );
 
           if (!uiRes.ok) {
@@ -1747,7 +1782,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           }
 
           const url = `${VITE_URL_BACKEND}/api/calendar/event/${encodeURIComponent(
-            event_id
+            event_id,
           )}`;
 
           const res = await fetch(url, {
@@ -1777,38 +1812,38 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         }
       })();
       return true;
-// ===== ADD: Refresh Meet caption DOM =====
-case "REFRESH_MEET_CAPTION_DOM":
-  chrome.tabs.query({ url: "https://meet.google.com/*" }, (tabs) => {
-    if (!tabs?.length) {
-      sendResponse({
-        ok: false,
-        error: "No Google Meet tab found (https://meet.google.com/*)",
-        details: { tabsFound: 0 },
-      });
-      return;
-    }
-
-    // ưu tiên active tab trong current window nếu có
-    const activeTab = tabs.find((t) => t.active) || tabs[0];
-
-    chrome.tabs.sendMessage(
-      activeTab.id,
-      { type: "REFRESH_CAPTION_OBSERVER" },
-      (details) => {
-        if (chrome.runtime.lastError) {
+    // ===== ADD: Refresh Meet caption DOM =====
+    case "REFRESH_MEET_CAPTION_DOM":
+      chrome.tabs.query({ url: "https://meet.google.com/*" }, (tabs) => {
+        if (!tabs?.length) {
           sendResponse({
             ok: false,
-            error: `[tabs.sendMessage error] ${chrome.runtime.lastError.message}`,
-            details: { tabId: activeTab.id },
+            error: "No Google Meet tab found (https://meet.google.com/*)",
+            details: { tabsFound: 0 },
           });
           return;
         }
-        sendResponse({ ok: true, details: details || null });
-      }
-    );
-  });
-  return true;
+
+        // ưu tiên active tab trong current window nếu có
+        const activeTab = tabs.find((t) => t.active) || tabs[0];
+
+        chrome.tabs.sendMessage(
+          activeTab.id,
+          { type: "REFRESH_CAPTION_OBSERVER" },
+          (details) => {
+            if (chrome.runtime.lastError) {
+              sendResponse({
+                ok: false,
+                error: `[tabs.sendMessage error] ${chrome.runtime.lastError.message}`,
+                details: { tabId: activeTab.id },
+              });
+              return;
+            }
+            sendResponse({ ok: true, details: details || null });
+          },
+        );
+      });
+      return true;
 
     default:
       if (msg.action === "pushCaption") {
@@ -1822,7 +1857,7 @@ case "REFRESH_MEET_CAPTION_DOM":
           sendResponse(
             authState?.loggedIn
               ? { loggedIn: true, username: authState.username }
-              : { loggedIn: false }
+              : { loggedIn: false },
           );
         })();
         return true;
