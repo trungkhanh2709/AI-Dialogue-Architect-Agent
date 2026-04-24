@@ -3,6 +3,8 @@ import PopupWithSidebar from "../component/PopupWithSidebar.jsx";
 import ExpandableTextarea from "../component/ExpandableTextarea.jsx";
 import SettingLineLight from "../assets/Setting_line_light.svg?react";
 import SettingsPage from "../component/SettingsPage.jsx";
+import ResultBlock from "../component/ResultBlock.jsx";
+import ResultModal from "../component/ResultModal.jsx";
 
 const DEFAULT_AGENT_MODEL_KEY = "groq";
 
@@ -27,6 +29,16 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
   const decodedCookieEmail = decodeURIComponent(cookieUserName || "");
   const [tab, setTab] = useState("schedule");
 
+  const [toolHistoryOptions, setToolHistoryOptions] = useState([]);
+  const [selectedToolHistory, setSelectedToolHistory] = useState("");
+  const [showDossier, setShowDossier] = useState(false);
+  const [generatingDossier, setGeneratingDossier] = useState(false);
+
+  // For modal
+  const [modalQueue, setModalQueue] = useState([]);
+  const [modalIdx, setModalIdx] = useState(0);
+  const [modalOpen, setModalOpen] = useState(false);
+
   useEffect(() => {
     if (!decodedCookieEmail) return;
 
@@ -48,6 +60,81 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
       }
     );
   }, [decodedCookieEmail]);
+
+  useEffect(() => {
+    chrome.runtime.sendMessage(
+      { type: "GET_TOOL_HISTORY" },
+      (res) => {
+        if (res?.ok) {
+          setToolHistoryOptions(res.data || []);
+        } else {
+          setToolHistoryOptions([]);
+        }
+      }
+    );
+  }, []);
+
+  const handleArchiveDossier = () => {
+    const selectedHistory = toolHistoryOptions.find(
+      (item) => item._id === selectedToolHistory
+    );
+
+    if (!selectedHistory) {
+      alert("Please select tool history");
+      return;
+    }
+
+    let parsedResult = {};
+    try {
+      parsedResult =
+        typeof selectedHistory.result === "string"
+          ? JSON.parse(selectedHistory.result)
+          : selectedHistory.result || {};
+    } catch (e) {
+      console.error("Parse result error:", e);
+    }
+
+    const architectMessages = parsedResult?.architectMessages || [];
+    const rawConversation = architectMessages
+      .map((m) => `${m.role}: ${m.content}`)
+      .join("\n");
+
+    const existingDossier = {
+      psych: parsedResult?.dossier?.psych || "",
+      business: parsedResult?.dossier?.business || "",
+    };
+
+    if (!rawConversation) {
+      alert("No conversation history found");
+      return;
+    }
+
+    setGeneratingDossier(true);
+    chrome.runtime.sendMessage(
+      {
+        type: "ARCHIVE_CONVERSATION",
+        payload: {
+          raw_conversation_history: rawConversation,
+          existing_dossier: existingDossier,
+        },
+      },
+      (res) => {
+        setGeneratingDossier(false);
+        if (!res?.ok) {
+          alert("Archive failed: " + (res?.error || ""));
+          return;
+        }
+
+        const data = res.data?.content;
+        setFormData((prev) => ({
+          ...prev,
+          conversionArchitectDossier:
+            typeof data === "string" ? data : JSON.stringify(data, null, 2),
+        }));
+        setShowDossier(true);
+      }
+    );
+  };
 
   const validateStep = () => {
     const newErrors = {};
@@ -290,6 +377,60 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
                   setFormData={setFormData}
                   errors={errors}
                 />
+                
+                <div style={{ marginBottom: 12 }}>
+                  <div className="text_label">Tool History</div>
+                  <select
+                    value={selectedToolHistory}
+                    onChange={(e) => setSelectedToolHistory(e.target.value)}
+                    style={{ width: "100%", padding: "8px", borderRadius: "6px", backgroundColor: "rgba(255, 255, 255, 0.05)", color: "#fff", border: "1px solid #d1d5db" }}
+                  >
+                    <option value="">Select...</option>
+                    {toolHistoryOptions
+                      .filter((item) => item.toolName === "Conversion Architect")
+                      .map((item) => (
+                        <option key={item._id} value={item._id}>
+                          {item.title}
+                        </option>
+                      ))}
+                  </select>
+                </div>
+                <button
+                  type="button"
+                  className={`bm-btn bm-btn--primary ${generatingDossier ? "loading" : ""}`}
+                  onClick={handleArchiveDossier}
+                  style={{ marginTop: 8, marginBottom: 16 }}
+                  disabled={generatingDossier}
+                >
+                  {generatingDossier ? "Generating..." : "Generate Dossier"}
+                </button>
+                {formData.conversionArchitectDossier && showDossier && (
+                  <div style={{ marginTop: 12, marginBottom: 12 }}>
+                    <ResultBlock
+                      label="Conversion Architect Dossier"
+                      content={formData.conversionArchitectDossier}
+                      onOpen={() => {
+                        setModalQueue([
+                          {
+                            key: "dossier",
+                            label: "Conversion Architect Dossier",
+                            text: formData.conversionArchitectDossier,
+                          },
+                        ]);
+                        setModalIdx(0);
+                        setModalOpen(true);
+                      }}
+                      onRemove={() => {
+                        setFormData((prev) => ({
+                          ...prev,
+                          conversionArchitectDossier: "",
+                        }));
+                        setShowDossier(false);
+                      }}
+                    />
+                  </div>
+                )}
+
                 <ExpandableTextarea
                   id="conversionArchitectDossier"
                   label="Conversion Architect Dossier (Optional)"
@@ -334,6 +475,39 @@ export default function PopupPage({ onStartMeeting, cookieUserName }) {
       )}
 
       {tab === "settings" && <SettingsPage onBack={() => setTab("instant")} />}
+
+      {modalOpen && modalQueue[modalIdx] && (
+        <ResultModal
+          open={true}
+          title={modalQueue[modalIdx].label}
+          value={modalQueue[modalIdx].text}
+          setValue={(v) => {
+            setModalQueue((prev) => {
+              const copy = [...prev];
+              copy[modalIdx] = { ...copy[modalIdx], text: v };
+              return copy;
+            });
+          }}
+          onCopy={() =>
+            navigator.clipboard
+              ?.writeText(modalQueue[modalIdx].text)
+              .catch(() => {})
+          }
+          onClose={() => {
+            setModalOpen(false);
+            setModalQueue([]);
+            setModalIdx(0);
+          }}
+          onSave={(content) => {
+            setFormData((prev) => ({
+              ...prev,
+              conversionArchitectDossier: content,
+            }));
+            setModalOpen(false);
+            setModalQueue([]);
+          }}
+        />
+      )}
     </div>
   );
 }
