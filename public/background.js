@@ -14,6 +14,7 @@ const VITE_URL_BACKEND =
     : ACTIVE_BACKEND === "local"
     ? URL_BACKEND_LOCAL
     : URL_BACKEND_BETA;
+const VITE_URL_HAV_BACKEND =  "http://localhost:8000";
 const TELEMETRY_ENDPOINT = "/api/telemetry/extension-error";
 const EXTENSION_VERSION = chrome.runtime.getManifest().version;
 const ERROR_DEDUP_TTL_MS = 5 * 60 * 1000;
@@ -423,6 +424,32 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
         );
 
       return true; // giữ sendResponse mở
+
+        case "GET_BRAND_DNA":
+  (async () => {
+    try {
+      const { email } = msg.payload || {};
+
+      const res = await fetch(
+        `${VITE_URL_HAV_BACKEND}/api/context/autofill/brand-dna`,
+        {
+          method: "GET",
+          headers: email ? { username: email } : {},
+        }
+      );
+
+      const data = await res.json();
+
+      // lưu vào storage
+      chrome.storage.local.set({ brandDNA: data });
+
+      sendResponse({ ok: true, data });
+    } catch (err) {
+      sendResponse({ ok: false, error: String(err) });
+    }
+  })();
+
+  return true;
 
     case "UPDATE_MEETING_PREPARE":
       (async function() {
