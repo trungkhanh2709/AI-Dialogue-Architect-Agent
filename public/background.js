@@ -5,16 +5,16 @@ let timerInterval = null;
 const urlConnect = `https://accounts.google.com/o/oauth2/auth?client_id=242934590241-su4r9eepcub5q56c5cupee44lbsfal51.apps.googleusercontent.com&response_type=token&redirect_uri=https://${chrome.runtime.id}.chromiumapp.org/&scope=https://www.googleapis.com/auth/calendar`;
 const URL_BACKEND_PROD = "https://api-as.reelsightsai.com";
 const URL_BACKEND_BETA = "https://beta.as.reelsightsai.com";
-const URL_BACKEND_LOCAL = "http://localhost:8000";
+const URL_BACKEND_LOCAL = "http://localhost:4000";
 const URL_BACKEND_REMOBAY = "https://api.reelsights.com";
 const URL_HISTORY_PROD = "https://api.reelsightsai.com";
 const URL_HISTORY_BETA = "https://beta.hav.reelsightsai.com";
-const URL_HISTORY_LOCAL = "http://localhost:8080";
+const URL_HISTORY_LOCAL = "http://localhost:8000";
 const WEBSITE_URL = "https://reelsightsai.com/";
 const WEBSITE_DASHBOARD_URL = "https://reelsightsai.com/dashboard";
 const ACCOUNT_SESSION_STORAGE_KEY = "rsai_account_session_v1";
 // Change this to: "prod" | "beta" | "local"
-const ACTIVE_BACKEND = "beta";
+const ACTIVE_BACKEND = "local";
 const VITE_URL_BACKEND =
   ACTIVE_BACKEND === "prod"
     ? URL_BACKEND_PROD
@@ -30,7 +30,6 @@ const VITE_URL_HISTORY =
 const HISTORY_API_CANDIDATES = [
   ...new Set([VITE_URL_HISTORY, URL_HISTORY_BETA, URL_HISTORY_PROD]),
 ];
-const VITE_URL_HAV_BACKEND = "http://localhost:8000";
 const LOGIN_API_CANDIDATES = [...new Set([URL_BACKEND_PROD, VITE_URL_BACKEND])];
 const ACCOUNT_INFO_API_CANDIDATES = [
   ...new Set([URL_BACKEND_PROD, VITE_URL_BACKEND, URL_BACKEND_REMOBAY]),
@@ -1213,7 +1212,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           const { email } = msg.payload || {};
 
           const res = await fetch(
-            `${VITE_URL_HAV_BACKEND}/api/context/autofill/brand-dna`,
+            `${VITE_URL_HISTORY}/api/context/autofill/brand-dna`,
             {
               method: "GET",
               headers: email ? { username: email } : {},
@@ -1843,6 +1842,94 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
           },
         );
       });
+      return true;
+
+      function getUsernameCookie() {
+        return new Promise((resolve) => {
+          chrome.cookies.get(
+            {
+              url: "https://reelsightsai.com", // ✅ FIX domain
+
+              name: "username",
+            },
+            (cookie) => {
+              resolve(cookie?.value || null);
+            },
+          );
+        });
+      }
+      function getJwtToken() {
+        return new Promise((resolve) => {
+          chrome.cookies.get(
+            {
+              url: "https://reelsightsai.com", // ✅ FIX domain
+              name: "jwt_token",
+            },
+            (cookie) => {
+              resolve(cookie ? cookie.value : null);
+            },
+          );
+        });
+      }
+case "ARCHIVE_CONVERSATION":
+  fetch(`${VITE_URL_BACKEND}/api/ai_dialogue_architect_agent/archive`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(msg.payload), // ✅ đúng
+  })
+    .then((res) => res.json())
+    .then((data) => {
+      sendResponse({ ok: true, data });
+    })
+    .catch((err) => {
+      sendResponse({ ok: false, error: err.message });
+    });
+
+  return true;
+
+    case "GET_TOOL_HISTORY":
+      (async () => {
+        try {
+          const username = await getUsernameCookie();
+          const token = await getJwtToken();
+          console.log("JWT TOKEN:", token);
+          const res = await fetch(
+            `${VITE_URL_HISTORY}/api/v1/tool-history/get`,
+            {
+              method: "POST", // ✅ FIX
+              headers: {
+                "Content-Type": "application/json",
+                Authorization: `Bearer ${token}`, // ✅ FIX
+              },
+              body: JSON.stringify({
+                take: 28,
+                skip: 0,
+                filterToolName: [],
+                search: "",
+                folderPath: null,
+              }),
+              credentials: "include", // ✅ nếu dùng cookie
+            },
+          );
+
+          const data = await res.json(); // ❗ bỏ text + parse tay
+
+          sendResponse({
+            ok: res.ok,
+            status: res.status,
+            data: data?.histories || [], // ❗ CHỈ lấy histories
+            count: data?.count || 0,
+          });
+        } catch (err) {
+          sendResponse({
+            ok: false,
+            status: 0,
+            data: [],
+            error: String(err),
+          });
+        }
+      })();
+
       return true;
 
     default:

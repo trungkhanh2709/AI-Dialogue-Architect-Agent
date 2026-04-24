@@ -107,3 +107,39 @@ input[type="datetime-local"]:empty::before {
   color: #ffffff;
   margin: 8px 0;
 }
+
+
+.meeting-config {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* GRID */
+.meeting-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+/* CONTEXT */
+.meeting-context {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* BUTTON */
+.generate-btn {
+  background: #5b21b6; /* deep violet */
+  color: black;
+  border: none;
+  padding: 14px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.generate-btn:hover {
+  opacity: 0.9;
+}

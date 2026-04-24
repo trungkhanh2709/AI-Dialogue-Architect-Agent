@@ -19,6 +19,7 @@ import {
   normalizeConversionArchitectArtifacts,
 } from "../utils/strategistBridge";
 import { signInAndGetCalendarToken } from "../api/authGoogleCalendar"; // 👈 thêm
+import DossierSection from "./DossierSection";
 
 const LS_PERSONA_KEY = "bm.persona_profile";
 const DEFAULT_AGENT_MODEL_KEY = "groq";
@@ -120,6 +121,70 @@ export default function PopupWithSidebar({
 
   const imgUrlPsychAnalyzer = chrome.runtime.getURL("images/prospect.jpg");
   const imgUrlBussinessDNA = chrome.runtime.getURL("images/business_dna.jpg");
+
+  const [toolHistoryOptions, setToolHistoryOptions] = useState([]);
+  const [selectedToolHistory, setSelectedToolHistory] = useState("");
+  const [showDossier, setShowDossier] = useState(false);
+  const [brandDNA, setBrandDNA] = useState("");
+const [isArchiving, setIsArchiving] = useState(false);
+  useEffect(() => {
+    chrome.runtime.sendMessage(
+      { type: "GET_TOOL_HISTORY" },
+      (res) => {
+        if (res?.ok) {
+          setToolHistoryOptions(res.data || []);
+        } else {
+          setToolHistoryOptions([]);
+        }
+      }
+    );
+  }, []);
+  const fetchBrandDNA = () => {
+    chrome.runtime.sendMessage(
+      {
+        type: "GET_BRAND_DNA",
+        payload: { username: decodedCookieEmail },
+      },
+      (res) => {
+        if (!res?.ok) {
+          console.error("❌ Get BrandDNA failed:", res);
+          return;
+        }
+
+        const data = res.data;
+
+        // tuỳ BE trả array hay object
+        let content = "";
+
+        if (Array.isArray(data) && data.length > 0) {
+          content = JSON.stringify(data[0], null, 2);
+        } else if (typeof data === "object") {
+          content = JSON.stringify(data, null, 2);
+        } else {
+          content = String(data);
+        }
+
+        setBrandDNA(content);
+
+        // 🔥 quan trọng: merge vào formData KHÔNG overwrite
+        setFormData((prev) => ({
+          ...prev,
+          businessDNAResult:
+            prev.businessDNAResult && prev.businessDNAResult.trim()
+              ? prev.businessDNAResult
+              : content,
+        }));
+      }
+    );
+  };
+  useEffect(() => {
+    if (!decodedCookieEmail) return;
+
+    // chỉ load lần đầu
+    if (brandDNA && brandDNA.trim()) return;
+
+    fetchBrandDNA();
+  }, [decodedCookieEmail, brandDNA]);
 
   useEffect(() => {
     if (!selectedBlock) return;
@@ -577,6 +642,82 @@ export default function PopupWithSidebar({
     setIsEditing(true);
   };
 
+  function extractCognitiveTone(brandDNA) {
+    try {
+      const parsed =
+        typeof brandDNA === "string" ? JSON.parse(brandDNA) : brandDNA;
+
+      return parsed?.cognitive_clone_tone || "";
+    } catch {
+      return "";
+    }
+  }
+
+  const handleArchiveDossier = () => {
+  if (isArchiving) return;
+
+  setIsArchiving(true);
+
+  const selectedHistory = toolHistoryOptions.find(
+    (item) => item._id === selectedToolHistory
+  );
+
+  if (!selectedHistory) {
+    alert("Please select tool history");
+    setIsArchiving(false);
+    return;
+  }
+
+  let parsedResult = {};
+  try {
+    parsedResult =
+      typeof selectedHistory.result === "string"
+        ? JSON.parse(selectedHistory.result)
+        : selectedHistory.result || {};
+  } catch (e) {}
+
+  const architectMessages = parsedResult?.architectMessages || [];
+
+  const rawConversation = architectMessages
+    .map((m) => `${m.role}: ${m.content}`)
+    .join("\n");
+
+  // if (!rawConversation) {
+  //   alert("No conversation history found");
+  //   setIsArchiving(false);
+  //   return;
+  // }
+
+  chrome.runtime.sendMessage(
+    {
+      type: "ARCHIVE_CONVERSATION",
+      payload: {
+        raw_conversation_history: rawConversation,
+        existing_dossier: {
+          psych: parsedResult?.dossier?.psych || "",
+          business: parsedResult?.dossier?.business || "",
+        },
+      },
+    },
+    (res) => {
+      setIsArchiving(false);
+
+      if (!res?.ok) {
+        alert("Archive failed");
+        return;
+      }
+
+      const data = res.data?.content;
+
+      setFormData((prev) => ({
+        ...prev,
+        conversionArchitectDossier: JSON.stringify(data, null, 2),
+      }));
+      setShowDossier(true);
+    }
+  );
+};
+
   const handleStart = () => {
     chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
       chrome.runtime.sendMessage({ type: "START_TIMER" });
@@ -1027,6 +1168,53 @@ export default function PopupWithSidebar({
                 error={errors.title}
                 readOnly={!isEditing}
               />
+
+ <DossierSection
+  toolHistoryOptions={toolHistoryOptions}
+  selectedToolHistory={selectedToolHistory}
+  setSelectedToolHistory={setSelectedToolHistory}
+  onGenerate={handleArchiveDossier}
+  isLoading={isArchiving}
+  dossier={formData.conversionArchitectDossier}
+  showDossier={showDossier}
+  setShowDossier={setShowDossier}
+  setFormData={setFormData}
+  setModalQueue={setModalQueue}
+  setModalIdx={setModalIdx}
+  setModalOpen={setModalOpen}
+/>
+
+           
+
+
+
+              {brandDNA && (
+                <div style={{ marginTop: 12 }}>
+                  <ResultBlock
+                    label="Brand DNA (Auto)"
+                    content={brandDNA}
+                    onOpen={() => {
+                      setModalQueue([
+                        {
+                          key: "brandDNA",
+                          label: "Brand DNA",
+                          text: brandDNA,
+                        },
+                      ]);
+                      setModalIdx(0);
+                      setModalOpen(true);
+                    }}
+                    onRemove={() => {
+                      setBrandDNA("");
+                      setFormData((prev) => ({
+                        ...prev,
+                        businessDNAResult: "",
+                      }));
+                    }}
+                  />
+                </div>
+              )}
+
               <div className="agent-model-picker">
                 <div className="agent-model-picker__label">
                   AI model test routes
