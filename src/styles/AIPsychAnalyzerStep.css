@@ -383,6 +383,7 @@
 .bm-modal__title {
   font-size: 15px;
   font-weight: 800;
+  color: white;
   letter-spacing: .18px;
 }
 .bm-modal__close {

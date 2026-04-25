@@ -21,6 +21,7 @@ import {
 import { signInAndGetCalendarToken } from "../api/authGoogleCalendar"; // 👈 thêm
 import DossierSection from "./DossierSection";
 
+
 const LS_PERSONA_KEY = "bm.persona_profile";
 const DEFAULT_AGENT_MODEL_KEY = "groq";
 const AGENT_MODEL_OPTIONS = [
@@ -653,7 +654,7 @@ const [isArchiving, setIsArchiving] = useState(false);
     }
   }
 
-  const handleArchiveDossier = () => {
+ const handleArchiveDossier = () => {
   if (isArchiving) return;
 
   setIsArchiving(true);
@@ -676,46 +677,47 @@ const [isArchiving, setIsArchiving] = useState(false);
         : selectedHistory.result || {};
   } catch (e) {}
 
-  const architectMessages = parsedResult?.architectMessages || [];
+  // 🔥 FIX: extract dossier
+ const psych = parsedResult?.dossier?.psych || "";
+const business = parsedResult?.dossier?.business || "";
 
-  const rawConversation = architectMessages
-    .map((m) => `${m.role}: ${m.content}`)
-    .join("\n");
+// 🔥 lưu riêng
+setFormData((prev) => ({
+  ...prev,
+  conversionArchitectDossier: {
+    psych,
+    business,
+  },
+}));
 
-  // if (!rawConversation) {
-  //   alert("No conversation history found");
-  //   setIsArchiving(false);
-  //   return;
-  // }
+setShowDossier(true);
 
-  chrome.runtime.sendMessage(
-    {
-      type: "ARCHIVE_CONVERSATION",
-      payload: {
-        raw_conversation_history: rawConversation,
-        existing_dossier: {
-          psych: parsedResult?.dossier?.psych || "",
-          business: parsedResult?.dossier?.business || "",
-        },
-      },
-    },
-    (res) => {
-      setIsArchiving(false);
+// 🔥 modal queue 2 block
+const queue = [];
+if (psych) {
+  queue.push({
+    key: "dossier_psych",
+    label: "Dossier – Psych",
+    text: psych,
+  });
+}
+if (business) {
+  queue.push({
+    key: "dossier_business",
+    label: "Dossier – Business",
+    text: business,
+  });
+}
 
-      if (!res?.ok) {
-        alert("Archive failed");
-        return;
-      }
+setModalQueue(queue);
+setModalIdx(0);
+setModalOpen(true);
 
-      const data = res.data?.content;
+  
+  setModalIdx(0);
 
-      setFormData((prev) => ({
-        ...prev,
-        conversionArchitectDossier: JSON.stringify(data, null, 2),
-      }));
-      setShowDossier(true);
-    }
-  );
+
+  setIsArchiving(false);
 };
 
   const handleStart = () => {
