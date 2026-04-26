@@ -65,7 +65,7 @@ input[type="datetime-local"]:empty::before {
   color: #aaa;
 }
 .confirm-calendar-btn {
-  background-color: #4285f4;
+  background-color: #8A2BE2;
   color: white;
   border: none;
   border-radius: 6px;
@@ -73,16 +73,16 @@ input[type="datetime-local"]:empty::before {
   font-size: 14px;
   font-weight: 600;
   padding: 8px 16px;
+  margin: 0 auto;
   display: inline-flex;
   margin-top: 20px;
   align-items: center;
   justify-content: center;
-  float: right; /* đưa nút sang phải */
   transition: background 0.2s, transform 0.2s;
 }
 
 .confirm-calendar-btn:hover {
-  background-color: #3367d6;
+  background-color: #7f29cf;
   transform: translateY(-1px);
 }
 

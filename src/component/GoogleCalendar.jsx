@@ -229,77 +229,125 @@ const updateGoogleEventViaBackend = async (emails) => {
 
 
 
-  return (
-    <div className="calendar-section">
-      <p className="calendar-label">Schedule a meeting on Google Calendar (Optional)</p>
-      <p className="calendar-hint">
-        To add an event to Google Calendar, select the date and time, enter guest emails, then click the
-        {formData.eventId ? " Login & Update Google Calendar " : " Login & Add to Google Calendar "}
-        button below.
+return (
+  <div className="calendar-section">
+    <p className="calendar-label">Configuration</p>
 
-      </p>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "1fr 1fr 1fr",
+        gap: 12,
+      }}
+    >
+      {/* Date */}
+      <div className="input-group">
+        <label>Date</label>
+        <input
+          type="date"
+          value={
+            formData.meetingStart
+              ? formatLocalDateTime(formData.meetingStart).split("T")[0]
+              : ""
+          }
+          onChange={(e) => {
+            const date = e.target.value;
+            const time = formData.meetingStart
+              ? formatLocalDateTime(formData.meetingStart).split("T")[1]
+              : "09:00";
 
-      <div className={`calendar-options show`}>
-        <InputField
-          id="meetingStart"
-          label="Start Time"
-          type="datetime-local"
-          value={formData.meetingStart ? formatLocalDateTime(formData.meetingStart) : getDefaultDateTime()}
-          onChange={handleChangeMeetingStart}
-          error={error.meetingStart}
-          readOnly={readOnly}
-        />
-
-        <div className="input-group">
-          <label htmlFor="meetingDuration">Duration</label>
-          <select
-            id="meetingDuration"
-            value={formData.meetingDuration || "15"}
-            onChange={readOnly ? undefined : handleChange}
-            disabled={readOnly}
-          >
-            <option value="15">15 minutes</option>
-            <option value="30">30 minutes</option>
-            <option value="60">1 hour</option>
-          </select>
-        </div>
-
-        <EmailInput
-          label="Guest Emails"
-          emails={guestEmails}
-          setEmails={(newEmails) => {
-            if (!readOnly) {
-              setGuestEmails(newEmails);
-              handleChange({ target: { id: "guestEmail", value: newEmails.join(", ") } });
-            }
+            handleChangeMeetingStart({
+              target: { value: `${date}T${time}` },
+            });
           }}
-          error={error.guestEmail}
-          inputRef={emailInputRef}
-          clearTrigger={clearInput}
+          readOnly={readOnly}
+          className="sharp-input"
         />
-        {!readOnly && (
-     <button
-  className="confirm-calendar-btn"
-  onClick={() => {
-    if (formData.eventId) {
-      updateGoogleEventViaBackend(guestEmails);
-    } else {
-      handleGoogleLoginAndCreateEvent();
-    }
-  }}
->
-  {formData.eventId
-    ? "Update Google Calendar (Optional)"
-    : "Add to Google Calendar (Optional)"}
-</button>
-
-
-        )}
-
       </div>
 
+      {/* Time */}
+<div className="input-group">
+  <label>Time</label>
+
+  <input
+    type="time"
+    step="60" // 60s = chọn từng phút (có thể đổi 300 = 5 phút)
+    value={
+      formData.meetingStart
+        ? formatLocalDateTime(formData.meetingStart).split("T")[1]
+        : "09:00"
+    }
+    onChange={(e) => {
+      const time = e.target.value; // HH:mm
+      const date = formData.meetingStart
+        ? formatLocalDateTime(formData.meetingStart).split("T")[0]
+        : new Date().toISOString().slice(0, 10);
+
+      handleChangeMeetingStart({
+        target: { value: `${date}T${time}` },
+      });
+    }}
+    className="sharp-input"
+    disabled={readOnly}
+  />
+</div>
+
+      {/* Platform */}
+      <div className="input-group">
+        <label>Meeting Platform</label>
+        <select
+          value={formData.meetingPlatform || "google_meet"}
+          onChange={(e) =>
+            handleChange({
+              target: { id: "meetingPlatform", value: e.target.value },
+            })
+          }
+          disabled={readOnly}
+          className="sharp-input"
+        >
+          <option value="google_meet">Google Meet</option>
+          <option value="zoom">Zoom</option>
+        </select>
+      </div>
     </div>
-  );
+
+    {/* giữ nguyên phần email + button */}
+    <div style={{ marginTop: 16 }}>
+      <EmailInput
+        label="Guest Emails"
+        emails={guestEmails}
+        setEmails={(newEmails) => {
+          if (!readOnly) {
+            setGuestEmails(newEmails);
+            handleChange({
+              target: { id: "guestEmail", value: newEmails.join(", ") },
+            });
+          }
+        }}
+        error={error.guestEmail}
+        inputRef={emailInputRef}
+        clearTrigger={clearInput}
+      />
+
+      {!readOnly && (
+        <button
+          className="confirm-calendar-btn"
+          onClick={() => {
+            if (formData.eventId) {
+              updateGoogleEventViaBackend(guestEmails);
+            } else {
+              handleGoogleLoginAndCreateEvent();
+            }
+          }}
+        >
+          {formData.eventId
+            ? "Update Google Calendar"
+            : "[ ◪ ] GENERATE MEETING BRIEF & INVITE"}
+        </button>
+      )}
+    </div>
+  </div>
+);
 };
 
 export default GoogleCalendar;

@@ -80,7 +80,7 @@ export default function CollapsibleSection({
               </div>
             )} */}
 
-          <div className="section-divider" />
+          {/* <div className="section-divider" /> */}
         </div>
       </div>
     </div>

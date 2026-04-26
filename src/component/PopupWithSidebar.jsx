@@ -23,7 +23,7 @@ import DossierSection from "./DossierSection";
 
 
 const LS_PERSONA_KEY = "bm.persona_profile";
-const DEFAULT_AGENT_MODEL_KEY = "groq";
+const DEFAULT_AGENT_MODEL_KEY = "gemini";
 const AGENT_MODEL_OPTIONS = [
   {
     key: "groq",
@@ -1180,14 +1180,14 @@ setTempBlocks((prev) => [
             )}
 
             {/* Step 1 */}
-            <CollapsibleSection
+            {/* <CollapsibleSection
               step={1}
-              title="Step 1: Meeting Information"
+              title=""
               currentStep={currentStep}
               setCurrentStep={setCurrentStep}
               openSections={openSections}
               setOpenSections={setOpenSections}
-            >
+            > */}
               <InputField
                 id="title"
                 label="Title"
@@ -1245,7 +1245,7 @@ setTempBlocks((prev) => [
                 </div>
               )}
 
-              <div className="agent-model-picker">
+              {/* <div className="agent-model-picker">
                 <div className="agent-model-picker__label">
                   AI model test routes
                 </div>
@@ -1276,7 +1276,7 @@ setTempBlocks((prev) => [
                     </button>
                   ))}
                 </div>
-              </div>
+              </div> */}
               <GoogleCalendar
                 formData={formData}
                 handleChange={handleChange}
@@ -1287,10 +1287,31 @@ setTempBlocks((prev) => [
                 setCurrentStep={setCurrentStep}
                 setOpenSections={setOpenSections}
               />
-            </CollapsibleSection>
+
+               <ExpandableTextarea
+                id="meetingGoal"
+                label="Meeting Goal"
+                placeholder="Describe your objective clearly (e.g., secure a partnership, schedule a demo, explore collaboration, close a sale)."
+                maxRows={5}
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+              />
+                <ExpandableTextarea
+                id="meetingMessage"
+                label="Social Media Message History (Optional)"
+                placeholder="Copy and paste any relevant social media conversations (e.g., LinkedIn, Twitter) with the prospect. (Optional)"
+                maxRows={5}
+                formData={formData}
+                setFormData={setFormData}
+                errors={errors}
+                readOnly={!isEditing}
+              />
+            {/* </CollapsibleSection> */}
 
             {/* Step 2: User A */}
-            <CollapsibleSection
+            {/* <CollapsibleSection
               step={2}
               title="Step 2: User A – Your Info"
               currentStep={currentStep}
@@ -1443,10 +1464,10 @@ setTempBlocks((prev) => [
                   </button>
                 )}
               </div>
-            </CollapsibleSection>
+            </CollapsibleSection> */}
 
             {/* Step 3: Prospect */}
-            <CollapsibleSection
+            {/* <CollapsibleSection
               step={3}
               title="Step 3: User B – Prospect Info"
               currentStep={currentStep}
@@ -1637,10 +1658,10 @@ setTempBlocks((prev) => [
                   {generating ? "Generating..." : "Generate"}
                 </button>
               </div>
-            </CollapsibleSection>
+            </CollapsibleSection> */}
 
             {/* Step 4 */}
-            <CollapsibleSection
+            {/* <CollapsibleSection
               step={4}
               title="Step 4: Contextual Information"
               currentStep={currentStep}
@@ -1659,16 +1680,7 @@ setTempBlocks((prev) => [
                 readOnly={!isEditing}
               />
 
-              <ExpandableTextarea
-                id="meetingGoal"
-                label="Meeting Goal"
-                placeholder="Describe your objective clearly (e.g., secure a partnership, schedule a demo, explore collaboration, close a sale)."
-                maxRows={5}
-                formData={formData}
-                setFormData={setFormData}
-                errors={errors}
-                readOnly={!isEditing}
-              />
+             
               <ExpandableTextarea
                 id="meetingEmail"
                 label="Email (Optional)"
@@ -1679,16 +1691,7 @@ setTempBlocks((prev) => [
                 errors={errors}
                 readOnly={!isEditing}
               />
-              <ExpandableTextarea
-                id="meetingMessage"
-                label="Social Media Message History (Optional)"
-                placeholder="Copy and paste any relevant social media conversations (e.g., LinkedIn, Twitter) with the prospect. (Optional)"
-                maxRows={5}
-                formData={formData}
-                setFormData={setFormData}
-                errors={errors}
-                readOnly={!isEditing}
-              />
+            
               <ExpandableTextarea
                 id="meetingNote"
                 label="Note (Optional)"
@@ -1729,7 +1732,7 @@ setTempBlocks((prev) => [
                 errors={errors}
                 readOnly={!isEditing}
               />
-            </CollapsibleSection>
+            </CollapsibleSection> */}
           </>
         )}
         {formVisible && (
