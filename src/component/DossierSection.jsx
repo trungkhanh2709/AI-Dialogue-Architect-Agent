@@ -22,8 +22,33 @@ export default function DossierSection({
 
         <select
           value={selectedToolHistory}
-          onChange={(e) => setSelectedToolHistory(e.target.value)}
-        >
+onChange={(e) => {
+  const id = e.target.value;
+  setSelectedToolHistory(id);
+
+  const selected = toolHistoryOptions.find((i) => i._id === id);
+  if (!selected) return;
+
+  let parsed = {};
+  try {
+    parsed =
+      typeof selected.result === "string"
+        ? JSON.parse(selected.result)
+        : selected.result || {};
+  } catch {}
+
+  const psych = parsed?.dossier?.psych || "";
+  const business = parsed?.dossier?.business || "";
+
+  // 🔥 set luôn vào form
+  setFormData((prev) => ({
+    ...prev,
+    conversionArchitectDossier: {
+      psych,
+      business,
+    },
+  }));
+}}        >
           <option value="">Select...</option>
 
           {toolHistoryOptions
@@ -46,8 +71,13 @@ export default function DossierSection({
         {isLoading ? "Generating..." : "Generate Dossier"}
       </button>
 
-    {dossier && showDossier && (
-  <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 12 }}>
+    {dossier  && (
+  <div style={{
+    marginTop: 12,
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 12,
+  }}>
     
     {dossier.psych && (
       <ResultBlock
@@ -102,6 +132,35 @@ export default function DossierSection({
         }}
       />
     )}
+
+  {dossier?.archive && (
+  <div style={{ marginTop: 12 }}>
+    <ResultBlock
+      label="Conversion Dossier (Archive)"
+      content={JSON.stringify(dossier.archive, null, 2)}
+      onOpen={() => {
+        setModalQueue([
+          {
+            key: "archive_dossier",
+            label: "Conversion Dossier",
+            text: JSON.stringify(dossier.archive, null, 2),
+          },
+        ]);
+        setModalIdx(0);
+        setModalOpen(true);
+      }}
+      onRemove={() => {
+        setFormData((prev) => ({
+          ...prev,
+          conversionArchitectDossier: {
+            ...(prev.conversionArchitectDossier || {}),
+            archive: "",
+          },
+        }));
+      }}
+    />
+  </div>
+)}
 
   </div>
 )}

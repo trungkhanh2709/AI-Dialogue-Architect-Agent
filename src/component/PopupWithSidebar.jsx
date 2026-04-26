@@ -127,7 +127,7 @@ export default function PopupWithSidebar({
   const [selectedToolHistory, setSelectedToolHistory] = useState("");
   const [showDossier, setShowDossier] = useState(false);
   const [brandDNA, setBrandDNA] = useState("");
-const [isArchiving, setIsArchiving] = useState(false);
+  const [isArchiving, setIsArchiving] = useState(false);
   useEffect(() => {
     chrome.runtime.sendMessage(
       { type: "GET_TOOL_HISTORY" },
@@ -216,7 +216,7 @@ const [isArchiving, setIsArchiving] = useState(false);
         userCompanyWebsite: selectedBlock.userCompanyWebsite || "",
         userKeyCompanyUrls:
           Array.isArray(selectedBlock.userKeyCompanyUrls) &&
-          selectedBlock.userKeyCompanyUrls.length
+            selectedBlock.userKeyCompanyUrls.length
             ? selectedBlock.userKeyCompanyUrls
             : ["", "", ""],
         prospectName: selectedBlock.prospectName || "",
@@ -280,7 +280,7 @@ const [isArchiving, setIsArchiving] = useState(false);
         userCompanyWebsite: selectedBlock.userCompanyWebsite || "",
         userKeyCompanyUrls:
           Array.isArray(selectedBlock.userKeyCompanyUrls) &&
-          selectedBlock.userKeyCompanyUrls.length
+            selectedBlock.userKeyCompanyUrls.length
             ? selectedBlock.userKeyCompanyUrls
             : ["", "", ""],
         prospectName: selectedBlock.prospectName || "",
@@ -554,8 +554,8 @@ const [isArchiving, setIsArchiving] = useState(false);
           console.error("GET_CONVERSION_ARCHITECT_FILES failed", response);
           setArtifactsError(
             response?.error ||
-              detailsMsg ||
-              `Unable to load Conversion Architect files${statusPart}.`
+            detailsMsg ||
+            `Unable to load Conversion Architect files${statusPart}.`
           );
           return;
         }
@@ -654,71 +654,78 @@ const [isArchiving, setIsArchiving] = useState(false);
     }
   }
 
- const handleArchiveDossier = () => {
-  if (isArchiving) return;
 
-  setIsArchiving(true);
+  const handleArchiveDossier = () => {
+    if (isArchiving) return;
 
-  const selectedHistory = toolHistoryOptions.find(
-    (item) => item._id === selectedToolHistory
-  );
+    setIsArchiving(true);
 
-  if (!selectedHistory) {
-    alert("Please select tool history");
-    setIsArchiving(false);
-    return;
-  }
+    const selectedHistory = toolHistoryOptions.find(
+      (item) => item._id === selectedToolHistory
+    );
 
-  let parsedResult = {};
-  try {
-    parsedResult =
-      typeof selectedHistory.result === "string"
-        ? JSON.parse(selectedHistory.result)
-        : selectedHistory.result || {};
-  } catch (e) {}
+    if (!selectedHistory) {
+      alert("Please select tool history");
+      setIsArchiving(false);
+      return;
+    }
 
-  // 🔥 FIX: extract dossier
- const psych = parsedResult?.dossier?.psych || "";
-const business = parsedResult?.dossier?.business || "";
+    let parsedResult = {};
+    try {
+      parsedResult =
+        typeof selectedHistory.result === "string"
+          ? JSON.parse(selectedHistory.result)
+          : selectedHistory.result || {};
+    } catch (e) { }
 
-// 🔥 lưu riêng
+    const architectMessages = parsedResult?.architectMessages || [];
+
+    const rawConversation = architectMessages
+      .map((m) => `${m.role}: ${m.content}`)
+      .join("\n");
+
+    chrome.runtime.sendMessage(
+      {
+        type: "ARCHIVE_CONVERSATION",
+        payload: {
+          raw_conversation_history: rawConversation,
+          existing_dossier: {
+            psych: parsedResult?.dossier?.psych || "",
+            business: parsedResult?.dossier?.business || "",
+          },
+        },
+      },
+      (res) => {
+        setIsArchiving(false);
+
+        if (!res?.ok) {
+          alert("Archive failed");
+          return;
+        }
+
+        const data = res.data?.content;
 setFormData((prev) => ({
   ...prev,
   conversionArchitectDossier: {
-    psych,
-    business,
+    ...(prev.conversionArchitectDossier || {}),
+    archive: data,
   },
 }));
+        // 🔥 KHÔNG đụng vào conversionArchitectDossier cũ
+        // 👉 chỉ add thêm block mới
+        setTempBlocks((prev) => [
+          ...prev.filter((b) => b.tempType !== "archive"),
+          {
+            id: "temp-archive",
+            name: "Conversion Dossier",
+            tempType: "archive",
+            resultText: JSON.stringify(data, null, 2),
+          },
+        ]);
+      }
+    );
+  };
 
-setShowDossier(true);
-
-// 🔥 modal queue 2 block
-const queue = [];
-if (psych) {
-  queue.push({
-    key: "dossier_psych",
-    label: "Dossier – Psych",
-    text: psych,
-  });
-}
-if (business) {
-  queue.push({
-    key: "dossier_business",
-    label: "Dossier – Business",
-    text: business,
-  });
-}
-
-setModalQueue(queue);
-setModalIdx(0);
-setModalOpen(true);
-
-  
-  setModalIdx(0);
-
-
-  setIsArchiving(false);
-};
 
   const handleStart = () => {
     chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
@@ -736,7 +743,7 @@ setModalOpen(true);
     let personaProfile = "";
     try {
       personaProfile = localStorage.getItem(LS_PERSONA_KEY) || "";
-    } catch {}
+    } catch { }
     return {
       username: decodedCookieEmail || "",
       name: formData.prospectName?.trim() || "",
@@ -805,16 +812,15 @@ setModalOpen(true);
             (res) => {
               let text;
               if (chrome.runtime.lastError) {
-                text = `Error: ${
-                  chrome.runtime.lastError.message || "Runtime error"
-                }`;
+                text = `Error: ${chrome.runtime.lastError.message || "Runtime error"
+                  }`;
               } else if (!res?.ok) {
                 const msg =
                   typeof res?.data === "string"
                     ? res.data
                     : res?.status
-                    ? `HTTP ${res.status}`
-                    : "Request failed.";
+                      ? `HTTP ${res.status}`
+                      : "Request failed.";
                 text = `Error: ${msg}`;
               } else {
                 const data = res.data;
@@ -822,8 +828,8 @@ setModalOpen(true);
                   typeof data === "string"
                     ? data
                     : data?.content
-                    ? String(data.content)
-                    : JSON.stringify(data, null, 2);
+                      ? String(data.content)
+                      : JSON.stringify(data, null, 2);
               }
               results.push({ key: "psych", label: "AI Psych Analyzer", text });
               resolve();
@@ -842,16 +848,15 @@ setModalOpen(true);
             (res) => {
               let text;
               if (chrome.runtime.lastError) {
-                text = `Error: ${
-                  chrome.runtime.lastError.message || "Runtime error"
-                }`;
+                text = `Error: ${chrome.runtime.lastError.message || "Runtime error"
+                  }`;
               } else if (!res?.ok) {
                 const msg =
                   typeof res?.data === "string"
                     ? res.data
                     : res?.status
-                    ? `HTTP ${res.status}`
-                    : "Request failed.";
+                      ? `HTTP ${res.status}`
+                      : "Request failed.";
                 text = `Error: ${msg}`;
               } else {
                 const data = res.data;
@@ -859,8 +864,8 @@ setModalOpen(true);
                   typeof data === "string"
                     ? data
                     : data?.content
-                    ? String(data.content)
-                    : JSON.stringify(data, null, 2);
+                      ? String(data.content)
+                      : JSON.stringify(data, null, 2);
               }
               results.push({ key: "bdna", label: "AI BusinessDNA", text });
               resolve();
@@ -1002,7 +1007,11 @@ setModalOpen(true);
         <SideBar
           blocks={mergedBlocks}
           onViewBlock={(block) => {
-            if (block?.tempType === "psych" || block?.tempType === "bdna") {
+            if (
+              block?.tempType === "psych" ||
+              block?.tempType === "bdna" ||
+              block?.tempType === "archive"
+            ) {
               setModalQueue([
                 {
                   key: block.tempType,
@@ -1019,7 +1028,11 @@ setModalOpen(true);
             setFormVisible(true);
           }}
           onEditBlock={(block) => {
-            if (block?.tempType === "psych" || block?.tempType === "bdna") {
+            if (
+              block?.tempType === "psych" ||
+              block?.tempType === "bdna" ||
+              block?.tempType === "archive"
+            ) {
               setModalQueue([
                 {
                   key: block.tempType,
@@ -1037,15 +1050,19 @@ setModalOpen(true);
           }}
           onDeleteBlock={async (block) => {
             // 1) Block tạm (psych / bdna) -> chỉ xoá local
-            if (block?.tempType) {
-              setTempBlocks((prev) => prev.filter((b) => b.id !== block.id));
-              if (block.tempType === "psych") {
-                setStagedResults((r) => ({ ...r, psych: "" }));
-              } else if (block.tempType === "bdna") {
-                setStagedResults((r) => ({ ...r, bdna: "" }));
-              }
-              return;
-            }
+           if (block?.tempType) {
+  setTempBlocks((prev) => prev.filter((b) => b.id !== block.id));
+
+  if (block.tempType === "psych") {
+    setStagedResults((r) => ({ ...r, psych: "" }));
+  } else if (block.tempType === "bdna") {
+    setStagedResults((r) => ({ ...r, bdna: "" }));
+  } else if (block.tempType === "archive") {
+    // không ảnh hưởng stagedResults
+  }
+
+  return;
+}
 
             // 2) Block thật (meeting_prepare) -> hỏi confirm
             if (
@@ -1120,9 +1137,8 @@ setModalOpen(true);
       </div>
 
       <button
-        className={`sidebar-toggle ${
-          sidebarVisible ? "expanded" : "collapsed"
-        }`}
+        className={`sidebar-toggle ${sidebarVisible ? "expanded" : "collapsed"
+          }`}
         onClick={() => setSidebarVisible((v) => !v)}
       >
         {sidebarVisible ? "<" : ">"}
@@ -1171,22 +1187,22 @@ setModalOpen(true);
                 readOnly={!isEditing}
               />
 
- <DossierSection
-  toolHistoryOptions={toolHistoryOptions}
-  selectedToolHistory={selectedToolHistory}
-  setSelectedToolHistory={setSelectedToolHistory}
-  onGenerate={handleArchiveDossier}
-  isLoading={isArchiving}
-  dossier={formData.conversionArchitectDossier}
-  showDossier={showDossier}
-  setShowDossier={setShowDossier}
-  setFormData={setFormData}
-  setModalQueue={setModalQueue}
-  setModalIdx={setModalIdx}
-  setModalOpen={setModalOpen}
-/>
+              <DossierSection
+                toolHistoryOptions={toolHistoryOptions}
+                selectedToolHistory={selectedToolHistory}
+                setSelectedToolHistory={setSelectedToolHistory}
+                onGenerate={handleArchiveDossier}
+                isLoading={isArchiving}
+                dossier={formData.conversionArchitectDossier}
+                showDossier={showDossier}
+                setShowDossier={setShowDossier}
+                setFormData={setFormData}
+                setModalQueue={setModalQueue}
+                setModalIdx={setModalIdx}
+                setModalOpen={setModalOpen}
+              />
 
-           
+
 
 
 
@@ -1230,9 +1246,8 @@ setModalOpen(true);
                     <button
                       key={option.key}
                       type="button"
-                      className={`agent-model-button ${
-                        formData.agentModelKey === option.key ? "active" : ""
-                      }`}
+                      className={`agent-model-button ${formData.agentModelKey === option.key ? "active" : ""
+                        }`}
                       onClick={() =>
                         setFormData((prev) => ({
                           ...prev,
@@ -1309,10 +1324,10 @@ setModalOpen(true);
                     {!formData.profileId
                       ? "Select a profile first"
                       : artifactsLoading
-                      ? "Loading files..."
-                      : filteredArtifacts.length
-                      ? "Select a generated file"
-                      : "No files available"}
+                        ? "Loading files..."
+                        : filteredArtifacts.length
+                          ? "Select a generated file"
+                          : "No files available"}
                   </option>
                   {filteredArtifacts.map((artifact) => (
                     <option key={artifact.id} value={artifact.id}>
@@ -1553,7 +1568,7 @@ setModalOpen(true);
                       onRemove={
                         isEditing
                           ? () =>
-                              setStagedResults((r) => ({ ...r, psych: "" }))
+                            setStagedResults((r) => ({ ...r, psych: "" }))
                           : undefined
                       }
                     />
@@ -1566,7 +1581,7 @@ setModalOpen(true);
                       onRemove={
                         isEditing
                           ? () =>
-                              setStagedResults((r) => ({ ...r, bdna: "" }))
+                            setStagedResults((r) => ({ ...r, bdna: "" }))
                           : undefined
                       }
                     />
@@ -1621,16 +1636,16 @@ setModalOpen(true);
               openSections={openSections}
               setOpenSections={setOpenSections}
             >
-            <InputField
-  id="designatedTime"
-  label="Designated Time"
-  type="text"
-  value={formData.designatedTime}
-  onChange={handleChange}
-placeholder="e.g., 15 (minutes)"
-  error={errors.designatedTime}
-  readOnly={!isEditing}
-/>
+              <InputField
+                id="designatedTime"
+                label="Designated Time"
+                type="text"
+                value={formData.designatedTime}
+                onChange={handleChange}
+                placeholder="e.g., 15 (minutes)"
+                error={errors.designatedTime}
+                readOnly={!isEditing}
+              />
 
               <ExpandableTextarea
                 id="meetingGoal"
@@ -1731,9 +1746,8 @@ placeholder="e.g., 15 (minutes)"
       {modalOpen && modalQueue[modalIdx] && (
         <ResultModal
           open={true}
-          title={`${modalQueue[modalIdx].label} (${
-            modalIdx + 1
-          }/${modalQueue.length})`}
+          title={`${modalQueue[modalIdx].label} (${modalIdx + 1
+            }/${modalQueue.length})`}
           value={modalQueue[modalIdx].text}
           setValue={(v) => {
             setModalQueue((prev) => {
@@ -1745,7 +1759,7 @@ placeholder="e.g., 15 (minutes)"
           onCopy={() =>
             navigator.clipboard
               ?.writeText(modalQueue[modalIdx].text)
-              .catch(() => {})
+              .catch(() => { })
           }
           onClose={() => {
             setModalOpen(false);
