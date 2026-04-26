@@ -133,7 +133,12 @@ onChange={(e) => {
       />
     )}
 
-  {dossier?.archive && (
+  
+
+  </div>
+  
+)}
+{dossier?.archive && (
   <div style={{ marginTop: 12 }}>
     <ResultBlock
       label="Conversion Dossier (Archive)"
@@ -159,9 +164,6 @@ onChange={(e) => {
         }));
       }}
     />
-  </div>
-)}
-
   </div>
 )}
     </>

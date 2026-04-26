@@ -704,6 +704,8 @@ export default function PopupWithSidebar({
         }
 
         const data = res.data?.content;
+
+// ✅ merge vào formData để save được
 setFormData((prev) => ({
   ...prev,
   conversionArchitectDossier: {
@@ -711,6 +713,17 @@ setFormData((prev) => ({
     archive: data,
   },
 }));
+
+// vẫn giữ block hiển thị
+setTempBlocks((prev) => [
+  ...prev.filter((b) => b.tempType !== "archive"),
+  {
+    id: "temp-archive",
+    name: "Conversion Dossier",
+    tempType: "archive",
+    resultText: JSON.stringify(data, null, 2),
+  },
+]);
         // 🔥 KHÔNG đụng vào conversionArchitectDossier cũ
         // 👉 chỉ add thêm block mới
         setTempBlocks((prev) => [
@@ -942,8 +955,7 @@ setFormData((prev) => ({
           formData.conversionArchitectFileName || "",
         conversionArchitectDossier:
           formData.conversionArchitectDossier || "",
-        conversion_architect_dossier:
-          formData.conversionArchitectDossier || "",
+    
         conversionArchitectAnalysis:
           formData.conversionArchitectAnalysis || "",
         conversionArchitectChatOutput:
