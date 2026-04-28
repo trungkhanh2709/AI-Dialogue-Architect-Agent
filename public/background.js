@@ -14,7 +14,7 @@ const WEBSITE_URL = "https://reelsightsai.com/";
 const WEBSITE_DASHBOARD_URL = "https://reelsightsai.com/dashboard";
 const ACCOUNT_SESSION_STORAGE_KEY = "rsai_account_session_v1";
 // Change this to: "prod" | "beta" | "local"
-const ACTIVE_BACKEND = "local";
+const ACTIVE_BACKEND = "beta";
 const VITE_URL_BACKEND =
   ACTIVE_BACKEND === "prod"
     ? URL_BACKEND_PROD

@@ -1,4 +1,4 @@
-// src/components/PopupWithSidebar.jsx
+// src/components/ScheduleMode.jsx
 import React, { useState, useEffect } from "react";
 import SideBar from "./Sidebar";
 import InboxOutlined from "../assets/InboxOutlined.svg?react";
@@ -42,7 +42,7 @@ const AGENT_MODEL_OPTIONS = [
   },
 ];
 
-export default function PopupWithSidebar({
+export default function ScheduleMode({
   onStartMeeting,
   onSelectBlock,
   decodedCookieEmail,
@@ -705,25 +705,25 @@ export default function PopupWithSidebar({
 
         const data = res.data?.content;
 
-// ✅ merge vào formData để save được
-setFormData((prev) => ({
-  ...prev,
-  conversionArchitectDossier: {
-    ...(prev.conversionArchitectDossier || {}),
-    archive: data,
-  },
-}));
+        // ✅ merge vào formData để save được
+        setFormData((prev) => ({
+          ...prev,
+          conversionArchitectDossier: {
+            ...(prev.conversionArchitectDossier || {}),
+            archive: data,
+          },
+        }));
 
-// vẫn giữ block hiển thị
-setTempBlocks((prev) => [
-  ...prev.filter((b) => b.tempType !== "archive"),
-  {
-    id: "temp-archive",
-    name: "Conversion Dossier",
-    tempType: "archive",
-    resultText: JSON.stringify(data, null, 2),
-  },
-]);
+        // vẫn giữ block hiển thị
+        setTempBlocks((prev) => [
+          ...prev.filter((b) => b.tempType !== "archive"),
+          {
+            id: "temp-archive",
+            name: "Conversion Dossier",
+            tempType: "archive",
+            resultText: JSON.stringify(data, null, 2),
+          },
+        ]);
         // 🔥 KHÔNG đụng vào conversionArchitectDossier cũ
         // 👉 chỉ add thêm block mới
         setTempBlocks((prev) => [
@@ -955,7 +955,7 @@ setTempBlocks((prev) => [
           formData.conversionArchitectFileName || "",
         conversionArchitectDossier:
           formData.conversionArchitectDossier || "",
-    
+
         conversionArchitectAnalysis:
           formData.conversionArchitectAnalysis || "",
         conversionArchitectChatOutput:
@@ -1062,19 +1062,19 @@ setTempBlocks((prev) => [
           }}
           onDeleteBlock={async (block) => {
             // 1) Block tạm (psych / bdna) -> chỉ xoá local
-           if (block?.tempType) {
-  setTempBlocks((prev) => prev.filter((b) => b.id !== block.id));
+            if (block?.tempType) {
+              setTempBlocks((prev) => prev.filter((b) => b.id !== block.id));
 
-  if (block.tempType === "psych") {
-    setStagedResults((r) => ({ ...r, psych: "" }));
-  } else if (block.tempType === "bdna") {
-    setStagedResults((r) => ({ ...r, bdna: "" }));
-  } else if (block.tempType === "archive") {
-    // không ảnh hưởng stagedResults
-  }
+              if (block.tempType === "psych") {
+                setStagedResults((r) => ({ ...r, psych: "" }));
+              } else if (block.tempType === "bdna") {
+                setStagedResults((r) => ({ ...r, bdna: "" }));
+              } else if (block.tempType === "archive") {
+                // không ảnh hưởng stagedResults
+              }
 
-  return;
-}
+              return;
+            }
 
             // 2) Block thật (meeting_prepare) -> hỏi confirm
             if (
@@ -1090,7 +1090,7 @@ setTempBlocks((prev) => [
                 const appToken = await signInAndGetCalendarToken();
                 if (!appToken) {
                   console.warn(
-                    "[PopupWithSidebar] Cannot get app token for calendar, skip calendar delete"
+                    "[ScheduleMode] Cannot get app token for calendar, skip calendar delete"
                   );
                 } else if (
                   typeof chrome !== "undefined" &&
@@ -1110,13 +1110,13 @@ setTempBlocks((prev) => [
                     );
                   });
                   console.log(
-                    "[PopupWithSidebar] calendar delete result:",
+                    "[ScheduleMode] calendar delete result:",
                     resDel
                   );
                 }
               } catch (err) {
                 console.error(
-                  "[PopupWithSidebar] delete calendar event failed:",
+                  "[ScheduleMode] delete calendar event failed:",
                   err
                 );
                 // không chặn xoá meeting_prepare nếu xoá calendar fail
@@ -1188,36 +1188,36 @@ setTempBlocks((prev) => [
               openSections={openSections}
               setOpenSections={setOpenSections}
             > */}
-              <InputField
-                id="title"
-                label="Title"
-                type="text"
-                value={formData.title}
-                onChange={handleChange}
-                placeholder="Meeting Title"
-                error={errors.title}
-                readOnly={!isEditing}
-              />
+            <InputField
+              id="title"
+              label="Title"
+              type="text"
+              value={formData.title}
+              onChange={handleChange}
+              placeholder="Meeting Title"
+              error={errors.title}
+              readOnly={!isEditing}
+            />
 
-              <DossierSection
-                toolHistoryOptions={toolHistoryOptions}
-                selectedToolHistory={selectedToolHistory}
-                setSelectedToolHistory={setSelectedToolHistory}
-                onGenerate={handleArchiveDossier}
-                isLoading={isArchiving}
-                dossier={formData.conversionArchitectDossier}
-                showDossier={showDossier}
-                setShowDossier={setShowDossier}
-                setFormData={setFormData}
-                setModalQueue={setModalQueue}
-                setModalIdx={setModalIdx}
-                setModalOpen={setModalOpen}
-              />
-
-
+            <DossierSection
+              toolHistoryOptions={toolHistoryOptions}
+              selectedToolHistory={selectedToolHistory}
+              setSelectedToolHistory={setSelectedToolHistory}
+              onGenerate={handleArchiveDossier}
+              isLoading={isArchiving}
+              dossier={formData.conversionArchitectDossier}
+              showDossier={showDossier}
+              setShowDossier={setShowDossier}
+              setFormData={setFormData}
+              setModalQueue={setModalQueue}
+              setModalIdx={setModalIdx}
+              setModalOpen={setModalOpen}
+            />
 
 
 
+
+            {/* 
               {brandDNA && (
                 <div style={{ marginTop: 12 }}>
                   <ResultBlock
@@ -1243,9 +1243,10 @@ setTempBlocks((prev) => [
                     }}
                   />
                 </div>
-              )}
+              )} */}
 
-              {/* <div className="agent-model-picker">
+
+            {/* <div className="agent-model-picker">
                 <div className="agent-model-picker__label">
                   AI model test routes
                 </div>
@@ -1277,37 +1278,37 @@ setTempBlocks((prev) => [
                   ))}
                 </div>
               </div> */}
-              <GoogleCalendar
-                formData={formData}
-                handleChange={handleChange}
-                error={errors}
-                onSaveWithCalendar={handleSave}
-                readOnly={!isEditing}
-                currentStep={currentStep}
-                setCurrentStep={setCurrentStep}
-                setOpenSections={setOpenSections}
-              />
+            <GoogleCalendar
+              formData={formData}
+              handleChange={handleChange}
+              error={errors}
+              onSaveWithCalendar={handleSave}
+              readOnly={!isEditing}
+              currentStep={currentStep}
+              setCurrentStep={setCurrentStep}
+              setOpenSections={setOpenSections}
+            />
 
-               <ExpandableTextarea
-                id="meetingGoal"
-                label="Meeting Goal"
-                placeholder="Describe your objective clearly (e.g., secure a partnership, schedule a demo, explore collaboration, close a sale)."
-                maxRows={5}
-                formData={formData}
-                setFormData={setFormData}
-                errors={errors}
-                readOnly={!isEditing}
-              />
-                <ExpandableTextarea
-                id="meetingMessage"
-                label="Social Media Message History (Optional)"
-                placeholder="Copy and paste any relevant social media conversations (e.g., LinkedIn, Twitter) with the prospect. (Optional)"
-                maxRows={5}
-                formData={formData}
-                setFormData={setFormData}
-                errors={errors}
-                readOnly={!isEditing}
-              />
+            <ExpandableTextarea
+              id="meetingGoal"
+              label="Meeting Goal"
+              placeholder="Describe your objective clearly (e.g., secure a partnership, schedule a demo, explore collaboration, close a sale)."
+              maxRows={5}
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+              readOnly={!isEditing}
+            />
+            <ExpandableTextarea
+              id="meetingMessage"
+              label="Social Media Message History (Optional)"
+              placeholder="Copy and paste any relevant social media conversations (e.g., LinkedIn, Twitter) with the prospect. (Optional)"
+              maxRows={5}
+              formData={formData}
+              setFormData={setFormData}
+              errors={errors}
+              readOnly={!isEditing}
+            />
             {/* </CollapsibleSection> */}
 
             {/* Step 2: User A */}

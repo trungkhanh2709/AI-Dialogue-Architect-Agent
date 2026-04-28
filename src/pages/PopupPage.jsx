@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import PopupWithSidebar from "../component/PopupWithSidebar.jsx";
+import ScheduleMode from "../component/ScheduleMode.jsx";
 import ExpandableTextarea from "../component/ExpandableTextarea.jsx";
 import SettingLineLight from "../assets/Setting_line_light.svg?react";
 import SettingsPage from "../component/SettingsPage.jsx";
@@ -308,13 +308,21 @@ useEffect(() => {
 
   const handleBack = () => setStep((prev) => prev - 1);
 
-  const handleStart = () => {
-    if (!validateStep()) return;
-    chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
-      chrome.runtime.sendMessage({ type: "START_TIMER" });
-    });
-    onStartMeeting(formData);
-  };
+const handleStart = () => {
+  console.log("clicked");
+
+  // ✅ chỉ validate khi KHÔNG phải instant
+  if (tab !== "instant" && !validateStep()) {
+    console.log("blocked by validate");
+    return;
+  }
+
+  chrome.runtime.sendMessage({ type: "RESET_TIMER" }, () => {
+    chrome.runtime.sendMessage({ type: "START_TIMER" });
+  });
+
+  onStartMeeting(formData);
+};
 
   const renderTextarea = (id, label, rows = 3, placeholder) => {
     const words =
@@ -494,7 +502,7 @@ useEffect(() => {
 
       {tab === "schedule" && (
         <div className="schedule-container">
-          <PopupWithSidebar
+          <ScheduleMode
             onStartMeeting={onStartMeeting}
             decodedCookieEmail={decodedCookieEmail}
             onSelectBlock={(block) => console.log("Selected:", block)}
