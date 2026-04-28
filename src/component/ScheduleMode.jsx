@@ -1010,6 +1010,10 @@ export default function ScheduleMode({
     }
   };
 
+useEffect(() => {
+  handleCreateNew();
+}, []);
+
   // ==== RENDER ====
   const mergedBlocks = [...blocks, ...tempBlocks]; // hiển thị block thật + block tạm
 
